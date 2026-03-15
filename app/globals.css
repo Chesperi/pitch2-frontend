@@ -1,26 +1,17 @@
 @import "tailwindcss";
-
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@config "../tailwind.config.js";
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* PITCH_2 palette (kept for Tailwind v4 @theme compatibility) */
+  --color-pitch-bg: #000000;
+  --color-pitch-accent: #FFFA00;
+  --color-pitch-white: #FFFFFF;
+  --color-pitch-gray-light: #F4F4F6;
+  --color-pitch-gray: #868A8C;
+  --color-pitch-gray-dark: #3F4547;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-pitch-bg);
+  color: var(--color-pitch-white);
 }

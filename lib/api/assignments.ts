@@ -1,5 +1,146 @@
 import { getApiBaseUrl } from "./config";
 
+// --- Designator API (assignments by event) ---
+
+export type AssignmentStatus = "DRAFT" | "SENT" | "CONFIRMED" | "REJECTED";
+
+export type AssignmentWithJoins = {
+  id: number;
+  event_id: number;
+  role_id: number;
+  staff_id: number | null;
+  status: AssignmentStatus;
+  notes: string | null;
+  event_external_match_id: string;
+  event_category: string;
+  event_competition_name: string;
+  event_competition_code: string;
+  event_match_day: string;
+  event_home_team_name_short: string;
+  event_away_team_name_short: string;
+  event_venue_name: string;
+  event_venue_city: string;
+  event_ko_italy: string;
+  event_status: string;
+  staff_surname: string | null;
+  staff_name: string | null;
+  staff_email: string | null;
+  staff_phone: string | null;
+  staff_company: string | null;
+  staff_fee: number | null;
+  staff_plates: string | null;
+  role_code: string;
+  role_name: string;
+  role_location: string;
+  /** Alias camelCase (normalizzati da normalizeAssignment) */
+  roleCode?: string;
+  roleName?: string;
+  roleLocation?: string;
+  staffId?: number | null;
+  staffSurname?: string | null;
+  staffName?: string | null;
+  staffFee?: number | null;
+};
+
+function normalizeAssignment(item: Record<string, unknown>): AssignmentWithJoins {
+  const base = { ...item } as AssignmentWithJoins;
+  const roleCode = String(item.role_code ?? item.roleCode ?? "");
+  const roleName = String(item.role_name ?? item.roleName ?? "");
+  const staffId = (item.staff_id ?? item.staffId ?? null) as number | null;
+  const staffSurname = (item.staff_surname ?? item.staffSurname ?? null) as string | null;
+  const staffName = (item.staff_name ?? item.staffName ?? null) as string | null;
+
+  base.role_code = roleCode;
+  base.role_name = roleName;
+  base.role_location = String(item.role_location ?? item.roleLocation ?? "");
+  const staffFee = (item.staff_fee ?? item.staffFee ?? null) as number | null;
+  base.staff_id = staffId;
+  base.staff_surname = staffSurname;
+  base.staff_name = staffName;
+  base.staff_fee = staffFee;
+
+  base.roleCode = roleCode;
+  base.roleName = roleName;
+  base.staffId = staffId;
+  base.staffSurname = staffSurname;
+  base.staffName = staffName;
+  base.staffFee = staffFee;
+  return base;
+}
+
+/** Preserva roleCode/roleName da previous se updated non li contiene (es. PATCH staffId:null) */
+export function preserveRoleFrom(
+  updated: AssignmentWithJoins,
+  previous: AssignmentWithJoins
+): AssignmentWithJoins {
+  const hasRole = (u: AssignmentWithJoins) =>
+    (u.roleCode ?? u.role_code) && (u.roleCode ?? u.role_code) !== "";
+  if (hasRole(updated)) return updated;
+  const prevCode = previous.roleCode ?? previous.role_code;
+  const prevName = previous.roleName ?? previous.role_name;
+  if (!prevCode) return updated;
+  return {
+    ...updated,
+    roleCode: prevCode,
+    roleName: prevName ?? "",
+    role_code: prevCode,
+    role_name: prevName ?? "",
+  };
+}
+
+export async function fetchAssignmentsByEvent(
+  eventId: number
+): Promise<AssignmentWithJoins[]> {
+  const url = `${getApiBaseUrl()}/api/assignments?eventId=${eventId}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Failed to fetch assignments: ${res.status}`);
+  const data = await res.json();
+  const items = Array.isArray(data) ? data : data.items ?? [];
+  return items.map((item: Record<string, unknown>) => normalizeAssignment(item));
+}
+
+export async function createEmptyAssignmentSlot(
+  eventId: number,
+  roleId: number
+): Promise<AssignmentWithJoins> {
+  const url = `${getApiBaseUrl()}/api/assignments`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ eventId, roleId }),
+  });
+  if (!res.ok) throw new Error(`Failed to create assignment: ${res.status}`);
+  const data = await res.json();
+  return normalizeAssignment(data);
+}
+
+export type UpdateAssignmentPayload = {
+  staffId?: number | null;
+  status?: AssignmentStatus;
+  notes?: string | null;
+};
+
+export async function updateDesignatorAssignment(
+  id: number,
+  payload: UpdateAssignmentPayload
+): Promise<AssignmentWithJoins> {
+  const url = `${getApiBaseUrl()}/api/assignments/${id}`;
+  const body: Record<string, unknown> = {};
+  if (payload.staffId !== undefined) body.staffId = payload.staffId;
+  if (payload.status !== undefined) body.status = payload.status;
+  if (payload.notes !== undefined) body.notes = payload.notes;
+  const res = await fetch(url, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`Failed to update assignment: ${res.status}`);
+  const data = await res.json();
+  return normalizeAssignment(data);
+}
+
+// --- Staff assignments (Le mie assegnazioni) ---
+
 export type AssignmentDTO = {
   id: number;
   event_id: number;

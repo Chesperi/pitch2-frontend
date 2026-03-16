@@ -2,7 +2,7 @@ import { getApiBaseUrl } from "./config";
 
 // --- Designator API (assignments by event) ---
 
-export type AssignmentStatus = "DRAFT" | "SENT" | "CONFIRMED" | "REJECTED";
+export type AssignmentStatus = "DRAFT" | "READY" | "SENT" | "CONFIRMED" | "REJECTED";
 
 export type AssignmentWithJoins = {
   id: number;
@@ -50,9 +50,11 @@ function normalizeAssignment(item: Record<string, unknown>): AssignmentWithJoins
   const staffSurname = (item.staff_surname ?? item.staffSurname ?? null) as string | null;
   const staffName = (item.staff_name ?? item.staffName ?? null) as string | null;
 
+  const roleLocation = String(item.role_location ?? item.roleLocation ?? item.role_area ?? "");
   base.role_code = roleCode;
   base.role_name = roleName;
-  base.role_location = String(item.role_location ?? item.roleLocation ?? "");
+  base.role_location = roleLocation;
+  base.roleLocation = roleLocation;
   const staffFee = (item.staff_fee ?? item.staffFee ?? null) as number | null;
   base.staff_id = staffId;
   base.staff_surname = staffSurname;
@@ -99,6 +101,53 @@ export async function fetchAssignmentsByEvent(
   return items.map((item: Record<string, unknown>) => normalizeAssignment(item));
 }
 
+export async function fetchAssignmentsByStaff(
+  staffId: number
+): Promise<AssignmentWithJoins[]> {
+  const url = `${getApiBaseUrl()}/api/assignments?staffId=${staffId}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Failed to fetch assignments by staff");
+  const data = await res.json();
+  const items = Array.isArray(data) ? data : data.items ?? [];
+  return items.map((item: Record<string, unknown>) => normalizeAssignment(item));
+}
+
+export async function fetchAssignmentsByPeriod(
+  from: string,
+  to: string
+): Promise<AssignmentWithJoins[]> {
+  const url = `${getApiBaseUrl()}/api/assignments?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Failed to fetch assignments by period");
+  const data = await res.json();
+  const items = Array.isArray(data) ? data : data.items ?? [];
+  return items.map((item: Record<string, unknown>) => normalizeAssignment(item));
+}
+
+export async function sendDesignazioniForPerson(
+  staffId: number,
+  assignmentIds: number[]
+): Promise<void> {
+  const res = await fetch(`${getApiBaseUrl()}/api/designazioni/send-person`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ staffId, assignmentIds }),
+  });
+  if (!res.ok) throw new Error("Failed to send person email");
+}
+
+export async function sendDesignazioniForPeriod(
+  from: string,
+  to: string
+): Promise<void> {
+  const res = await fetch(`${getApiBaseUrl()}/api/designazioni/send-period`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ from, to }),
+  });
+  if (!res.ok) throw new Error("Failed to send period emails");
+}
+
 export async function createEmptyAssignmentSlot(
   eventId: number,
   roleId: number
@@ -119,6 +168,30 @@ export type UpdateAssignmentPayload = {
   status?: AssignmentStatus;
   notes?: string | null;
 };
+
+export async function deleteDesignatorAssignment(id: number): Promise<void> {
+  const url = `${getApiBaseUrl()}/api/assignments/${id}`;
+  const res = await fetch(url, { method: "DELETE" });
+  if (!res.ok) {
+    throw new Error("Failed to delete assignment");
+  }
+}
+
+export async function markAssignmentsReady(params: {
+  eventId: number;
+  assignmentIds: number[];
+}): Promise<void> {
+  const { eventId, assignmentIds } = params;
+  const url = `${getApiBaseUrl()}/api/events/${eventId}/assignments-ready`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ assignmentIds }),
+  });
+  if (!res.ok) {
+    throw new Error("Failed to mark assignments ready");
+  }
+}
 
 export async function updateDesignatorAssignment(
   id: number,

@@ -8,13 +8,14 @@ import {
   fetchAssignmentsByEvent,
   createEmptyAssignmentSlot,
   updateDesignatorAssignment,
+  deleteDesignatorAssignment,
+  markAssignmentsReady,
   type AssignmentWithJoins,
 } from "@/lib/api/assignments";
 import { generateAssignmentsFromStandard } from "@/lib/api/standardRequirements";
 import {
   fetchEventById,
   fetchEvents,
-  updateEventAssignmentsStatus,
   type EventAssignmentsStatus,
   type EventItem,
 } from "@/lib/api/events";
@@ -80,9 +81,28 @@ function getAssignmentStatusClasses(status: string): string {
       return "bg-red-900/50 text-red-300";
     case "SENT":
       return "bg-blue-900/50 text-blue-300";
+    case "READY":
+      return "bg-yellow-900/50 text-yellow-300";
     case "DRAFT":
     default:
       return "bg-pitch-gray-dark text-pitch-gray-light";
+  }
+}
+
+function getAssignmentStatusLabel(status: string): string {
+  switch (status) {
+    case "DRAFT":
+      return "Bozza";
+    case "READY":
+      return "Pronto";
+    case "SENT":
+      return "Inviato";
+    case "CONFIRMED":
+      return "Confermato";
+    case "REJECTED":
+      return "Rifiutato";
+    default:
+      return status;
   }
 }
 
@@ -228,9 +248,28 @@ export default function DesignazioniEventPage() {
     setReadyMap(initialReady);
   }, [event?.id, assignments]);
 
-  const allReady =
-    assignments.length > 0 &&
-    assignments.every((a) => a.staffId != null && readyMap[a.id]);
+  const hasAnyReady = assignments.some((a) => readyMap[a.id]);
+
+  const sortedAssignments = useMemo(() => {
+    return [...assignments].sort((a, b) => {
+      const locA = (a.roleLocation ?? a.role_location ?? "").toUpperCase();
+      const locB = (b.roleLocation ?? b.role_location ?? "").toUpperCase();
+
+      // STADIO prima di COLOGNO
+      if (locA === "STADIO" && locB === "COLOGNO") return -1;
+      if (locA === "COLOGNO" && locB === "STADIO") return 1;
+
+      // stessa location (o entrambe vuote): ordina per nome ruolo
+      const nameA = (a.roleName ?? a.role_name ?? a.roleCode ?? a.role_code ?? "")
+        .toLocaleLowerCase();
+      const nameB = (b.roleName ?? b.role_name ?? b.roleCode ?? b.role_code ?? "")
+        .toLocaleLowerCase();
+
+      if (nameA < nameB) return -1;
+      if (nameA > nameB) return 1;
+      return 0;
+    });
+  }, [assignments]);
 
   const reloadAssignments = useCallback(async () => {
     const data = await fetchAssignmentsByEvent(eventId);
@@ -279,8 +318,8 @@ export default function DesignazioniEventPage() {
   const handleAddSlot = async (roleId: number) => {
     setAddingSlot(true);
     try {
-      const created = await createEmptyAssignmentSlot(eventId, roleId);
-      setAssignments((prev) => [...prev, created]);
+      await createEmptyAssignmentSlot(eventId, roleId);
+      await reloadAssignments();
     } catch (e) {
       alert(e instanceof Error ? e.message : "Errore");
     } finally {
@@ -305,13 +344,23 @@ export default function DesignazioniEventPage() {
     }
   };
 
-  const handleProntoAllInvio = async () => {
-    if (!event || !allReady) return;
+  const handleReadyToSend = async () => {
+    const selectedIds = assignments
+      .filter((a) => readyMap[a.id])
+      .map((a) => a.id);
+
+    if (selectedIds.length === 0) return;
+    if (!event) return;
+
     try {
-      const updated = await updateEventAssignmentsStatus(event.id, "READY_TO_SEND");
-      setEvent(updated);
+      await markAssignmentsReady({
+        eventId: event.id,
+        assignmentIds: selectedIds,
+      });
+      await loadEvent();
+      await reloadAssignments();
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Errore");
+      alert(e instanceof Error ? e.message : "Failed to mark assignments ready");
     }
   };
 
@@ -438,8 +487,8 @@ export default function DesignazioniEventPage() {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={handleProntoAllInvio}
-              disabled={!allReady}
+              onClick={handleReadyToSend}
+              disabled={!hasAnyReady}
               className="rounded bg-pitch-accent px-3 py-1 text-xs font-semibold text-pitch-bg hover:bg-yellow-200 disabled:cursor-not-allowed disabled:bg-pitch-gray-dark disabled:text-pitch-gray"
             >
               Pronto all&apos;invio
@@ -512,10 +561,13 @@ export default function DesignazioniEventPage() {
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
                   OK
                 </th>
+                <th className="px-4 py-3 text-right text-sm font-medium text-pitch-gray">
+                  Azioni
+                </th>
               </tr>
             </thead>
             <tbody>
-              {assignments.map((a) => {
+              {sortedAssignments.map((a) => {
                 const isAssigned = a.staffId != null;
                 const roleCode = a.roleCode || "—";
 
@@ -562,7 +614,7 @@ export default function DesignazioniEventPage() {
                       <span
                         className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getAssignmentStatusClasses(a.status)}`}
                       >
-                        {a.status}
+                        {getAssignmentStatusLabel(a.status)}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -597,6 +649,26 @@ export default function DesignazioniEventPage() {
                             : "Designazione pronta"
                         }
                       />
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      <button
+                        type="button"
+                        className="text-xs text-red-400 hover:text-red-300"
+                        onClick={async () => {
+                          const confirmDelete = window.confirm(
+                            "Vuoi cancellare questo slot?"
+                          );
+                          if (!confirmDelete) return;
+                          try {
+                            await deleteDesignatorAssignment(a.id);
+                            await reloadAssignments();
+                          } catch (err) {
+                            console.error(err);
+                          }
+                        }}
+                      >
+                        Cancella
+                      </button>
                     </td>
                   </tr>
                 );

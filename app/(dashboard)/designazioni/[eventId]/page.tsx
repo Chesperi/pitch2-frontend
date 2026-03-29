@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { PageHeader } from "@/components/PageHeader";
 import {
   fetchAssignmentsByEvent,
@@ -10,9 +16,15 @@ import {
   updateDesignatorAssignment,
   deleteDesignatorAssignment,
   markAssignmentsReady,
+  StaffRoleNotCompatibleError,
+  type AssignmentStatus,
   type AssignmentWithJoins,
 } from "@/lib/api/assignments";
-import { generateAssignmentsFromStandard } from "@/lib/api/standardRequirements";
+import {
+  fetchStandardRequirements,
+  generateAssignmentsFromStandard,
+  type StandardRequirementWithRole,
+} from "@/lib/api/standardRequirements";
 import {
   fetchEventById,
   fetchEvents,
@@ -106,21 +118,183 @@ function getAssignmentStatusLabel(status: string): string {
   }
 }
 
+/** Valori `EventAssignmentsStatus` (tipo frontend); sul DB compaiono soprattutto DRAFT e READY_TO_SEND. */
+const EVENT_ASSIGNMENTS_STATUS_INFO = {
+  DRAFT: {
+    label: "Bozza",
+    description:
+      "Designazioni dell’evento ancora in lavorazione, senza invio mail collettivo completato.",
+  },
+  READY_TO_SEND: {
+    label: "Pronto invio",
+    description:
+      "Evento pronto per generare/inviare le email di designazione ai freelance.",
+  },
+  SENT: {
+    label: "Inviato",
+    description:
+      "Solo uso UI/API esteso: mail inviate; esito sulle singole righe (AssignmentStatus).",
+  },
+} satisfies Record<
+  EventAssignmentsStatus,
+  { label: string; description: string }
+>;
+
+/** Valori `AssignmentStatus` (allineati a pitch-backend). */
+const ASSIGNMENT_STATUS_INFO = {
+  DRAFT: {
+    label: "Bozza",
+    description:
+      "Slot creato o in bozza, spesso senza persona o fuori dal blocco «pronto all’invio».",
+  },
+  READY: {
+    label: "Pronto",
+    description:
+      "Riga inclusa nel prossimo invio mail (checkbox OK in tabella).",
+  },
+  SENT: {
+    label: "Inviato",
+    description: "Notifica inviata al freelance, in attesa di conferma o rifiuto.",
+  },
+  CONFIRMED: {
+    label: "Confermato",
+    description: "Il freelance ha accettato l’assegnazione.",
+  },
+  REJECTED: {
+    label: "Rifiutato",
+    description: "Il freelance ha rifiutato; serve riassegnare o rivedere lo slot.",
+  },
+} satisfies Record<AssignmentStatus, { label: string; description: string }>;
+
 const btnSmallYellow =
   "rounded bg-pitch-accent px-2 py-1 text-xs font-medium text-pitch-bg hover:bg-yellow-200 disabled:opacity-50";
 const btnSmallGrey =
   "rounded border border-pitch-gray px-2 py-1 text-xs text-pitch-gray hover:bg-pitch-gray-dark disabled:opacity-50";
 
+type RoleSummary = {
+  roleId: number;
+  roleCode: string;
+  description?: string;
+  required: number;
+  slots: number;
+  assigned: number;
+};
+
+function safeStandardQuantity(q: unknown): number {
+  const n = Number(q);
+  if (!Number.isFinite(n) || n <= 0) return 1;
+  return Math.floor(n);
+}
+
+function assignmentRoleId(a: AssignmentWithJoins): number {
+  const id = a.role_id ?? (a as { roleId?: number }).roleId;
+  return Number(id);
+}
+
+function assignmentRoleCode(a: AssignmentWithJoins): string {
+  return String(a.roleCode ?? a.role_code ?? "").trim();
+}
+
+/** Combina standard_requirements (required) con assignments (slots / assigned) per roleId. */
+function buildRoleSummaries(
+  standardRequirements: StandardRequirementWithRole[],
+  assignments: AssignmentWithJoins[]
+): RoleSummary[] {
+  const fromStandards = new Map<
+    number,
+    { required: number; roleCode: string; description: string }
+  >();
+
+  for (const req of standardRequirements) {
+    const rid = Number(req.roleId);
+    if (!Number.isFinite(rid)) continue;
+    const q = safeStandardQuantity(req.quantity);
+    const code = String(req.roleCode ?? "").trim();
+    const desc = String(req.roleName ?? "").trim();
+    const prev = fromStandards.get(rid);
+    if (prev) {
+      fromStandards.set(rid, {
+        required: prev.required + q,
+        roleCode: prev.roleCode || code,
+        description: prev.description || desc,
+      });
+    } else {
+      fromStandards.set(rid, {
+        required: q,
+        roleCode: code,
+        description: desc,
+      });
+    }
+  }
+
+  const slotStats = new Map<
+    number,
+    { slots: number; assigned: number; roleCode: string }
+  >();
+
+  for (const a of assignments) {
+    const rid = assignmentRoleId(a);
+    if (!Number.isFinite(rid)) continue;
+    const code = assignmentRoleCode(a);
+    const staff = a.staffId ?? a.staff_id;
+    const assignedInc = staff != null ? 1 : 0;
+    const cur = slotStats.get(rid) ?? {
+      slots: 0,
+      assigned: 0,
+      roleCode: code,
+    };
+    slotStats.set(rid, {
+      slots: cur.slots + 1,
+      assigned: cur.assigned + assignedInc,
+      roleCode: cur.roleCode || code,
+    });
+  }
+
+  const allIds = new Set<number>([
+    ...fromStandards.keys(),
+    ...slotStats.keys(),
+  ]);
+
+  const rows: RoleSummary[] = [];
+  for (const roleId of allIds) {
+    const std = fromStandards.get(roleId);
+    const st = slotStats.get(roleId);
+    rows.push({
+      roleId,
+      roleCode: std?.roleCode || st?.roleCode || "—",
+      description: std?.description?.trim()
+        ? std.description
+        : undefined,
+      required: std?.required ?? 0,
+      slots: st?.slots ?? 0,
+      assigned: st?.assigned ?? 0,
+    });
+  }
+
+  rows.sort((a, b) => {
+    const aReq = a.required > 0 ? 1 : 0;
+    const bReq = b.required > 0 ? 1 : 0;
+    if (aReq !== bReq) return bReq - aReq;
+    return a.roleCode.localeCompare(b.roleCode, "it", {
+      sensitivity: "base",
+    });
+  });
+
+  return rows;
+}
+
 function StaffPicker({
   assignmentId,
   assignments,
   staffList,
+  errorMessage,
   onClose,
   onSelect,
 }: {
   assignmentId: number;
   assignments: AssignmentWithJoins[];
   staffList: StaffItem[];
+  errorMessage?: string | null;
   onClose: () => void;
   onSelect: (assignmentId: number, staffId: number) => void;
 }) {
@@ -138,6 +312,14 @@ function StaffPicker({
         <div className="mb-2 text-sm font-semibold text-pitch-white">
           Assegna {roleCode || "—"}
         </div>
+        {errorMessage ? (
+          <p
+            role="alert"
+            className="mb-3 rounded border border-red-800/60 bg-red-950/50 px-3 py-2 text-xs text-red-200"
+          >
+            {errorMessage}
+          </p>
+        ) : null}
         <ul className="max-h-64 overflow-auto text-sm">
           {candidates.length === 0 ? (
             <li className="text-pitch-gray">Nessuna persona compatibile</li>
@@ -186,15 +368,19 @@ export default function DesignazioniEventPage() {
   const [isGeneratingFromStandard, setIsGeneratingFromStandard] =
     useState(false);
   const [readyMap, setReadyMap] = useState<Record<number, boolean>>({});
-
-  const loadEvent = useCallback(async () => {
-    const ev = await fetchEventById(eventId);
-    setEvent(ev);
-  }, [eventId]);
+  const [pickerError, setPickerError] = useState<string | null>(null);
+  const [standardRequirements, setStandardRequirements] = useState<
+    StandardRequirementWithRole[]
+  >([]);
 
   const loadAssignments = useCallback(async () => {
     const data = await fetchAssignmentsByEvent(eventId);
     setAssignments(data);
+  }, [eventId]);
+
+  const loadEvent = useCallback(async () => {
+    const ev = await fetchEventById(eventId);
+    setEvent(ev);
   }, [eventId]);
 
   const loadRoles = useCallback(async () => {
@@ -206,21 +392,48 @@ export default function DesignazioniEventPage() {
     setLoading(true);
     setError(null);
     try {
-      await Promise.all([
-        loadEvent(),
-        loadAssignments(),
-        loadRoles(),
+      const ev = await fetchEventById(eventId);
+      setEvent(ev);
+
+      const [assignData, rolesData, stdData] = await Promise.all([
+        fetchAssignmentsByEvent(eventId),
+        fetchRoles(),
+        (async (): Promise<StandardRequirementWithRole[]> => {
+          if (
+            !ev?.standardOnsite?.trim() ||
+            !ev?.standardCologno?.trim()
+          ) {
+            return [];
+          }
+          try {
+            return await fetchStandardRequirements({
+              standardOnsite: ev.standardOnsite.trim(),
+              standardCologno: ev.standardCologno.trim(),
+              ...(ev.areaProduzione?.trim()
+                ? { areaProduzione: ev.areaProduzione.trim() }
+                : {}),
+              page: 0,
+              pageSize: 500,
+            });
+          } catch {
+            return [];
+          }
+        })(),
       ]);
+
+      setAssignments(assignData);
+      setRoles(rolesData);
+      setStandardRequirements(stdData);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Errore nel caricamento");
     } finally {
       setLoading(false);
     }
-  }, [eventId, loadEvent, loadAssignments, loadRoles]);
+  }, [eventId]);
 
   useEffect(() => {
     fetchEvents({ onlyDesignable: true })
-      .then(setDesignableEvents)
+      .then((r) => setDesignableEvents(r.items))
       .catch(console.error);
   }, []);
 
@@ -229,6 +442,10 @@ export default function DesignazioniEventPage() {
       loadAll();
     }
   }, [eventId, loadAll]);
+
+  useEffect(() => {
+    setPickerError(null);
+  }, [staffPickerForId]);
 
   useEffect(() => {
     fetchStaff({ limit: 200 })
@@ -249,6 +466,11 @@ export default function DesignazioniEventPage() {
   }, [event?.id, assignments]);
 
   const hasAnyReady = assignments.some((a) => readyMap[a.id]);
+
+  const roleSummaries = useMemo(
+    () => buildRoleSummaries(standardRequirements, assignments),
+    [standardRequirements, assignments]
+  );
 
   const sortedAssignments = useMemo(() => {
     return [...assignments].sort((a, b) => {
@@ -277,12 +499,25 @@ export default function DesignazioniEventPage() {
   }, [eventId]);
 
   const handleAssignStaff = async (assignmentId: number, staffId: number) => {
+    setPickerError(null);
     try {
       await updateDesignatorAssignment(assignmentId, { staffId });
       await reloadAssignments();
       setStaffPickerForId(null);
     } catch (err) {
-      console.error(err);
+      if (err instanceof StaffRoleNotCompatibleError) {
+        const expected = err.expectedRoleCode ?? "—";
+        const actual = err.staffDefaultRoleCode ?? "—";
+        setPickerError(
+          `Ruolo non compatibile: per questo slot serve ${expected}, lo staff ha default ${actual}.`
+        );
+        return;
+      }
+      setPickerError(
+        err instanceof Error
+          ? err.message
+          : "Non è stato possibile aggiornare lo slot."
+      );
     }
   };
 
@@ -416,6 +651,91 @@ export default function DesignazioniEventPage() {
         }
       />
 
+      <section className="mt-4 space-y-2">
+        <h2 className="text-sm font-semibold text-pitch-white">
+          Legenda stati
+        </h2>
+        <p className="text-[11px] leading-snug text-pitch-gray">
+          Enum{" "}
+          <code className="rounded bg-pitch-gray-dark px-1 font-mono text-[10px] text-pitch-accent">
+            EventAssignmentsStatus
+          </code>{" "}
+          → campo{" "}
+          <code className="rounded bg-pitch-gray-dark px-1 font-mono text-[10px] text-pitch-gray-light">
+            assignments_status
+          </code>
+          ; enum{" "}
+          <code className="rounded bg-pitch-gray-dark px-1 font-mono text-[10px] text-pitch-accent">
+            AssignmentStatus
+          </code>{" "}
+          → campo{" "}
+          <code className="rounded bg-pitch-gray-dark px-1 font-mono text-[10px] text-pitch-gray-light">
+            status
+          </code>{" "}
+          su ogni riga.
+        </p>
+        <div className="grid gap-2 md:grid-cols-2">
+          <div className="rounded-md border border-pitch-gray-dark bg-pitch-gray-dark/20 p-2 text-xs">
+            <div className="mb-1.5 font-semibold text-pitch-gray-light">
+              Stato designazioni (evento)
+            </div>
+            {(
+              Object.entries(EVENT_ASSIGNMENTS_STATUS_INFO) as [
+                EventAssignmentsStatus,
+                { label: string; description: string },
+              ][]
+            ).map(([key, info]) => (
+              <div
+                key={key}
+                className="mb-1.5 flex flex-wrap items-start gap-x-2 gap-y-0.5"
+              >
+                <code className="shrink-0 pt-0.5 font-mono text-[10px] text-pitch-accent">
+                  {key}
+                </code>
+                <span className="inline-flex shrink-0 items-center rounded-full bg-pitch-gray-dark px-2 py-0.5 text-[11px] font-medium text-pitch-gray-light">
+                  {info.label}
+                </span>
+                <span className="min-w-0 flex-1 text-[11px] leading-snug text-pitch-gray-light">
+                  {info.description}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="rounded-md border border-pitch-gray-dark bg-pitch-gray-dark/20 p-2 text-xs">
+            <div className="mb-1.5 font-semibold text-pitch-gray-light">
+              Stato singole assegnazioni
+            </div>
+            {(
+              Object.entries(ASSIGNMENT_STATUS_INFO) as [
+                AssignmentStatus,
+                { label: string; description: string },
+              ][]
+            ).map(([key, info]) => (
+              <div
+                key={key}
+                className="mb-1.5 flex flex-wrap items-start gap-x-2 gap-y-0.5"
+              >
+                <code className="shrink-0 pt-0.5 font-mono text-[10px] text-pitch-accent">
+                  {key}
+                </code>
+                <span className="inline-flex shrink-0 items-center rounded-full bg-pitch-gray-dark px-2 py-0.5 text-[11px] font-medium text-pitch-gray-light">
+                  {info.label}
+                </span>
+                <span className="min-w-0 flex-1 text-[11px] leading-snug text-pitch-gray-light">
+                  {info.description}
+                </span>
+              </div>
+            ))}
+            <p className="mt-1.5 border-t border-pitch-gray-dark/60 pt-1.5 text-[10px] leading-snug text-pitch-gray">
+              <code className="font-mono text-pitch-gray-light">ACCEPTED</code> /{" "}
+              <code className="font-mono text-pitch-gray-light">DECLINED</code>
+              : solo legacy in dati/UI, trattati come Confermato / Rifiutato nei colori
+              tabella.
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* Select evento */}
       <div className="mt-6">
         <label className="mb-2 block text-sm text-pitch-gray">
@@ -507,6 +827,111 @@ export default function DesignazioniEventPage() {
             </button>
           </div>
         </div>
+      </div>
+
+      {/* Standard vs assegnato (riepilogo per ruolo) */}
+      <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/20 p-5">
+        <h3 className="text-base font-semibold text-pitch-white">
+          Standard vs assegnato per ruolo
+        </h3>
+        <p className="mt-1 text-xs text-pitch-gray">
+          Confronto tra FTE richiesti dagli standard e slot/assegnazioni
+          correnti per <code className="text-pitch-gray-light">roleId</code>.
+        </p>
+        {standardRequirements.length === 0 ? (
+          <p className="mt-4 text-sm text-pitch-gray">
+            Nessuno standard requirement trovato per questo evento (mancano
+            standard onsite/cologno o nessuna riga in anagrafica).
+          </p>
+        ) : (
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full min-w-[640px] border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-pitch-gray-dark text-left text-pitch-gray">
+                  <th className="px-3 py-2 font-medium">Ruolo</th>
+                  <th className="px-3 py-2 font-medium text-right">Richiesti</th>
+                  <th className="px-3 py-2 font-medium text-right">Slot</th>
+                  <th className="px-3 py-2 font-medium text-right">Assegnati</th>
+                  <th className="px-3 py-2 font-medium">Situazione</th>
+                </tr>
+              </thead>
+              <tbody>
+                {roleSummaries.map((row) => {
+                  const lackSlots = row.required > row.slots;
+                  const extraSlots = row.slots > row.required && row.required > 0;
+                  const extraOnly = row.required === 0 && row.slots > 0;
+
+                  let situation: ReactNode = (
+                    <span className="text-pitch-gray">—</span>
+                  );
+                  if (lackSlots) {
+                    situation = (
+                      <span className="rounded-full bg-amber-900/40 px-2 py-0.5 text-xs text-amber-200">
+                        Mancano {row.required - row.slots} slot
+                      </span>
+                    );
+                  } else if (extraSlots) {
+                    situation = (
+                      <span className="rounded-full bg-sky-900/40 px-2 py-0.5 text-xs text-sky-200">
+                        +{row.slots - row.required} oltre standard
+                      </span>
+                    );
+                  } else if (extraOnly) {
+                    situation = (
+                      <span className="rounded-full bg-slate-700/60 px-2 py-0.5 text-xs text-pitch-gray-light">
+                        Solo extra (non in standard)
+                      </span>
+                    );
+                  } else if (row.required > 0) {
+                    situation = (
+                      <span className="rounded-full bg-emerald-900/30 px-2 py-0.5 text-xs text-emerald-200">
+                        Slot allineati
+                      </span>
+                    );
+                  }
+
+                  return (
+                    <tr
+                      key={row.roleId}
+                      className="border-b border-pitch-gray-dark/40"
+                    >
+                      <td className="px-3 py-2 text-pitch-white">
+                        <span className="font-medium">{row.roleCode}</span>
+                        {row.description ? (
+                          <span className="ml-2 text-xs text-pitch-gray">
+                            {row.description}
+                          </span>
+                        ) : null}
+                        <span className="mt-0.5 block text-[10px] text-pitch-gray">
+                          id {row.roleId}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-right text-pitch-gray-light">
+                        {row.required}
+                      </td>
+                      <td
+                        className={`px-3 py-2 text-right tabular-nums ${
+                          lackSlots ? "text-amber-200" : "text-pitch-gray-light"
+                        }`}
+                      >
+                        {row.slots}
+                      </td>
+                      <td className="px-3 py-2 text-right text-pitch-gray-light tabular-nums">
+                        {row.assigned}
+                        {row.slots > 0 && row.assigned < row.slots ? (
+                          <span className="ml-1 text-[10px] text-amber-300">
+                            ({row.slots - row.assigned} liberi)
+                          </span>
+                        ) : null}
+                      </td>
+                      <td className="px-3 py-2">{situation}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Tabella Assegnazioni */}
@@ -683,6 +1108,7 @@ export default function DesignazioniEventPage() {
           assignmentId={staffPickerForId}
           assignments={assignments}
           staffList={staffList}
+          errorMessage={pickerError}
           onClose={() => setStaffPickerForId(null)}
           onSelect={handleAssignStaff}
         />

@@ -8,21 +8,20 @@
  */
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { type StaffItem, fetchStaff } from "@/lib/api/staff";
+import { type Role, fetchRoles } from "@/lib/api/roles";
 import {
-  createStaff,
-  updateStaff,
-  type StaffItem,
-} from "@/lib/api/staff";
-import {
-  createRole,
-  updateRole,
-  type Role,
-} from "@/lib/api/roles";
-import {
-  createStandardRequirement,
-  updateStandardRequirement,
   type StandardRequirementWithRole,
+  fetchStandardRequirements,
 } from "@/lib/api/standardRequirements";
+
+/** Usate quando si ripristinano POST/PATCH su staff/ruoli/standard (evita import “unused”). */
+const _databaseApiReadRef = {
+  fetchStaff,
+  fetchRoles,
+  fetchStandardRequirements,
+};
+void _databaseApiReadRef;
 
 const ROLE_LOCATION_OPTIONS = [
   "STADIO",
@@ -279,6 +278,7 @@ export function DatabaseSections({
     const descTrim = roleFormValues.description.trim();
     setSavingRole(true);
     try {
+      /* TODO: ripristinare quando createRole / updateRole sono esportati da @/lib/api/roles
       if (editingRole) {
         const updated = await updateRole(editingRole.id, {
           roleCode: code,
@@ -300,6 +300,10 @@ export function DatabaseSections({
       }
       setIsRoleModalOpen(false);
       setEditingRole(null);
+      */
+      setRoleFormError(
+        "Salvataggio ruoli temporaneamente disabilitato (createRole/updateRole non disponibili)."
+      );
     } catch (err) {
       setRoleFormError(
         err instanceof Error ? err.message : "Errore nel salvataggio del ruolo."
@@ -332,6 +336,7 @@ export function DatabaseSections({
 
     setSavingStaff(true);
     try {
+      /* TODO: ripristinare quando createStaff / updateStaff sono esportati da @/lib/api/staff
       if (editingStaff) {
         const updated = await updateStaff(editingStaff.id, {
           surname,
@@ -365,6 +370,10 @@ export function DatabaseSections({
       }
       setIsStaffModalOpen(false);
       setEditingStaff(null);
+      */
+      setStaffFormError(
+        "Salvataggio staff temporaneamente disabilitato (createStaff/updateStaff non disponibili)."
+      );
     } catch (err) {
       setStaffFormError(
         err instanceof Error
@@ -397,6 +406,7 @@ export function DatabaseSections({
 
     setSavingStdReq(true);
     try {
+      /* TODO: ripristinare quando createStandardRequirement / updateStandardRequirement sono esportati
       if (editingStdReq) {
         const updated = await updateStandardRequirement(editingStdReq.id, {
           standardOnsite: onsite,
@@ -424,6 +434,10 @@ export function DatabaseSections({
       }
       setIsStdReqModalOpen(false);
       setEditingStdReq(null);
+      */
+      setStdReqFormError(
+        "Salvataggio standard temporaneamente disabilitato (create/update non disponibili)."
+      );
     } catch (err) {
       setStdReqFormError(
         err instanceof Error

@@ -1,16 +1,380 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
-import { SearchBar } from "@/components/SearchBar";
+import { getApiBaseUrl } from "@/lib/api/config";
+
+type ConsuntivoRow = {
+  eventId: number;
+  eventDate: string | null;
+  matchday: number | null;
+  staffId: number;
+  staffName: string;
+  roleId: number;
+  roleCode: string;
+  roleName: string;
+  location: string | null;
+  fee: number;
+  assignmentStatus: string;
+};
+
+type ConsuntivoResponse = {
+  items: ConsuntivoRow[];
+  total: number;
+  totalAmount: number;
+};
+
+const INPUT_CLASS =
+  "rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none";
+
+const BTN_PRIMARY =
+  "rounded bg-pitch-accent px-4 py-2 text-xs font-semibold text-pitch-bg hover:bg-yellow-200 disabled:cursor-not-allowed disabled:opacity-50";
+
+const STATUS_OPTIONS = [
+  { value: "", label: "Tutti gli status" },
+  { value: "DRAFT", label: "DRAFT" },
+  { value: "READY", label: "READY" },
+  { value: "SENT", label: "SENT" },
+  { value: "CONFIRMED", label: "CONFIRMED" },
+];
+
+const eur = new Intl.NumberFormat("it-IT", {
+  style: "currency",
+  currency: "EUR",
+});
+
+const dateTimeIt = new Intl.DateTimeFormat("it-IT", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+function formatEventDate(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return dateTimeIt.format(d);
+}
+
+async function readFetchError(res: Response): Promise<string> {
+  try {
+    const data = (await res.json()) as { error?: string };
+    return data.error ?? `Errore ${res.status}`;
+  } catch {
+    return `Errore ${res.status}`;
+  }
+}
 
 export default function ConsuntivoPage() {
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [eventId, setEventId] = useState("");
+  const [staffId, setStaffId] = useState("");
+  const [roleId, setRoleId] = useState("");
+  const [staffNameContains, setStaffNameContains] = useState("");
+  const [roleCodeContains, setRoleCodeContains] = useState("");
+  const [status, setStatus] = useState("");
+
+  const [rawItems, setRawItems] = useState<ConsuntivoRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchConsuntivo = useCallback(
+    async (params: {
+      from: string;
+      to: string;
+      eventId: string;
+      staffId: string;
+      roleId: string;
+      status: string;
+    }) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const url = new URL("/api/consuntivo", getApiBaseUrl());
+        if (params.from.trim()) url.searchParams.set("from", params.from.trim());
+        if (params.to.trim()) url.searchParams.set("to", params.to.trim());
+        const ev = params.eventId.trim();
+        if (ev) url.searchParams.set("eventId", ev);
+        const sid = params.staffId.trim();
+        if (sid) url.searchParams.set("staffId", sid);
+        const rid = params.roleId.trim();
+        if (rid) url.searchParams.set("roleId", rid);
+        if (params.status.trim()) {
+          url.searchParams.set("status", params.status.trim());
+        }
+
+        const res = await fetch(url.toString(), {
+          cache: "no-store",
+          credentials: "include",
+        });
+        if (!res.ok) {
+          throw new Error(await readFetchError(res));
+        }
+        const data = (await res.json()) as ConsuntivoResponse;
+        setRawItems(Array.isArray(data.items) ? data.items : []);
+      } catch (e) {
+        setError(
+          e instanceof Error ? e.message : "Impossibile caricare il consuntivo."
+        );
+        setRawItems([]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    void fetchConsuntivo({
+      from: "",
+      to: "",
+      eventId: "",
+      staffId: "",
+      roleId: "",
+      status: "",
+    });
+  }, [fetchConsuntivo]);
+
+  const filteredItems = useMemo(() => {
+    const sn = staffNameContains.trim().toLowerCase();
+    const rc = roleCodeContains.trim().toLowerCase();
+    return rawItems.filter((row) => {
+      if (sn && !row.staffName.toLowerCase().includes(sn)) return false;
+      if (rc && !row.roleCode.toLowerCase().includes(rc)) return false;
+      return true;
+    });
+  }, [rawItems, staffNameContains, roleCodeContains]);
+
+  const visibleTotalFee = useMemo(
+    () => filteredItems.reduce((sum, r) => sum + (Number(r.fee) || 0), 0),
+    [filteredItems]
+  );
+
+  const handleApplyFilters = () => {
+    void fetchConsuntivo({ from, to, eventId, staffId, roleId, status });
+  };
+
   return (
     <>
       <PageHeader title="Consuntivo" />
-      <div className="mt-4">
-        <SearchBar placeholder="Cerca consuntivo..." />
+
+      <div className="mt-4 space-y-4 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/10 p-4">
+        <div className="flex flex-wrap items-end gap-4">
+          <div>
+            <label className="mb-1 block text-xs text-pitch-gray">Da</label>
+            <input
+              type="date"
+              className={INPUT_CLASS}
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+              disabled={loading}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-pitch-gray">A</label>
+            <input
+              type="date"
+              className={INPUT_CLASS}
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+              disabled={loading}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-pitch-gray">
+              Event ID
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="es. 42"
+              className={`${INPUT_CLASS} w-28`}
+              value={eventId}
+              onChange={(e) => setEventId(e.target.value)}
+              disabled={loading}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-pitch-gray">
+              Staff ID
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              className={`${INPUT_CLASS} w-24`}
+              value={staffId}
+              onChange={(e) => setStaffId(e.target.value)}
+              disabled={loading}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-pitch-gray">
+              Ruolo ID
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              className={`${INPUT_CLASS} w-24`}
+              value={roleId}
+              onChange={(e) => setRoleId(e.target.value)}
+              disabled={loading}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-pitch-gray">Status</label>
+            <select
+              className={INPUT_CLASS}
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              disabled={loading}
+            >
+              {STATUS_OPTIONS.map((o) => (
+                <option key={o.value || "all"} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-end gap-4 border-t border-pitch-gray-dark/50 pt-4">
+          <div>
+            <label className="mb-1 block text-xs text-pitch-gray">
+              Staff (contiene)
+            </label>
+            <input
+              type="text"
+              placeholder="Filtra risultati caricati…"
+              className={`${INPUT_CLASS} min-w-[180px]`}
+              value={staffNameContains}
+              onChange={(e) => setStaffNameContains(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-pitch-gray">
+              Codice ruolo (contiene)
+            </label>
+            <input
+              type="text"
+              placeholder="Filtra risultati caricati…"
+              className={`${INPUT_CLASS} min-w-[160px]`}
+              value={roleCodeContains}
+              onChange={(e) => setRoleCodeContains(e.target.value)}
+            />
+          </div>
+          <button
+            type="button"
+            className={BTN_PRIMARY}
+            disabled={loading}
+            onClick={handleApplyFilters}
+          >
+            Applica filtri
+          </button>
+        </div>
       </div>
-      <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-6 text-pitch-gray">
-        Qui verrà la lista consuntivo
+
+      {error ? (
+        <p className="mt-4 rounded border border-red-900/50 bg-red-950/40 px-3 py-2 text-sm text-red-200">
+          {error}
+        </p>
+      ) : null}
+
+      {loading ? (
+        <p className="mt-4 text-sm text-pitch-gray">Caricamento…</p>
+      ) : null}
+
+      <div className="mt-4 flex flex-wrap gap-6 text-sm text-pitch-gray-light">
+        <span>
+          Righe: <strong className="text-pitch-white">{filteredItems.length}</strong>
+        </span>
+        <span>
+          Totale fee (righe visibili):{" "}
+          <strong className="text-pitch-white">
+            {eur.format(visibleTotalFee)}
+          </strong>
+        </span>
       </div>
+
+      {!loading && !error && filteredItems.length === 0 ? (
+        <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-6 text-center text-sm text-pitch-gray">
+          Nessuna riga per i filtri selezionati.
+        </div>
+      ) : null}
+
+      {!loading && filteredItems.length > 0 ? (
+        <div className="mt-4 overflow-x-auto rounded-lg border border-pitch-gray-dark">
+          <table className="w-full min-w-[1000px] border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-pitch-gray-dark bg-pitch-gray-dark/30">
+                <th className="px-4 py-3 text-left font-medium text-pitch-gray">
+                  Data evento
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-pitch-gray">
+                  MD
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-pitch-gray">
+                  Evento
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-pitch-gray">
+                  Staff
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-pitch-gray">
+                  Ruolo
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-pitch-gray">
+                  Location
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-pitch-gray">
+                  Status
+                </th>
+                <th className="px-4 py-3 text-right font-medium text-pitch-gray">
+                  Fee
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredItems.map((row, idx) => (
+                <tr
+                  key={`${row.eventId}-${row.staffId}-${row.roleId}-${row.assignmentStatus}-${idx}`}
+                  className="border-b border-pitch-gray-dark/50 hover:bg-pitch-gray-dark/10"
+                >
+                  <td className="whitespace-nowrap px-4 py-3 text-pitch-gray-light">
+                    {formatEventDate(row.eventDate)}
+                  </td>
+                  <td className="px-4 py-3 text-pitch-gray-light">
+                    {row.matchday ?? "—"}
+                  </td>
+                  <td className="px-4 py-3 text-pitch-white">{row.eventId}</td>
+                  <td className="px-4 py-3 text-pitch-gray-light">
+                    <span className="text-pitch-white">{row.staffName}</span>
+                    <span className="ml-1 text-[11px] text-pitch-gray">
+                      (#{row.staffId})
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-pitch-gray-light">
+                    <span className="font-mono text-xs text-pitch-white">
+                      {row.roleCode}
+                    </span>
+                    <span className="ml-1 text-pitch-gray">· {row.roleName}</span>
+                  </td>
+                  <td className="px-4 py-3 text-pitch-gray-light">
+                    {row.location ?? "—"}
+                  </td>
+                  <td className="px-4 py-3 text-pitch-gray-light">
+                    {row.assignmentStatus}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-right text-pitch-white">
+                    {eur.format(Number(row.fee) || 0)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
     </>
   );
 }

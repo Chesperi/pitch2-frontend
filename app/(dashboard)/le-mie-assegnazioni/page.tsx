@@ -1,16 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/PageHeader";
 import { SearchBar } from "@/components/SearchBar";
 import {
-  fetchStaffAssignments,
-  updateAssignment,
-  type AssignmentWithEvent,
-} from "@/lib/api/assignments";
-
-const STAFF_ID = 11;
-const PLATES_STRING = "FZ291ET";
+  type FetchMyAssignmentsStaffError,
+  type MyAssignmentStaffItem,
+  confirmAllMyAssignmentsStaff,
+  confirmMyAssignmentStaff,
+  fetchMyAssignmentsStaff,
+  rejectMyAssignmentStaff,
+} from "@/lib/api/myAssignmentsStaff";
 
 function formatKoItaly(koItaly: string | null): string {
   if (!koItaly) return "—";
@@ -52,9 +53,9 @@ function renderStatusBadge(status: string): React.ReactNode {
 }
 
 function filterAssignments(
-  items: AssignmentWithEvent[],
+  items: MyAssignmentStaffItem[],
   search: string
-): AssignmentWithEvent[] {
+): MyAssignmentStaffItem[] {
   if (!search.trim()) return items;
   const q = search.trim().toLowerCase();
   return items.filter((a) => {
@@ -82,32 +83,46 @@ function parsePlates(platesStr: string): string[] {
 }
 
 export default function LeMieAssegnazioniPage() {
-  const [items, setItems] = useState<AssignmentWithEvent[]>([]);
+  const router = useRouter();
+  const [items, setItems] = useState<MyAssignmentStaffItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [blockedMessage, setBlockedMessage] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [actionId, setActionId] = useState<number | null>(null);
   const [confirmingAll, setConfirmingAll] = useState(false);
   const [carPass, setCarPass] = useState<Record<number, boolean>>({});
 
-  const plates = useMemo(() => parsePlates(PLATES_STRING), []);
+  const [plates, setPlates] = useState<string[]>([]);
 
   const loadAssignments = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setBlockedMessage(null);
     try {
-      const res = await fetchStaffAssignments({
-        staffId: STAFF_ID,
-        limit: 100,
-        offset: 0,
-      });
-      setItems(res.items ?? []);
+      const { items: nextItems, staffPlates } =
+        await fetchMyAssignmentsStaff();
+      setItems(nextItems);
+      setPlates(parsePlates(staffPlates ?? ""));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Errore nel caricamento");
+      const err = e as FetchMyAssignmentsStaffError;
+      if (err.status === 401) {
+        router.push("/magic-login");
+        return;
+      }
+      if (err.status === 429) {
+        const seconds = err.retryAfterSeconds ?? 600;
+        const minutes = Math.ceil(seconds / 60);
+        setBlockedMessage(
+          `Troppi tentativi di accesso. Riprova tra circa ${minutes} minuti.`
+        );
+        return;
+      }
+      setError("Errore nel caricamento delle designazioni.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     loadAssignments();
@@ -126,19 +141,20 @@ export default function LeMieAssegnazioniPage() {
     [items]
   );
 
-  const handleConfirm = async (row: AssignmentWithEvent) => {
+  const handleConfirm = async (row: MyAssignmentStaffItem) => {
     if (!row?.assignment) return;
     const { assignment } = row;
     if (assignment.status !== "SENT") return;
     setActionId(assignment.id);
     try {
-      const updated = await updateAssignment(assignment.id, {
-        status: "CONFIRMED",
-      });
+      await confirmMyAssignmentStaff(assignment.id);
       setItems((prev) =>
         prev.map((a) =>
           a && a.assignment && a.assignment.id === assignment.id
-            ? updated
+            ? {
+                ...a,
+                assignment: { ...a.assignment, status: "CONFIRMED" },
+              }
             : a
         )
       );
@@ -149,19 +165,20 @@ export default function LeMieAssegnazioniPage() {
     }
   };
 
-  const handleReject = async (row: AssignmentWithEvent) => {
+  const handleReject = async (row: MyAssignmentStaffItem) => {
     if (!row?.assignment) return;
     const { assignment } = row;
     if (assignment.status !== "SENT") return;
     setActionId(assignment.id);
     try {
-      const updated = await updateAssignment(assignment.id, {
-        status: "REJECTED",
-      });
+      await rejectMyAssignmentStaff(assignment.id);
       setItems((prev) =>
         prev.map((a) =>
           a && a.assignment && a.assignment.id === assignment.id
-            ? updated
+            ? {
+                ...a,
+                assignment: { ...a.assignment, status: "REJECTED" },
+              }
             : a
         )
       );
@@ -176,13 +193,7 @@ export default function LeMieAssegnazioniPage() {
     if (sentAssignments.length === 0) return;
     setConfirmingAll(true);
     try {
-      await Promise.all(
-        sentAssignments
-          .filter((a) => a && a.assignment)
-          .map((a) =>
-            updateAssignment(a!.assignment.id, { status: "CONFIRMED" })
-          )
-      );
+      await confirmAllMyAssignmentsStaff();
       await loadAssignments();
     } catch (e) {
       alert(e instanceof Error ? e.message : "Errore nella conferma");
@@ -207,6 +218,17 @@ export default function LeMieAssegnazioniPage() {
         </div>
         <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-8 text-center text-pitch-gray">
           Caricamento...
+        </div>
+      </>
+    );
+  }
+
+  if (blockedMessage) {
+    return (
+      <>
+        <PageHeader title="Le mie assegnazioni" />
+        <div className="mt-6 rounded-lg border border-yellow-900/50 bg-yellow-900/20 p-6 text-yellow-300">
+          {blockedMessage}
         </div>
       </>
     );
@@ -305,8 +327,8 @@ export default function LeMieAssegnazioniPage() {
                   event.competition_name ??
                   "—";
                 const canHaveCarPass =
-                  (assignment.location?.toUpperCase() === "STADIO") &&
-                  (event.standard_onsite?.toUpperCase() !== "NO ONSITE");
+                  assignment.location?.toUpperCase() === "STADIO" &&
+                  event.standard_onsite?.toUpperCase() !== "NO ONSITE";
                 const isSent = assignment.status === "SENT";
                 const isActioning = actionId === assignment.id;
 

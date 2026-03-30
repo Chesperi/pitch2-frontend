@@ -20,6 +20,34 @@ export type StaffListResponse = {
   total: number;
 };
 
+export type CreateStaffPayload = {
+  surname: string;
+  name: string;
+  email: string;
+  defaultRoleCode: string;
+  defaultLocation: string;
+  userLevel?: string;
+  active?: boolean;
+  phone?: string | null;
+  company?: string | null;
+  fee?: number | null;
+  plates?: string | null;
+};
+
+export type UpdateStaffPayload = Partial<CreateStaffPayload>;
+
+async function readStaffErrorMessage(
+  res: Response,
+  fallback: string
+): Promise<string> {
+  try {
+    const data = (await res.json()) as { message?: string; error?: string };
+    return data.message || data.error || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export async function fetchStaff(params?: {
   q?: string;
   role_code?: string;
@@ -38,4 +66,39 @@ export async function fetchStaff(params?: {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Failed to fetch staff: ${res.status}`);
   return res.json();
+}
+
+export async function createStaff(
+  payload: CreateStaffPayload
+): Promise<StaffItem> {
+  const baseUrl = getApiBaseUrl();
+  const res = await fetch(`${baseUrl}/api/staff`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    throw new Error(
+      await readStaffErrorMessage(res, `Failed to create staff: ${res.status}`)
+    );
+  }
+  return (await res.json()) as StaffItem;
+}
+
+export async function updateStaff(
+  id: number,
+  payload: UpdateStaffPayload
+): Promise<StaffItem> {
+  const baseUrl = getApiBaseUrl();
+  const res = await fetch(`${baseUrl}/api/staff/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    throw new Error(
+      await readStaffErrorMessage(res, `Failed to update staff: ${res.status}`)
+    );
+  }
+  return (await res.json()) as StaffItem;
 }

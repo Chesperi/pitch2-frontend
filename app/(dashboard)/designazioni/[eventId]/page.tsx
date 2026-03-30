@@ -16,7 +16,6 @@ import {
   updateDesignatorAssignment,
   deleteDesignatorAssignment,
   markAssignmentsReady,
-  StaffRoleNotCompatibleError,
   type AssignmentStatus,
   type AssignmentWithJoins,
 } from "@/lib/api/assignments";
@@ -505,14 +504,7 @@ export default function DesignazioniEventPage() {
       await reloadAssignments();
       setStaffPickerForId(null);
     } catch (err) {
-      if (err instanceof StaffRoleNotCompatibleError) {
-        const expected = err.expectedRoleCode ?? "—";
-        const actual = err.staffDefaultRoleCode ?? "—";
-        setPickerError(
-          `Ruolo non compatibile: per questo slot serve ${expected}, lo staff ha default ${actual}.`
-        );
-        return;
-      }
+      console.error(err);
       setPickerError(
         err instanceof Error
           ? err.message

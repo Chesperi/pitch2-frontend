@@ -1,0 +1,30 @@
+# Dipendenze e artefatti locali
+node_modules
+.next
+out
+
+# Git e IDE
+.git
+.gitignore
+.cursor
+.vscode
+.idea
+
+# Env e segreti (non copiare mai nel contesto di build)
+.env
+.env.*
+!.env.example
+
+# Documentazione e tooling locale
+*.md
+Dockerfile*
+docker-compose*.yml
+docker-compose*.yaml
+
+# Log e cache
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+coverage
+.turbo

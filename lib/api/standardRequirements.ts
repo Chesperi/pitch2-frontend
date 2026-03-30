@@ -14,11 +14,38 @@ export interface StandardRequirementWithRole {
   roleLocation: string;
 }
 
+export type CreateStandardRequirementPayload = {
+  standardOnsite: string;
+  standardCologno: string;
+  site?: string;
+  areaProduzione?: string | null;
+  roleId: number;
+  quantity?: number;
+  notes?: string | null;
+};
+
+export type UpdateStandardRequirementPayload =
+  Partial<CreateStandardRequirementPayload>;
+
+async function readStandardRequirementErrorMessage(
+  res: Response,
+  fallback: string
+): Promise<string> {
+  try {
+    const data = (await res.json()) as { message?: string; error?: string };
+    return data.message || data.error || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export async function fetchStandardRequirements(params: {
   standardOnsite: string;
   standardCologno: string;
   site?: string;
   areaProduzione?: string;
+  page?: number;
+  pageSize?: number;
 }): Promise<StandardRequirementWithRole[]> {
   const baseUrl = getApiBaseUrl();
   const url = new URL("/api/standard-requirements", baseUrl);
@@ -29,6 +56,12 @@ export async function fetchStandardRequirements(params: {
   }
   if (params.areaProduzione) {
     url.searchParams.set("areaProduzione", params.areaProduzione);
+  }
+  if (params.page != null) {
+    url.searchParams.set("page", String(params.page));
+  }
+  if (params.pageSize != null) {
+    url.searchParams.set("pageSize", String(params.pageSize));
   }
 
   const res = await fetch(url.toString(), { cache: "no-store" });
@@ -51,6 +84,47 @@ export async function fetchAllStandardRequirements(): Promise<
   }
   const data = await res.json();
   return data.items ?? data ?? [];
+}
+
+export async function createStandardRequirement(
+  payload: CreateStandardRequirementPayload
+): Promise<StandardRequirementWithRole> {
+  const baseUrl = getApiBaseUrl();
+  const res = await fetch(`${baseUrl}/api/standard-requirements`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    throw new Error(
+      await readStandardRequirementErrorMessage(
+        res,
+        `Failed to create standard requirement: ${res.status}`
+      )
+    );
+  }
+  return (await res.json()) as StandardRequirementWithRole;
+}
+
+export async function updateStandardRequirement(
+  id: number,
+  payload: UpdateStandardRequirementPayload
+): Promise<StandardRequirementWithRole> {
+  const baseUrl = getApiBaseUrl();
+  const res = await fetch(`${baseUrl}/api/standard-requirements/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    throw new Error(
+      await readStandardRequirementErrorMessage(
+        res,
+        `Failed to update standard requirement: ${res.status}`
+      )
+    );
+  }
+  return (await res.json()) as StandardRequirementWithRole;
 }
 
 export async function generateAssignmentsFromStandard(

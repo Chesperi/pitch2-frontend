@@ -24,6 +24,12 @@ export default async function DatabasePage() {
   return (
     <>
       <PageHeader title="Database" />
+      <p className="mt-3 text-xs leading-relaxed text-pitch-gray">
+        Anagrafiche di sistema (ruoli, staff, standard requirements) usate nei menu e
+        nei flussi delle altre pagine — ad esempio Eventi, Designazioni e accrediti.
+        Ruoli, staff e standard requirements si possono creare o modificare da questa
+        pagina.
+      </p>
       <div className="mt-4">
         <SearchBar placeholder="Cerca nel database..." />
       </div>

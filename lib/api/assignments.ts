@@ -1,5 +1,21 @@
 import { getApiBaseUrl } from "./config";
 
+export class StaffRoleNotCompatibleError extends Error {
+  expectedRoleCode?: string;
+  staffDefaultRoleCode?: string | null;
+
+  constructor(
+    message: string,
+    expectedRoleCode?: string,
+    staffDefaultRoleCode?: string | null
+  ) {
+    super(message);
+    this.name = "StaffRoleNotCompatibleError";
+    this.expectedRoleCode = expectedRoleCode;
+    this.staffDefaultRoleCode = staffDefaultRoleCode;
+  }
+}
+
 // --- Designator API (assignments by event) ---
 
 export type AssignmentStatus = "DRAFT" | "READY" | "SENT" | "CONFIRMED" | "REJECTED";
@@ -133,7 +149,13 @@ export async function sendDesignazioniForPerson(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ staffId, assignmentIds }),
   });
-  if (!res.ok) throw new Error("Failed to send person email");
+
+  const text = await res.text();
+  console.log("SEND PERSON RESPONSE", res.status, text);
+
+  if (!res.ok) {
+    throw new Error(`Failed to send person email: ${res.status}`);
+  }
 }
 
 export async function sendDesignazioniForPeriod(
@@ -207,12 +229,60 @@ export async function updateDesignatorAssignment(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`Failed to update assignment: ${res.status}`);
-  const data = await res.json();
-  return normalizeAssignment(data);
+
+  const rawText = await res.text();
+  let parsed: Record<string, unknown> | null = null;
+  if (rawText) {
+    try {
+      parsed = JSON.parse(rawText) as Record<string, unknown>;
+    } catch {
+      parsed = null;
+    }
+  }
+
+  if (!res.ok) {
+    if (
+      res.status === 422 &&
+      parsed?.error === "STAFF_ROLE_NOT_COMPATIBLE"
+    ) {
+      const details = (parsed.details ?? {}) as Record<string, unknown>;
+      const msg =
+        typeof parsed.message === "string"
+          ? parsed.message
+          : "Lo staff selezionato non è compatibile con il ruolo dello slot.";
+      const expected =
+        typeof details.expectedRoleCode === "string"
+          ? details.expectedRoleCode
+          : undefined;
+      const staffDef =
+        details.staffDefaultRoleCode != null
+          ? String(details.staffDefaultRoleCode)
+          : null;
+      throw new StaffRoleNotCompatibleError(msg, expected, staffDef);
+    }
+    const fallback =
+      typeof parsed?.message === "string"
+        ? parsed.message
+        : `Failed to update assignment: ${res.status}`;
+    throw new Error(fallback);
+  }
+
+  if (!parsed) {
+    throw new Error("Invalid response body");
+  }
+  return normalizeAssignment(parsed);
 }
 
 // --- Staff assignments (Le mie assegnazioni) ---
+
+export async function fetchDesignazioniMe(): Promise<{
+  items: AssignmentWithEvent[];
+}> {
+  const url = `${getApiBaseUrl()}/api/designazioni/me`;
+  const res = await fetch(url, { credentials: "include" });
+  if (!res.ok) throw new Error(`Failed to fetch designazioni: ${res.status}`);
+  return res.json();
+}
 
 export type AssignmentDTO = {
   id: number;
@@ -290,6 +360,7 @@ export async function updateAssignment(
   const res = await fetch(url, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(`Failed to update assignment: ${res.status}`);

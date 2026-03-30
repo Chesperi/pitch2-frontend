@@ -22,39 +22,257 @@ export interface EventItem {
   showName: string | null;
   status: string;
   assignmentsStatus: EventAssignmentsStatus;
+  rightsHolder?: string | null;
+  facilities?: string | null;
+  studio?: string | null;
+  notes?: string | null;
 }
+
+function pickStr(
+  raw: Record<string, unknown>,
+  ...keys: string[]
+): string | null {
+  for (const k of keys) {
+    const v = raw[k];
+    if (v != null && String(v).trim() !== "") return String(v);
+  }
+  return null;
+}
+
+/** Normalizza una risposta API (snake_case o camelCase) in EventItem. */
+export function normalizeEventItem(raw: Record<string, unknown>): EventItem {
+  const ext = raw.external_match_id ?? raw.externalMatchId;
+  return {
+    id: Number(raw.id),
+    externalMatchId:
+      ext != null && ext !== "" ? String(ext) : null,
+    category: String(raw.category ?? ""),
+    competitionName: String(
+      raw.competition_name ?? raw.competitionName ?? ""
+    ),
+    competitionCode:
+      pickStr(raw, "competition_code", "competitionCode") ?? null,
+    matchDay: String(raw.matchday ?? raw.matchDay ?? ""),
+    homeTeamNameShort: String(
+      raw.home_team_name_short ?? raw.homeTeamNameShort ?? ""
+    ),
+    awayTeamNameShort: String(
+      raw.away_team_name_short ?? raw.awayTeamNameShort ?? ""
+    ),
+    venueName: pickStr(raw, "venue_name", "venueName"),
+    venueCity: pickStr(raw, "venue_city", "venueCity"),
+    venueAddress: pickStr(raw, "venue_address", "venueAddress"),
+    koItaly: String(raw.ko_italy ?? raw.koItaly ?? ""),
+    preDurationMinutes: Number(
+      raw.pre_duration_minutes ?? raw.preDurationMinutes ?? 0
+    ),
+    standardOnsite: pickStr(raw, "standard_onsite", "standardOnsite"),
+    standardCologno: pickStr(raw, "standard_cologno", "standardCologno"),
+    areaProduzione: pickStr(
+      raw,
+      "location",
+      "area_produzione",
+      "areaProduzione"
+    ),
+    showName: pickStr(raw, "show_name", "showName"),
+    status: String(raw.status ?? ""),
+    assignmentsStatus: (String(
+      raw.assignments_status ?? raw.assignmentsStatus ?? "DRAFT"
+    ).toUpperCase() as EventAssignmentsStatus) || "DRAFT",
+    rightsHolder: pickStr(raw, "rights_holder", "rightsHolder"),
+    facilities: pickStr(raw, "facilities"),
+    studio: pickStr(raw, "studio", "studio"),
+    notes:
+      raw.notes === undefined || raw.notes === null
+        ? null
+        : String(raw.notes),
+  };
+}
+
+/** Converte payload camelCase → snake_case per body JSON verso /api/events. */
+export function eventPayloadToSnakeCase(
+  payload: Partial<CreateEventPayload>
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+
+  if (payload.category !== undefined) out.category = payload.category;
+  if (payload.competitionName !== undefined)
+    out.competition_name = payload.competitionName;
+  if (payload.competitionCode !== undefined)
+    out.competition_code = payload.competitionCode || null;
+  if (payload.matchDay !== undefined) out.matchday = payload.matchDay;
+  if (payload.homeTeamNameShort !== undefined)
+    out.home_team_name_short = payload.homeTeamNameShort;
+  if (payload.awayTeamNameShort !== undefined)
+    out.away_team_name_short = payload.awayTeamNameShort;
+  if (payload.venueName !== undefined)
+    out.venue_name = payload.venueName || null;
+  if (payload.venueCity !== undefined)
+    out.venue_city = payload.venueCity || null;
+  if (payload.venueAddress !== undefined)
+    out.venue_address = payload.venueAddress || null;
+  if (payload.koItaly !== undefined) out.ko_italy = payload.koItaly;
+  if (payload.preDurationMinutes !== undefined)
+    out.pre_duration_minutes = payload.preDurationMinutes;
+  if (payload.standardOnsite !== undefined)
+    out.standard_onsite = payload.standardOnsite || null;
+  if (payload.standardCologno !== undefined)
+    out.standard_cologno = payload.standardCologno || null;
+  if (payload.areaProduzione !== undefined)
+    out.location = payload.areaProduzione || null;
+  if (payload.showName !== undefined)
+    out.show_name = payload.showName || null;
+  if (payload.status !== undefined) out.status = payload.status;
+  if (payload.notes !== undefined)
+    out.notes = payload.notes === null ? null : payload.notes || null;
+  if (payload.rightsHolder !== undefined)
+    out.rights_holder =
+      payload.rightsHolder === null ? null : payload.rightsHolder || null;
+  if (payload.facilities !== undefined)
+    out.facilities =
+      payload.facilities === null ? null : payload.facilities || null;
+  if (payload.studio !== undefined)
+    out.studio = payload.studio === null ? null : payload.studio || null;
+
+  return out;
+}
+
+/** Filtri lista eventi (query verso /api/events). */
+export type EventFilters = {
+  status?: "TBD" | "OK" | "CONFIRMED" | "CANCELED";
+  category?: "MATCH" | "MEDIA_CONTENT";
+  assignmentsStatus?: EventAssignmentsStatus;
+};
 
 export interface FetchEventsParams {
   onlyDesignable?: boolean;
   q?: string;
+  /** Filtro categoria legacy (stringa libera); se presente `filters.category`, ha precedenza. */
   category?: string;
   status?: string;
   assignments_status?: EventAssignmentsStatus;
   limit?: number;
   offset?: number;
+  /** Paginazione alternativa: `offset = page * pageSize`, `limit = pageSize`. */
+  page?: number;
+  pageSize?: number;
+  filters?: EventFilters;
+}
+
+export type FetchEventsResult = {
+  items: EventItem[];
+  total: number;
+};
+
+/** Valore colonna `category` nel DB per l'opzione filtro MEDIA_CONTENT. */
+function filterCategoryToQueryParam(
+  c: NonNullable<EventFilters["category"]>
+): string {
+  return c === "MEDIA_CONTENT" ? "MEDIA CONTENT" : c;
+}
+
+function parseEventsListResponse(data: unknown): FetchEventsResult {
+  const rawList: unknown[] = Array.isArray(data)
+    ? data
+    : data != null &&
+        typeof data === "object" &&
+        Array.isArray((data as { items?: unknown[] }).items)
+      ? (data as { items: unknown[] }).items
+      : [];
+  const total =
+    typeof data === "object" &&
+    data !== null &&
+    !Array.isArray(data) &&
+    typeof (data as { total?: unknown }).total === "number"
+      ? (data as { total: number }).total
+      : rawList.length;
+  return {
+    items: rawList.map((row) =>
+      normalizeEventItem(row as Record<string, unknown>)
+    ),
+    total,
+  };
 }
 
 export async function fetchEvents(
   params: FetchEventsParams = {}
-): Promise<EventItem[]> {
+): Promise<FetchEventsResult> {
   const baseUrl = getApiBaseUrl();
   const url = new URL("/api/events", baseUrl);
   if (params.onlyDesignable) {
     url.searchParams.set("onlyDesignable", "true");
   }
   if (params.q) url.searchParams.set("q", params.q);
-  if (params.category) url.searchParams.set("category", params.category);
-  if (params.status) url.searchParams.set("status", params.status);
-  if (params.assignments_status)
-    url.searchParams.set("assignments_status", params.assignments_status);
-  if (params.limit != null) url.searchParams.set("limit", String(params.limit));
-  if (params.offset != null)
-    url.searchParams.set("offset", String(params.offset));
+
+  let limit: number;
+  let offset: number;
+  if (params.page != null && params.pageSize != null) {
+    limit = params.pageSize;
+    offset = Math.max(0, params.page) * params.pageSize;
+  } else {
+    limit = params.limit ?? 50;
+    offset = params.offset ?? 0;
+  }
+  url.searchParams.set("limit", String(limit));
+  url.searchParams.set("offset", String(offset));
+
+  const statusFilter = params.filters?.status ?? params.status;
+  if (statusFilter) url.searchParams.set("status", statusFilter);
+
+  const categoryFilter =
+    params.filters?.category != null
+      ? filterCategoryToQueryParam(params.filters.category)
+      : params.category;
+  if (categoryFilter) url.searchParams.set("category", categoryFilter);
+
+  const assignmentsStatusFilter =
+    params.filters?.assignmentsStatus ?? params.assignments_status;
+  if (assignmentsStatusFilter) {
+    url.searchParams.set("assignments_status", assignmentsStatusFilter);
+  }
 
   const res = await fetch(url.toString(), { cache: "no-store" });
   if (!res.ok) throw new Error(`Failed to fetch events: ${res.status}`);
   const data = await res.json();
-  return data.items ?? data;
+  return parseEventsListResponse(data);
+}
+
+/** Parametri per `GET /api/events/designable` (eventi con standard, OK/CONFIRMED, assignments in bozza). */
+export type FetchDesignableEventsParams = {
+  q?: string;
+  assignments_status?: EventAssignmentsStatus;
+  limit?: number;
+  offset?: number;
+  page?: number;
+  pageSize?: number;
+};
+
+export async function fetchDesignableEvents(
+  params: FetchDesignableEventsParams = {}
+): Promise<FetchEventsResult> {
+  const baseUrl = getApiBaseUrl();
+  const url = new URL("/api/events/designable", baseUrl);
+
+  let limit: number;
+  let offset: number;
+  if (params.page != null && params.pageSize != null) {
+    limit = params.pageSize;
+    offset = Math.max(0, params.page) * params.pageSize;
+  } else {
+    limit = params.limit ?? 100;
+    offset = params.offset ?? 0;
+  }
+  url.searchParams.set("limit", String(limit));
+  url.searchParams.set("offset", String(offset));
+  if (params.q) url.searchParams.set("q", params.q);
+  if (params.assignments_status)
+    url.searchParams.set("assignments_status", params.assignments_status);
+
+  const res = await fetch(url.toString(), { cache: "no-store" });
+  if (!res.ok)
+    throw new Error(`Failed to fetch designable events: ${res.status}`);
+  const data = await res.json();
+  return parseEventsListResponse(data);
 }
 
 export async function fetchEventById(id: number): Promise<EventItem | null> {
@@ -64,7 +282,8 @@ export async function fetchEventById(id: number): Promise<EventItem | null> {
     if (res.status === 404) return null;
     throw new Error(`Failed to fetch event: ${res.status}`);
   }
-  return res.json();
+  const data = (await res.json()) as Record<string, unknown>;
+  return normalizeEventItem(data);
 }
 
 export interface CreateEventPayload {
@@ -84,7 +303,11 @@ export interface CreateEventPayload {
   areaProduzione?: string;
   showName?: string;
   status: string;
-  notes?: string;
+  /** null = invia null al backend (es. PATCH per azzerare). */
+  notes?: string | null;
+  rightsHolder?: string | null;
+  facilities?: string | null;
+  studio?: string | null;
 }
 
 export type UpdateEventPayload = Partial<CreateEventPayload>;
@@ -93,13 +316,15 @@ export async function createEvent(
   payload: CreateEventPayload
 ): Promise<EventItem> {
   const baseUrl = getApiBaseUrl();
+  const body = eventPayloadToSnakeCase(payload);
   const res = await fetch(`${baseUrl}/api/events`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`Failed to create event: ${res.status}`);
-  return res.json();
+  const data = (await res.json()) as Record<string, unknown>;
+  return normalizeEventItem(data);
 }
 
 export async function updateEvent(
@@ -107,13 +332,15 @@ export async function updateEvent(
   payload: UpdateEventPayload
 ): Promise<EventItem> {
   const baseUrl = getApiBaseUrl();
+  const body = eventPayloadToSnakeCase(payload);
   const res = await fetch(`${baseUrl}/api/events/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`Failed to update event: ${res.status}`);
-  return res.json();
+  const data = (await res.json()) as Record<string, unknown>;
+  return normalizeEventItem(data);
 }
 
 export async function updateEventAssignmentsStatus(
@@ -131,5 +358,6 @@ export async function updateEventAssignmentsStatus(
   );
   if (!res.ok)
     throw new Error(`Failed to update event assignments status: ${res.status}`);
-  return res.json();
+  const data = (await res.json()) as Record<string, unknown>;
+  return normalizeEventItem(data);
 }

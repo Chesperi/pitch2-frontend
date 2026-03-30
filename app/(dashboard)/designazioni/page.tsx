@@ -3,7 +3,9 @@
 import Link from "next/link";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
+import { SearchBar } from "@/components/SearchBar";
 import {
+  fetchDesignableEvents,
   fetchEvents,
   type EventItem,
   type EventAssignmentsStatus,
@@ -79,6 +81,34 @@ function getAssignmentStatusLabel(status: string): string {
   }
 }
 
+/** Etichetta categoria per designatore (MATCH / MEDIA_CONTENT). */
+function categoryLabel(category: string): string {
+  const u = category.toUpperCase().replace(/\s+/g, "_");
+  if (u.includes("MEDIA")) return "MEDIA_CONTENT";
+  if (u.includes("MATCH")) return "MATCH";
+  return category.trim() || "—";
+}
+
+/** Match o descrizione per contenuti media. */
+function eventRowDescription(event: EventItem): string {
+  const cat = event.category.toUpperCase();
+  if (cat.includes("MEDIA")) {
+    const parts = [event.showName, event.competitionName].filter(
+      (p): p is string => !!p?.trim()
+    );
+    return parts.length ? parts.join(" · ") : "—";
+  }
+  if (event.homeTeamNameShort?.trim() && event.awayTeamNameShort?.trim()) {
+    return `${event.homeTeamNameShort} vs ${event.awayTeamNameShort}`;
+  }
+  return (
+    event.homeTeamNameShort?.trim() ||
+    event.awayTeamNameShort?.trim() ||
+    event.showName?.trim() ||
+    "—"
+  );
+}
+
 const ASSIGNMENTS_STATUS_OPTIONS: {
   value: "" | EventAssignmentsStatus;
   label: string;
@@ -89,14 +119,17 @@ const ASSIGNMENTS_STATUS_OPTIONS: {
   { value: "SENT", label: "Inviato" },
 ];
 
+type ListScope = "designable" | "all";
+
 export default function DesignazioniPage() {
   const [items, setItems] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [competitionFilter, setCompetitionFilter] = useState("");
+  const [listScope, setListScope] = useState<ListScope>("designable");
   const [assignmentsStatusFilter, setAssignmentsStatusFilter] =
     useState<EventAssignmentsStatus | "">("");
-  const [areaFilter, setAreaFilter] = useState("");
+  const [search, setSearch] = useState("");
+
   const [startDate, setStartDate] = useState<string | null>(null);
   const [endDate, setEndDate] = useState<string | null>(null);
   const [staffGroups, setStaffGroups] = useState<
@@ -108,21 +141,28 @@ export default function DesignazioniPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchEvents({
-        onlyDesignable: true,
-        limit: 100,
-        offset: 0,
-        ...(assignmentsStatusFilter && {
-          assignments_status: assignmentsStatusFilter,
-        }),
-      });
-      setItems(Array.isArray(data) ? data : []);
+      const assignFilter = assignmentsStatusFilter || undefined;
+      if (listScope === "designable") {
+        const { items: next } = await fetchDesignableEvents({
+          limit: 100,
+          offset: 0,
+          ...(assignFilter && { assignments_status: assignFilter }),
+        });
+        setItems(next);
+      } else {
+        const { items: next } = await fetchEvents({
+          limit: 150,
+          offset: 0,
+          ...(assignFilter && { assignments_status: assignFilter }),
+        });
+        setItems(next);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Errore nel caricamento");
     } finally {
       setLoading(false);
     }
-  }, [assignmentsStatusFilter]);
+  }, [listScope, assignmentsStatusFilter]);
 
   useEffect(() => {
     loadEvents();
@@ -134,14 +174,9 @@ export default function DesignazioniPage() {
       staffName: string;
       assignments: AssignmentWithJoins[];
     }) => {
-      try {
-        const ids = group.assignments.map((a) => a.id);
-        await sendDesignazioniForPerson(group.staffId, ids);
-        alert(`Mail simulata per ${group.staffName} (${ids.length} eventi)`);
-      } catch (e) {
-        console.error(e);
-        alert("Errore nell'invio mail per persona");
-      }
+      const ids = group.assignments.map((a) => a.id);
+      await sendDesignazioniForPerson(group.staffId, ids);
+      alert(`Mail inviata a ${group.staffName} (${ids.length} eventi)`);
     },
     []
   );
@@ -161,11 +196,11 @@ export default function DesignazioniPage() {
     if (!startDate || !endDate) return;
 
     try {
-      const items = await fetchAssignmentsByPeriod(startDate, endDate);
+      const list = await fetchAssignmentsByPeriod(startDate, endDate);
 
       const groupsMap = new Map<number, AssignmentWithJoins[]>();
 
-      for (const a of items) {
+      for (const a of list) {
         if (a.staffId == null && a.staff_id == null) continue;
         const id = (a.staffId ?? a.staff_id) as number;
         const existing = groupsMap.get(id) ?? [];
@@ -195,30 +230,18 @@ export default function DesignazioniPage() {
     }
   }, [startDate, endDate]);
 
-  const competitions = useMemo(() => {
-    const set = new Set<string>();
-    items.forEach((e) => {
-      if (e.competitionName) set.add(e.competitionName);
-    });
-    return Array.from(set).sort();
-  }, [items]);
-
-  const areas = useMemo(() => {
-    const set = new Set<string>();
-    items.forEach((e) => {
-      if (e.areaProduzione) set.add(e.areaProduzione);
-    });
-    return Array.from(set).sort();
-  }, [items]);
-
   const filteredItems = useMemo(() => {
+    if (!search.trim()) return items;
+    const q = search.trim().toLowerCase();
     return items.filter((e) => {
-      if (competitionFilter && e.competitionName !== competitionFilter)
-        return false;
-      if (areaFilter && e.areaProduzione !== areaFilter) return false;
-      return true;
+      const desc = eventRowDescription(e).toLowerCase();
+      return (
+        e.competitionName?.toLowerCase().includes(q) ||
+        desc.includes(q) ||
+        categoryLabel(e.category).toLowerCase().includes(q)
+      );
     });
-  }, [items, competitionFilter, areaFilter]);
+  }, [items, search]);
 
   if (loading) {
     return (
@@ -245,23 +268,40 @@ export default function DesignazioniPage() {
   return (
     <>
       <PageHeader title="Designazioni" />
-      <div className="mt-4 flex flex-wrap gap-4">
+
+      <p className="mt-2 max-w-3xl text-sm text-pitch-gray">
+        Elenco eventi in ottica designatore. Scegli se vedere solo i candidati
+        già designabili (standard e stato evento coerenti) oppure tutti gli
+        eventi in lista. Apri il dettaglio per gestire staffing e invii.
+      </p>
+
+      <div className="mt-4 flex flex-wrap items-end gap-4">
         <div>
-          <label className="mb-1 block text-xs text-pitch-gray">
-            Competizione
-          </label>
-          <select
-            value={competitionFilter}
-            onChange={(e) => setCompetitionFilter(e.target.value)}
-            className="rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
-          >
-            <option value="">Tutte</option>
-            {competitions.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
+          <label className="mb-1 block text-xs text-pitch-gray">Vista</label>
+          <div className="flex rounded-lg border border-pitch-gray-dark p-0.5">
+            <button
+              type="button"
+              onClick={() => setListScope("designable")}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                listScope === "designable"
+                  ? "bg-pitch-accent text-pitch-bg"
+                  : "text-pitch-gray-light hover:text-pitch-white"
+              }`}
+            >
+              Designabili
+            </button>
+            <button
+              type="button"
+              onClick={() => setListScope("all")}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                listScope === "all"
+                  ? "bg-pitch-accent text-pitch-bg"
+                  : "text-pitch-gray-light hover:text-pitch-white"
+              }`}
+            >
+              Tutti gli eventi
+            </button>
+          </div>
         </div>
         <div>
           <label className="mb-1 block text-xs text-pitch-gray">
@@ -283,56 +323,39 @@ export default function DesignazioniPage() {
             ))}
           </select>
         </div>
-        <div>
-          <label className="mb-1 block text-xs text-pitch-gray">
-            Area produzione
-          </label>
-          <select
-            value={areaFilter}
-            onChange={(e) => setAreaFilter(e.target.value)}
-            className="rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
-          >
-            <option value="">Tutte</option>
-            {areas.map((a) => (
-              <option key={a} value={a}>
-                {a}
-              </option>
-            ))}
-          </select>
-        </div>
       </div>
+
+      <div className="mt-4">
+        <SearchBar
+          placeholder="Cerca per competizione, match, show..."
+          onSearchChange={setSearch}
+        />
+      </div>
+
       <div className="mt-6 overflow-x-auto">
         {filteredItems.length === 0 ? (
           <div className="rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-12 text-center text-pitch-gray">
-            Nessun evento designabile
+            {items.length === 0
+              ? listScope === "designable"
+                ? "Nessun evento designabile con i filtri selezionati."
+                : "Nessun evento con i filtri selezionati."
+              : "Nessun risultato per la ricerca."}
           </div>
         ) : (
-          <table className="w-full min-w-[800px] border-collapse">
+          <table className="w-full min-w-[860px] border-collapse">
             <thead>
               <tr className="border-b border-pitch-gray-dark">
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
                   Data e KO
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Match
+                  Evento
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+                  Categoria
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
                   Competizione
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Standard Onsite
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Standard Cologno
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Area produzione
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Show
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Stato evento
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
                   Stato designazioni
@@ -343,72 +366,54 @@ export default function DesignazioniPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredItems.map((event) => {
-                const match =
-                  event.homeTeamNameShort && event.awayTeamNameShort
-                    ? `${event.homeTeamNameShort} vs ${event.awayTeamNameShort}`
-                    : event.homeTeamNameShort ??
-                      event.awayTeamNameShort ??
-                      "—";
-                return (
-                  <tr
-                    key={event.id}
-                    className="border-b border-pitch-gray-dark/50 hover:bg-pitch-gray-dark/30"
-                  >
-                    <td className="px-4 py-3 text-sm text-pitch-gray-light">
-                      {formatKoItaly(event.koItaly)}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-pitch-white">
-                      {match}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-pitch-gray-light">
-                      {event.competitionName}
-                      {event.competitionCode
-                        ? ` (${event.competitionCode})`
-                        : ""}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-pitch-gray-light">
-                      {event.standardOnsite ?? "—"}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-pitch-gray-light">
-                      {event.standardCologno ?? "—"}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-pitch-gray-light">
-                      {event.areaProduzione ?? "—"}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-pitch-gray-light">
-                      {event.showName ?? "—"}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-pitch-gray-light">
-                      {event.status}
-                    </td>
-                    <td className="px-4 py-3">
-                      {renderAssignmentsStatusBadge(event.assignmentsStatus)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <Link
-                        href={`/designazioni/${event.id}`}
-                        className="rounded bg-pitch-accent px-3 py-1 text-sm font-medium text-pitch-bg hover:bg-yellow-200"
-                      >
-                        Apri
-                      </Link>
-                    </td>
-                  </tr>
-                );
-              })}
+              {filteredItems.map((event) => (
+                <tr
+                  key={event.id}
+                  className="border-b border-pitch-gray-dark/50 hover:bg-pitch-gray-dark/30"
+                >
+                  <td className="px-4 py-3 text-sm text-pitch-gray-light">
+                    {formatKoItaly(event.koItaly)}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-pitch-white">
+                    {eventRowDescription(event)}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-pitch-gray-light">
+                    {categoryLabel(event.category)}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-pitch-gray-light">
+                    {event.competitionName}
+                    {event.competitionCode
+                      ? ` (${event.competitionCode})`
+                      : ""}
+                  </td>
+                  <td className="px-4 py-3">
+                    {renderAssignmentsStatusBadge(event.assignmentsStatus)}
+                  </td>
+                  <td className="px-4 py-3">
+                    <Link
+                      href={`/designazioni/${event.id}`}
+                      className="inline-flex rounded bg-pitch-accent px-3 py-1.5 text-sm font-medium text-pitch-bg hover:bg-yellow-200"
+                    >
+                      Gestisci
+                    </Link>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         )}
       </div>
 
-      {/* Designazioni per persona */}
-      <section className="mt-8">
+      <section className="mt-10 border-t border-pitch-gray-dark pt-8">
         <h2 className="mb-2 text-sm font-semibold text-pitch-white">
           Designazioni per persona
         </h2>
+        <p className="mb-4 text-xs text-pitch-gray">
+          Raggruppa le assegnazioni per periodo e invia comunicazioni (step
+          operativo separato dalla lista eventi sopra).
+        </p>
 
-        {/* Filtro periodo */}
-        <div className="mb-4 flex items-center gap-3">
+        <div className="mb-4 flex flex-wrap items-end gap-3">
           <div>
             <label className="mb-1 block text-xs text-pitch-gray">Da</label>
             <input
@@ -429,7 +434,7 @@ export default function DesignazioniPage() {
           </div>
           <button
             type="button"
-            className="ml-2 rounded bg-pitch-accent px-3 py-1 text-xs font-medium text-pitch-bg hover:bg-yellow-200 disabled:opacity-50"
+            className="rounded bg-pitch-accent px-3 py-1 text-xs font-medium text-pitch-bg hover:bg-yellow-200 disabled:opacity-50"
             disabled={!startDate || !endDate}
             onClick={loadAssignmentsByPeriod}
           >
@@ -437,7 +442,7 @@ export default function DesignazioniPage() {
           </button>
           <button
             type="button"
-            className="ml-2 rounded bg-yellow-700 px-3 py-1 text-xs font-medium text-white hover:bg-yellow-600 disabled:opacity-50"
+            className="rounded bg-yellow-700 px-3 py-1 text-xs font-medium text-white hover:bg-yellow-600 disabled:opacity-50"
             disabled={!startDate || !endDate || staffGroups.length === 0}
             onClick={handleSendMailForPeriod}
           >
@@ -445,7 +450,6 @@ export default function DesignazioniPage() {
           </button>
         </div>
 
-        {/* Tabella macro per persona */}
         <div className="overflow-x-auto rounded-lg border border-pitch-gray-dark">
           {staffGroups.length === 0 ? (
             <div className="p-6 text-center text-pitch-gray">
@@ -465,10 +469,7 @@ export default function DesignazioniPage() {
               <tbody>
                 {staffGroups.map((group) => (
                   <React.Fragment key={group.staffId}>
-                    <tr
-                      key={group.staffId}
-                      className="border-t border-pitch-gray-dark/50 hover:bg-pitch-gray-dark/30"
-                    >
+                    <tr className="border-t border-pitch-gray-dark/50 hover:bg-pitch-gray-dark/30">
                       <td
                         className="cursor-pointer px-4 py-2 text-pitch-white hover:underline"
                         onClick={() =>

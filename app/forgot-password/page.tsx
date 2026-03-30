@@ -2,7 +2,35 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { getApiBaseUrl } from "@/lib/api/config";
+import { supabase } from "@/lib/supabaseClient";
+
+/**
+ * URL assoluto per il link nell’email Supabase (deve coincidere con una voce in
+ * Authentication → Redirect URLs).
+ * In produzione: NEXT_PUBLIC_SITE_URL=https://apppitch.it
+ * → redirectTo esatto: https://apppitch.it/reset-password
+ */
+function getResetPasswordRedirectUrl(): string {
+  const fromEnv =
+    typeof process.env.NEXT_PUBLIC_SITE_URL === "string"
+      ? process.env.NEXT_PUBLIC_SITE_URL.trim().replace(/\/+$/, "")
+      : "";
+  const origin =
+    fromEnv ||
+    (typeof window !== "undefined" ? window.location.origin : "") ||
+    "https://apppitch.it";
+  const base = origin.replace(/\/+$/, "");
+  return `${base}/reset-password`;
+}
+
+function isValidHttpOrHttpsUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
@@ -16,27 +44,44 @@ export default function ForgotPasswordPage() {
     setMessage(null);
     setError(null);
 
-    if (!email) {
+    const trimmed = email.trim();
+    if (!trimmed) {
       setError("Inserisci la tua email");
       return;
     }
 
     setLoading(true);
     try {
-      const res = await fetch(`${getApiBaseUrl()}/api/auth/forgot-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+      const redirectTo = getResetPasswordRedirectUrl();
+
+      if (!redirectTo || !isValidHttpOrHttpsUrl(redirectTo)) {
+        setError(
+          "URL di reindirizzamento non valido. Imposta NEXT_PUBLIC_SITE_URL con un indirizzo assoluto (es. https://apppitch.it) e verifica che corrisponda a Redirect URLs in Supabase."
+        );
+        return;
+      }
+
+      console.log("[forgot-password] resetPasswordForEmail", {
+        email: trimmed,
+        redirectTo,
       });
 
-      if (res.ok) {
-        setMessage(
-          "Se l'email è registrata, riceverai un link per reimpostare la password."
-        );
-      } else {
-        setError("Errore nell'invio della richiesta. Riprova tra poco.");
+      const { error: supaError } = await supabase.auth.resetPasswordForEmail(
+        trimmed,
+        { redirectTo }
+      );
+
+      if (supaError) {
+        console.error("[forgot-password] resetPasswordForEmail error", supaError);
+        setError(supaError.message || "Richiesta non riuscita.");
+        return;
       }
-    } catch {
+
+      setMessage(
+        "Se l’email è registrata in Supabase, riceverai a breve un link per reimpostare la password. Controlla anche lo spam."
+      );
+    } catch (err) {
+      console.error("[forgot-password] resetPasswordForEmail catch", err);
       setError("Errore di rete. Controlla la connessione.");
     } finally {
       setLoading(false);

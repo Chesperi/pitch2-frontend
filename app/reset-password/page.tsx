@@ -3,15 +3,19 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getApiBaseUrl } from "@/lib/api/config";
+import { supabase } from "@/lib/supabaseClient";
+
+type ResetFlow = "backend" | "supabase" | null;
 
 function ResetPasswordContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const token = searchParams.get("token");
 
   const [validating, setValidating] = useState(true);
   const [valid, setValid] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resetFlow, setResetFlow] = useState<ResetFlow>(null);
+  const [backendToken, setBackendToken] = useState<string | null>(null);
 
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -20,30 +24,101 @@ function ResetPasswordContent() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    async function validate() {
-      if (!token) {
-        setError("Token mancante o non valido.");
+    let cancelled = false;
+    const code = searchParams.get("code");
+    const token = searchParams.get("token");
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let subscription: { unsubscribe: () => void } | undefined;
+
+    (async () => {
+      if (code) {
+        const { error: exErr } = await supabase.auth.exchangeCodeForSession(
+          code
+        );
+        if (cancelled) return;
+        if (exErr) {
+          setError(exErr.message);
+          setValid(false);
+        } else {
+          setValid(true);
+          setResetFlow("supabase");
+        }
         setValidating(false);
         return;
       }
-      try {
-        const res = await fetch(
-          `${getApiBaseUrl()}/api/auth/reset-password/validate?token=${encodeURIComponent(token)}`
-        );
-        const data = await res.json().catch(() => ({}));
-        if (data.valid) {
-          setValid(true);
-        } else {
-          setError(data.error || "Link non valido o scaduto.");
+
+      if (token) {
+        try {
+          const res = await fetch(
+            `${getApiBaseUrl()}/api/auth/reset-password/validate?token=${encodeURIComponent(token)}`
+          );
+          const data = await res.json().catch(() => ({}));
+          if (cancelled) return;
+          if (data.valid) {
+            setValid(true);
+            setResetFlow("backend");
+            setBackendToken(token);
+          } else {
+            setError(data.error || "Link non valido o scaduto.");
+          }
+        } catch {
+          if (!cancelled) {
+            setError("Errore di rete durante la validazione del link.");
+          }
+        } finally {
+          if (!cancelled) setValidating(false);
         }
-      } catch {
-        setError("Errore di rete durante la validazione del link.");
-      } finally {
-        setValidating(false);
+        return;
       }
-    }
-    validate();
-  }, [token]);
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (cancelled) return;
+      if (sessionData.session?.user) {
+        setValid(true);
+        setResetFlow("supabase");
+        setValidating(false);
+        return;
+      }
+
+      const { data: subData } = supabase.auth.onAuthStateChange(
+        (event, session) => {
+          if (cancelled || !session?.user) return;
+          if (
+            event === "PASSWORD_RECOVERY" ||
+            event === "SIGNED_IN" ||
+            event === "INITIAL_SESSION"
+          ) {
+            setValid(true);
+            setResetFlow("supabase");
+            setValidating(false);
+          }
+        }
+      );
+      subscription = subData.subscription;
+
+      timer = setTimeout(async () => {
+        if (cancelled) return;
+        const { data: again } = await supabase.auth.getSession();
+        if (cancelled) return;
+        if (again.session?.user) {
+          setValid(true);
+          setResetFlow("supabase");
+        } else {
+          setError(
+            "Link non valido o scaduto. Apri il link dall’email di Supabase oppure richiedine uno nuovo da «Hai dimenticato la password?»."
+          );
+          setValid(false);
+        }
+        setValidating(false);
+      }, 2500);
+    })();
+
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+      subscription?.unsubscribe();
+    };
+  }, [searchParams]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -58,18 +133,36 @@ function ResetPasswordContent() {
       setSubmitError("Le password non coincidono.");
       return;
     }
-    if (!token) {
+
+    if (resetFlow === "backend" && !backendToken) {
       setSubmitError("Token non valido.");
+      return;
+    }
+    if (resetFlow !== "backend" && resetFlow !== "supabase") {
+      setSubmitError("Sessione di reset non disponibile. Richiedi un nuovo link.");
       return;
     }
 
     setLoading(true);
     try {
+      if (resetFlow === "supabase") {
+        const { error: upErr } = await supabase.auth.updateUser({
+          password,
+        });
+        if (upErr) {
+          setSubmitError(upErr.message || "Impossibile aggiornare la password.");
+          return;
+        }
+        setSubmitMessage("Password aggiornata. Reindirizzamento al login…");
+        setTimeout(() => router.push("/login"), 1500);
+        return;
+      }
+
       const res = await fetch(`${getApiBaseUrl()}/api/auth/reset-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ token, password }),
+        body: JSON.stringify({ token: backendToken, password }),
       });
       const data = await res.json().catch(() => ({}));
 

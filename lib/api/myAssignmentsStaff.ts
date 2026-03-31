@@ -1,9 +1,9 @@
-import { getApiBaseUrl } from "./config";
+import { apiFetch } from "./apiFetch";
 
 /** Struttura allineata alla tabella staff (ex AssignmentDTO + AssignmentEventSummary). */
 export type MyAssignmentStaffAssignment = {
   id: number;
-  event_id: number;
+  event_id: string;
   staff_id: number;
   role_code: string;
   fee: number | null;
@@ -16,7 +16,7 @@ export type MyAssignmentStaffAssignment = {
 };
 
 export type MyAssignmentStaffEvent = {
-  id: number;
+  id: string;
   category: string;
   competition_name: string;
   competition_code: string | null;
@@ -82,7 +82,7 @@ export function mapApiRowToMyAssignmentStaffItem(
   raw: Record<string, unknown>
 ): MyAssignmentStaffItem {
   const id = Number(raw.id ?? raw.assignmentId);
-  const eventId = Number(raw.eventId ?? raw.event_id ?? 0);
+  const eventId = String(raw.eventId ?? raw.event_id ?? "");
   const date = pickStr(raw, "date", "ko_date", "event_date");
   const koTime = pickStr(raw, "ko_time", "koTime");
   const ko_italy = buildKoItaly(date, koTime);
@@ -103,7 +103,7 @@ export function mapApiRowToMyAssignmentStaffItem(
   return {
     assignment: {
       id: Number.isFinite(id) ? id : 0,
-      event_id: Number.isFinite(eventId) ? eventId : 0,
+      event_id: eventId,
       staff_id: staffId,
       role_code: roleCode,
       fee,
@@ -118,7 +118,7 @@ export function mapApiRowToMyAssignmentStaffItem(
       updated_at: pickStr(raw, "updated_at", "updatedAt") ?? "",
     },
     event: {
-      id: Number.isFinite(eventId) ? eventId : 0,
+      id: eventId,
       category: pickStr(raw, "category", "event_category") ?? "",
       competition_name:
         pickStr(raw, "competition_name", "competitionName") ?? "",
@@ -157,9 +157,7 @@ export async function fetchMyAssignmentsStaff(): Promise<{
   items: MyAssignmentStaffItem[];
   staffPlates: string;
 }> {
-  const res = await fetch(`${getApiBaseUrl()}/api/my-assignments`, {
-    credentials: "include",
-  });
+  const res = await apiFetch("/api/my-assignments", { cache: "no-store" });
 
   if (res.status === 401) {
     const err = new Error("Unauthorized") as FetchMyAssignmentsStaffError;
@@ -209,12 +207,9 @@ export async function fetchMyAssignmentsStaff(): Promise<{
 export async function confirmMyAssignmentStaff(
   assignmentId: number
 ): Promise<void> {
-  const res = await fetch(
-    `${getApiBaseUrl()}/api/my-assignments/${assignmentId}/confirm`,
-    {
-      method: "POST",
-      credentials: "include",
-    }
+  const res = await apiFetch(
+    `/api/my-assignments/${assignmentId}/confirm`,
+    { method: "POST" }
   );
   if (!res.ok) {
     throw new Error(`Conferma fallita (${res.status})`);
@@ -222,13 +217,9 @@ export async function confirmMyAssignmentStaff(
 }
 
 export async function confirmAllMyAssignmentsStaff(): Promise<number> {
-  const res = await fetch(
-    `${getApiBaseUrl()}/api/my-assignments/confirm-all`,
-    {
-      method: "POST",
-      credentials: "include",
-    }
-  );
+  const res = await apiFetch("/api/my-assignments/confirm-all", {
+    method: "POST",
+  });
   if (!res.ok) {
     throw new Error(`Conferma tutti fallita (${res.status})`);
   }
@@ -245,15 +236,11 @@ export async function confirmAllMyAssignmentsStaff(): Promise<number> {
 export async function rejectMyAssignmentStaff(
   assignmentId: number
 ): Promise<void> {
-  const res = await fetch(
-    `${getApiBaseUrl()}/api/my-assignments/${assignmentId}`,
-    {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ status: "REJECTED" }),
-    }
-  );
+  const res = await apiFetch(`/api/my-assignments/${assignmentId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status: "REJECTED" }),
+  });
   if (!res.ok) {
     throw new Error(`Rifiuto fallito (${res.status})`);
   }
@@ -263,15 +250,11 @@ export async function patchMyAssignmentNotesStaff(
   assignmentId: number,
   notes: string
 ): Promise<void> {
-  const res = await fetch(
-    `${getApiBaseUrl()}/api/my-assignments/${assignmentId}`,
-    {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ notes }),
-    }
-  );
+  const res = await apiFetch(`/api/my-assignments/${assignmentId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ notes }),
+  });
   if (!res.ok) {
     throw new Error(`Salvataggio note fallito (${res.status})`);
   }

@@ -353,7 +353,13 @@ function StaffPicker({
 export default function DesignazioniEventPage() {
   const params = useParams();
   const router = useRouter();
-  const eventId = Number(params.eventId);
+  const rawEventParam = params.eventId;
+  const eventId =
+    typeof rawEventParam === "string"
+      ? rawEventParam
+      : Array.isArray(rawEventParam)
+        ? rawEventParam[0] ?? ""
+        : "";
   const [designableEvents, setDesignableEvents] = useState<EventItem[]>([]);
   const [event, setEvent] = useState<EventItem | null>(null);
   const [assignments, setAssignments] = useState<AssignmentWithJoins[]>([]);
@@ -437,7 +443,7 @@ export default function DesignazioniEventPage() {
   }, []);
 
   useEffect(() => {
-    if (eventId && !isNaN(eventId)) {
+    if (eventId) {
       loadAll();
     }
   }, [eventId, loadAll]);
@@ -736,9 +742,11 @@ export default function DesignazioniEventPage() {
         <select
           value={event.id}
           onChange={(e) => {
-            const newId = Number(e.target.value);
-            if (!Number.isNaN(newId) && newId !== event.id) {
-              router.push(`/designazioni/${newId}`);
+            const newId = e.target.value;
+            if (newId && newId !== event.id) {
+              router.push(
+                `/designazioni/${encodeURIComponent(newId)}`
+              );
             }
           }}
           className="w-full max-w-xl rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"

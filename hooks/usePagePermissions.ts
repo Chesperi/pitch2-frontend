@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getApiBaseUrl } from "@/lib/api/config";
+import { apiFetch } from "@/lib/api/apiFetch";
 
 export type PageAccessLevel = "none" | "view" | "edit";
 
@@ -42,10 +42,9 @@ export function usePagePermissions(): {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(
-          `${getApiBaseUrl()}/api/me/permissions`,
-          { cache: "no-store", credentials: "include" }
-        );
+        const res = await apiFetch("/api/me/permissions", {
+          cache: "no-store",
+        });
         if (!res.ok) {
           const text = await res.text();
           let msg = `HTTP ${res.status}`;

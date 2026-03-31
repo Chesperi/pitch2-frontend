@@ -19,7 +19,7 @@ import {
   updateDocument,
   type Document as PitchDocument,
 } from "@/lib/api/documents";
-import { getApiBaseUrl } from "@/lib/api/config";
+import { apiFetch } from "@/lib/api/apiFetch";
 
 export type StaffSelectOption = {
   id: number;
@@ -455,8 +455,7 @@ export function CookiesJarTasksPage({
     setChatLoading(true);
 
     try {
-      const baseUrl = getApiBaseUrl();
-      const res = await fetch(`${baseUrl}/api/agent`, {
+      const res = await apiFetch("/api/agent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

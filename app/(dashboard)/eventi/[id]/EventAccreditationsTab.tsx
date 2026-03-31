@@ -16,7 +16,7 @@ type StaffSearchItem = {
 
 export type AccreditationListItem = {
   id: number;
-  eventId: number;
+  eventId: string;
   staffId: number;
   company: string | null;
   surname: string | null;
@@ -28,7 +28,7 @@ export type AccreditationListItem = {
 };
 
 type Props = {
-  eventId: number;
+  eventId: string;
 };
 
 function parseAccreditationsResponse(data: unknown): AccreditationListItem[] {
@@ -127,10 +127,13 @@ export function EventAccreditationsTab({ eventId }: Props) {
     setLoading(true);
     try {
       const baseUrl = getApiBaseUrl();
-      const res = await fetch(`${baseUrl}/api/accrediti/${eventId}`, {
-        credentials: "include",
-        cache: "no-store",
-      });
+      const res = await fetch(
+        `${baseUrl}/api/accrediti/${encodeURIComponent(eventId)}`,
+        {
+          credentials: "include",
+          cache: "no-store",
+        }
+      );
       if (!res.ok) throw new Error("Failed to load accreditations");
       const data = (await res.json()) as unknown;
       setItems(parseAccreditationsResponse(data));

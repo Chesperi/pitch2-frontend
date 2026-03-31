@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
-import { getApiBaseUrl } from "@/lib/api/config";
+import { apiFetch } from "@/lib/api/apiFetch";
 
 type ConsuntivoRow = {
-  eventId: number;
+  eventId: string;
   eventDate: string | null;
   matchday: number | null;
   staffId: number;
@@ -93,23 +93,24 @@ export default function ConsuntivoPage() {
       setLoading(true);
       setError(null);
       try {
-        const url = new URL("/api/consuntivo", getApiBaseUrl());
-        if (params.from.trim()) url.searchParams.set("from", params.from.trim());
-        if (params.to.trim()) url.searchParams.set("to", params.to.trim());
+        const q = new URLSearchParams();
+        if (params.from.trim()) q.set("from", params.from.trim());
+        if (params.to.trim()) q.set("to", params.to.trim());
         const ev = params.eventId.trim();
-        if (ev) url.searchParams.set("eventId", ev);
+        if (ev) q.set("eventId", ev);
         const sid = params.staffId.trim();
-        if (sid) url.searchParams.set("staffId", sid);
+        if (sid) q.set("staffId", sid);
         const rid = params.roleId.trim();
-        if (rid) url.searchParams.set("roleId", rid);
+        if (rid) q.set("roleId", rid);
         if (params.status.trim()) {
-          url.searchParams.set("status", params.status.trim());
+          q.set("status", params.status.trim());
         }
 
-        const res = await fetch(url.toString(), {
-          cache: "no-store",
-          credentials: "include",
-        });
+        const qs = q.toString();
+        const res = await apiFetch(
+          `/api/consuntivo${qs ? `?${qs}` : ""}`,
+          { cache: "no-store" }
+        );
         if (!res.ok) {
           throw new Error(await readFetchError(res));
         }

@@ -513,14 +513,15 @@ const exportBtnClass =
   "rounded border border-pitch-gray-dark px-2 py-1 text-[11px] font-medium text-pitch-white hover:bg-pitch-gray-dark disabled:cursor-not-allowed disabled:opacity-50";
 
 async function downloadAccreditiExport(
-  eventId: number,
+  eventId: string,
   type: "pdf" | "xlsx"
 ): Promise<void> {
   const base = getApiBaseUrl();
+  const enc = encodeURIComponent(eventId);
   const path =
     type === "pdf"
-      ? `/api/accrediti/${eventId}/pdf`
-      : `/api/accrediti/${eventId}/export-xlsx`;
+      ? `/api/accrediti/${enc}/pdf`
+      : `/api/accrediti/${enc}/export-xlsx`;
   const url = new URL(path, base).toString();
   const filename =
     type === "pdf"
@@ -550,7 +551,7 @@ export default function EventiPage() {
   const [editingEvent, setEditingEvent] = useState<EventItem | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [exporting, setExporting] = useState<{
-    eventId: number;
+    eventId: string;
     type: "pdf" | "xlsx";
   } | null>(null);
 
@@ -590,7 +591,7 @@ export default function EventiPage() {
   const showModal = isCreateModalOpen || editingEvent !== null;
 
   const handleAccreditiDownload = async (
-    eventId: number,
+    eventId: string,
     type: "pdf" | "xlsx"
   ) => {
     setExporting({ eventId, type });

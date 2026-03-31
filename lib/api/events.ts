@@ -1,9 +1,9 @@
-import { getApiBaseUrl } from "./config";
+import { apiFetch } from "./apiFetch";
 
 export type EventAssignmentsStatus = "DRAFT" | "READY_TO_SEND" | "SENT";
 
 export interface EventItem {
-  id: number;
+  id: string;
   externalMatchId: string | null;
   category: string;
   competitionName: string;
@@ -43,7 +43,7 @@ function pickStr(
 export function normalizeEventItem(raw: Record<string, unknown>): EventItem {
   const ext = raw.external_match_id ?? raw.externalMatchId;
   return {
-    id: Number(raw.id),
+    id: String(raw.id ?? ""),
     externalMatchId:
       ext != null && ext !== "" ? String(ext) : null,
     category: String(raw.category ?? ""),
@@ -197,12 +197,11 @@ function parseEventsListResponse(data: unknown): FetchEventsResult {
 export async function fetchEvents(
   params: FetchEventsParams = {}
 ): Promise<FetchEventsResult> {
-  const baseUrl = getApiBaseUrl();
-  const url = new URL("/api/events", baseUrl);
+  const q = new URLSearchParams();
   if (params.onlyDesignable) {
-    url.searchParams.set("onlyDesignable", "true");
+    q.set("onlyDesignable", "true");
   }
-  if (params.q) url.searchParams.set("q", params.q);
+  if (params.q) q.set("q", params.q);
 
   let limit: number;
   let offset: number;
@@ -213,25 +212,26 @@ export async function fetchEvents(
     limit = params.limit ?? 50;
     offset = params.offset ?? 0;
   }
-  url.searchParams.set("limit", String(limit));
-  url.searchParams.set("offset", String(offset));
+  q.set("limit", String(limit));
+  q.set("offset", String(offset));
 
   const statusFilter = params.filters?.status ?? params.status;
-  if (statusFilter) url.searchParams.set("status", statusFilter);
+  if (statusFilter) q.set("status", statusFilter);
 
   const categoryFilter =
     params.filters?.category != null
       ? filterCategoryToQueryParam(params.filters.category)
       : params.category;
-  if (categoryFilter) url.searchParams.set("category", categoryFilter);
+  if (categoryFilter) q.set("category", categoryFilter);
 
   const assignmentsStatusFilter =
     params.filters?.assignmentsStatus ?? params.assignments_status;
   if (assignmentsStatusFilter) {
-    url.searchParams.set("assignments_status", assignmentsStatusFilter);
+    q.set("assignments_status", assignmentsStatusFilter);
   }
 
-  const res = await fetch(url.toString(), { cache: "no-store" });
+  const path = `/api/events?${q.toString()}`;
+  const res = await apiFetch(path, { cache: "no-store" });
   if (!res.ok) throw new Error(`Failed to fetch events: ${res.status}`);
   const data = await res.json();
   return parseEventsListResponse(data);
@@ -250,8 +250,7 @@ export type FetchDesignableEventsParams = {
 export async function fetchDesignableEvents(
   params: FetchDesignableEventsParams = {}
 ): Promise<FetchEventsResult> {
-  const baseUrl = getApiBaseUrl();
-  const url = new URL("/api/events/designable", baseUrl);
+  const q = new URLSearchParams();
 
   let limit: number;
   let offset: number;
@@ -262,22 +261,23 @@ export async function fetchDesignableEvents(
     limit = params.limit ?? 100;
     offset = params.offset ?? 0;
   }
-  url.searchParams.set("limit", String(limit));
-  url.searchParams.set("offset", String(offset));
-  if (params.q) url.searchParams.set("q", params.q);
+  q.set("limit", String(limit));
+  q.set("offset", String(offset));
+  if (params.q) q.set("q", params.q);
   if (params.assignments_status)
-    url.searchParams.set("assignments_status", params.assignments_status);
+    q.set("assignments_status", params.assignments_status);
 
-  const res = await fetch(url.toString(), { cache: "no-store" });
+  const path = `/api/events/designable?${q.toString()}`;
+  const res = await apiFetch(path, { cache: "no-store" });
   if (!res.ok)
     throw new Error(`Failed to fetch designable events: ${res.status}`);
   const data = await res.json();
   return parseEventsListResponse(data);
 }
 
-export async function fetchEventById(id: number): Promise<EventItem | null> {
-  const baseUrl = getApiBaseUrl();
-  const res = await fetch(`${baseUrl}/api/events/${id}`, { cache: "no-store" });
+export async function fetchEventById(id: string): Promise<EventItem | null> {
+  const enc = encodeURIComponent(String(id));
+  const res = await apiFetch(`/api/events/${enc}`, { cache: "no-store" });
   if (!res.ok) {
     if (res.status === 404) return null;
     throw new Error(`Failed to fetch event: ${res.status}`);
@@ -315,9 +315,8 @@ export type UpdateEventPayload = Partial<CreateEventPayload>;
 export async function createEvent(
   payload: CreateEventPayload
 ): Promise<EventItem> {
-  const baseUrl = getApiBaseUrl();
   const body = eventPayloadToSnakeCase(payload);
-  const res = await fetch(`${baseUrl}/api/events`, {
+  const res = await apiFetch("/api/events", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -328,12 +327,12 @@ export async function createEvent(
 }
 
 export async function updateEvent(
-  id: number,
+  id: string,
   payload: UpdateEventPayload
 ): Promise<EventItem> {
-  const baseUrl = getApiBaseUrl();
   const body = eventPayloadToSnakeCase(payload);
-  const res = await fetch(`${baseUrl}/api/events/${id}`, {
+  const enc = encodeURIComponent(String(id));
+  const res = await apiFetch(`/api/events/${enc}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -344,18 +343,15 @@ export async function updateEvent(
 }
 
 export async function updateEventAssignmentsStatus(
-  eventId: number,
+  eventId: string,
   assignmentsStatus: EventAssignmentsStatus
 ): Promise<EventItem> {
-  const baseUrl = getApiBaseUrl();
-  const res = await fetch(
-    `${baseUrl}/api/events/${eventId}/assignments-status`,
-    {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ assignmentsStatus }),
-    }
-  );
+  const enc = encodeURIComponent(String(eventId));
+  const res = await apiFetch(`/api/events/${enc}/assignments-status`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ assignmentsStatus }),
+  });
   if (!res.ok)
     throw new Error(`Failed to update event assignments status: ${res.status}`);
   const data = (await res.json()) as Record<string, unknown>;

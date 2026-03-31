@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { PageHeader } from "@/components/PageHeader";
 import { fetchStaff } from "@/lib/api";
 import { fetchCookiesJarTasks } from "@/lib/api/cookiesJarTasks";
@@ -16,10 +17,16 @@ function toYyyyMmDd(d: Date): string {
 export default async function CookiesJarPage() {
   const initialDate = toYyyyMmDd(new Date());
 
+  const cookieStore = await cookies();
+  const cookieHeader = cookieStore
+    .getAll()
+    .map((c) => `${c.name}=${c.value}`)
+    .join("; ");
+
   const [initialTasks, staffData, initialDocuments] = await Promise.all([
-    fetchCookiesJarTasks({ date: initialDate }),
-    fetchStaff({ limit: 100, offset: 0 }),
-    fetchDocuments({}),
+    fetchCookiesJarTasks({ date: initialDate }, { cookieHeader }),
+    fetchStaff({ limit: 100, offset: 0 }, { cookieHeader }),
+    fetchDocuments({}, { cookieHeader }),
   ]);
 
   const staff = staffData.items ?? [];

@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from "./config";
+import { apiFetch, apiFetchServer } from "./apiFetch";
 
 export type Document = {
   id: number;
@@ -32,6 +32,10 @@ export type CreateDocumentPayload = {
 
 export type UpdateDocumentPayload = Partial<CreateDocumentPayload>;
 
+export type DocumentsFetchOptions = {
+  cookieHeader?: string;
+};
+
 async function readDocumentError(
   res: Response,
   fallback: string
@@ -45,15 +49,18 @@ async function readDocumentError(
 }
 
 export async function fetchDocuments(
-  params: FetchDocumentsParams = {}
+  params: FetchDocumentsParams = {},
+  options?: DocumentsFetchOptions
 ): Promise<Document[]> {
-  const baseUrl = getApiBaseUrl();
-  const url = new URL("/api/documents", baseUrl);
-  if (params.competition) url.searchParams.set("competition", params.competition);
-  if (params.category) url.searchParams.set("category", params.category);
-  if (params.tag) url.searchParams.set("tag", params.tag);
-
-  const res = await fetch(url.toString(), { cache: "no-store" });
+  const q = new URLSearchParams();
+  if (params.competition) q.set("competition", params.competition);
+  if (params.category) q.set("category", params.category);
+  if (params.tag) q.set("tag", params.tag);
+  const qs = q.toString();
+  const path = `/api/documents${qs ? `?${qs}` : ""}`;
+  const res = options?.cookieHeader
+    ? await apiFetchServer(path, options.cookieHeader, { cache: "no-store" })
+    : await apiFetch(path, { cache: "no-store" });
   if (!res.ok) {
     throw new Error(
       await readDocumentError(res, `Failed to fetch documents: ${res.status}`)
@@ -66,8 +73,7 @@ export async function fetchDocuments(
 export async function createDocument(
   payload: CreateDocumentPayload
 ): Promise<Document> {
-  const baseUrl = getApiBaseUrl();
-  const res = await fetch(`${baseUrl}/api/documents`, {
+  const res = await apiFetch("/api/documents", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -84,8 +90,7 @@ export async function updateDocument(
   id: number,
   payload: UpdateDocumentPayload
 ): Promise<Document> {
-  const baseUrl = getApiBaseUrl();
-  const res = await fetch(`${baseUrl}/api/documents/${id}`, {
+  const res = await apiFetch(`/api/documents/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),

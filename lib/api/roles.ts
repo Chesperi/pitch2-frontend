@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from "./config";
+import { apiFetch, apiFetchServer } from "./apiFetch";
 
 export type Role = {
   id: number;
@@ -19,6 +19,10 @@ export type CreateRolePayload = {
 
 export type UpdateRolePayload = Partial<CreateRolePayload>;
 
+export type RolesFetchOptions = {
+  cookieHeader?: string;
+};
+
 async function readRoleErrorMessage(res: Response, fallback: string): Promise<string> {
   try {
     const data = (await res.json()) as { message?: string; error?: string };
@@ -28,17 +32,21 @@ async function readRoleErrorMessage(res: Response, fallback: string): Promise<st
   }
 }
 
-export async function fetchRoles(): Promise<Role[]> {
-  const url = `${getApiBaseUrl()}/api/roles`;
-  const res = await fetch(url);
+export async function fetchRoles(
+  options?: RolesFetchOptions
+): Promise<Role[]> {
+  const res = options?.cookieHeader
+    ? await apiFetchServer("/api/roles", options.cookieHeader, {
+        cache: "no-store",
+      })
+    : await apiFetch("/api/roles", { cache: "no-store" });
   if (!res.ok) throw new Error(`Failed to fetch roles: ${res.status}`);
   const data = await res.json();
   return Array.isArray(data) ? data : data.items ?? [];
 }
 
 export async function createRole(payload: CreateRolePayload): Promise<Role> {
-  const baseUrl = getApiBaseUrl();
-  const res = await fetch(`${baseUrl}/api/roles`, {
+  const res = await apiFetch("/api/roles", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -55,8 +63,7 @@ export async function updateRole(
   id: number,
   payload: UpdateRolePayload
 ): Promise<Role> {
-  const baseUrl = getApiBaseUrl();
-  const res = await fetch(`${baseUrl}/api/roles/${id}`, {
+  const res = await apiFetch(`/api/roles/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),

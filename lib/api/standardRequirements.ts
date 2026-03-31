@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from "./config";
+import { apiFetch, apiFetchServer } from "./apiFetch";
 
 export interface StandardRequirementWithRole {
   id: number;
@@ -27,6 +27,10 @@ export type CreateStandardRequirementPayload = {
 export type UpdateStandardRequirementPayload =
   Partial<CreateStandardRequirementPayload>;
 
+export type StandardRequirementsFetchOptions = {
+  cookieHeader?: string;
+};
+
 async function readStandardRequirementErrorMessage(
   res: Response,
   fallback: string
@@ -39,32 +43,39 @@ async function readStandardRequirementErrorMessage(
   }
 }
 
-export async function fetchStandardRequirements(params: {
+function standardRequirementsQueryPath(params: {
   standardOnsite: string;
   standardCologno: string;
   site?: string;
   areaProduzione?: string;
   page?: number;
   pageSize?: number;
-}): Promise<StandardRequirementWithRole[]> {
-  const baseUrl = getApiBaseUrl();
-  const url = new URL("/api/standard-requirements", baseUrl);
-  url.searchParams.set("standardOnsite", params.standardOnsite);
-  url.searchParams.set("standardCologno", params.standardCologno);
-  if (params.site) {
-    url.searchParams.set("site", params.site);
-  }
-  if (params.areaProduzione) {
-    url.searchParams.set("areaProduzione", params.areaProduzione);
-  }
-  if (params.page != null) {
-    url.searchParams.set("page", String(params.page));
-  }
-  if (params.pageSize != null) {
-    url.searchParams.set("pageSize", String(params.pageSize));
-  }
+}): string {
+  const q = new URLSearchParams();
+  q.set("standardOnsite", params.standardOnsite);
+  q.set("standardCologno", params.standardCologno);
+  if (params.site) q.set("site", params.site);
+  if (params.areaProduzione) q.set("areaProduzione", params.areaProduzione);
+  if (params.page != null) q.set("page", String(params.page));
+  if (params.pageSize != null) q.set("pageSize", String(params.pageSize));
+  return `/api/standard-requirements?${q.toString()}`;
+}
 
-  const res = await fetch(url.toString(), { cache: "no-store" });
+export async function fetchStandardRequirements(
+  params: {
+    standardOnsite: string;
+    standardCologno: string;
+    site?: string;
+    areaProduzione?: string;
+    page?: number;
+    pageSize?: number;
+  },
+  options?: StandardRequirementsFetchOptions
+): Promise<StandardRequirementWithRole[]> {
+  const path = standardRequirementsQueryPath(params);
+  const res = options?.cookieHeader
+    ? await apiFetchServer(path, options.cookieHeader, { cache: "no-store" })
+    : await apiFetch(path, { cache: "no-store" });
   if (!res.ok) {
     throw new Error(`Failed to fetch standard requirements: ${res.status}`);
   }
@@ -73,12 +84,13 @@ export async function fetchStandardRequirements(params: {
   return data.items ?? data;
 }
 
-export async function fetchAllStandardRequirements(): Promise<
-  StandardRequirementWithRole[]
-> {
-  const baseUrl = getApiBaseUrl();
-  const url = new URL("/api/standard-requirements", baseUrl);
-  const res = await fetch(url.toString(), { cache: "no-store" });
+export async function fetchAllStandardRequirements(
+  options?: StandardRequirementsFetchOptions
+): Promise<StandardRequirementWithRole[]> {
+  const path = "/api/standard-requirements";
+  const res = options?.cookieHeader
+    ? await apiFetchServer(path, options.cookieHeader, { cache: "no-store" })
+    : await apiFetch(path, { cache: "no-store" });
   if (!res.ok) {
     throw new Error(`Failed to fetch standard requirements: ${res.status}`);
   }
@@ -89,8 +101,7 @@ export async function fetchAllStandardRequirements(): Promise<
 export async function createStandardRequirement(
   payload: CreateStandardRequirementPayload
 ): Promise<StandardRequirementWithRole> {
-  const baseUrl = getApiBaseUrl();
-  const res = await fetch(`${baseUrl}/api/standard-requirements`, {
+  const res = await apiFetch("/api/standard-requirements", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -110,8 +121,7 @@ export async function updateStandardRequirement(
   id: number,
   payload: UpdateStandardRequirementPayload
 ): Promise<StandardRequirementWithRole> {
-  const baseUrl = getApiBaseUrl();
-  const res = await fetch(`${baseUrl}/api/standard-requirements/${id}`, {
+  const res = await apiFetch(`/api/standard-requirements/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -128,15 +138,14 @@ export async function updateStandardRequirement(
 }
 
 export async function generateAssignmentsFromStandard(
-  eventId: number
+  eventId: string
 ): Promise<unknown> {
-  const baseUrl = getApiBaseUrl();
-  const id = Number(eventId);
-  if (!Number.isInteger(id) || id < 1) {
+  const id = String(eventId).trim();
+  if (!id) {
     throw new Error(`Invalid eventId: ${eventId}`);
   }
-  const url = `${baseUrl}/api/events/${id}/generate-assignments-from-standard`;
-  const res = await fetch(url, {
+  const path = `/api/events/${encodeURIComponent(id)}/generate-assignments-from-standard`;
+  const res = await apiFetch(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
   });

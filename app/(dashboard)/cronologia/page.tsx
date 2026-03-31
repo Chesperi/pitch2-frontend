@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
-import { getApiBaseUrl } from "@/lib/api/config";
+import { apiFetch } from "@/lib/api/apiFetch";
 
 type AuditLogItem = {
   id: number;
@@ -77,12 +77,13 @@ export default function CronologiaPage() {
     setLoading(true);
     setError(null);
     try {
-      const url = new URL("/api/audit-log", getApiBaseUrl());
-      url.searchParams.set("limit", "100");
+      const q = new URLSearchParams({ limit: "100" });
       if (entityType) {
-        url.searchParams.set("entityType", entityType);
+        q.set("entityType", entityType);
       }
-      const res = await fetch(url.toString(), { cache: "no-store" });
+      const res = await apiFetch(`/api/audit-log?${q.toString()}`, {
+        cache: "no-store",
+      });
       if (!res.ok) {
         const body = (await res.json().catch(() => null)) as {
           error?: string;

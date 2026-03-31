@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from "./config";
+import { apiFetch, apiFetchServer } from "./apiFetch";
 
 export type CookiesJarTask = {
   id: number;
@@ -33,6 +33,10 @@ export type UpdateCookiesJarTaskPayload =
     assigneeId?: number | null;
   };
 
+export type CookiesJarFetchOptions = {
+  cookieHeader?: string;
+};
+
 async function readCookiesJarError(
   res: Response,
   fallback: string
@@ -46,15 +50,18 @@ async function readCookiesJarError(
 }
 
 export async function fetchCookiesJarTasks(
-  params: FetchCookiesJarTasksParams
+  params: FetchCookiesJarTasksParams,
+  options?: CookiesJarFetchOptions
 ): Promise<CookiesJarTask[]> {
-  const baseUrl = getApiBaseUrl();
-  const url = new URL("/api/cookies-jar/tasks", baseUrl);
-  if (params.date) url.searchParams.set("date", params.date);
-  if (params.team) url.searchParams.set("team", params.team);
-  if (params.status) url.searchParams.set("status", params.status);
-
-  const res = await fetch(url.toString(), { cache: "no-store" });
+  const q = new URLSearchParams();
+  if (params.date) q.set("date", params.date);
+  if (params.team) q.set("team", params.team);
+  if (params.status) q.set("status", params.status);
+  const qs = q.toString();
+  const path = `/api/cookies-jar/tasks${qs ? `?${qs}` : ""}`;
+  const res = options?.cookieHeader
+    ? await apiFetchServer(path, options.cookieHeader, { cache: "no-store" })
+    : await apiFetch(path, { cache: "no-store" });
   if (!res.ok) {
     throw new Error(
       await readCookiesJarError(
@@ -70,8 +77,7 @@ export async function fetchCookiesJarTasks(
 export async function createCookiesJarTask(
   payload: CreateCookiesJarTaskPayload
 ): Promise<CookiesJarTask> {
-  const baseUrl = getApiBaseUrl();
-  const res = await fetch(`${baseUrl}/api/cookies-jar/tasks`, {
+  const res = await apiFetch("/api/cookies-jar/tasks", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -91,8 +97,7 @@ export async function updateCookiesJarTask(
   id: number,
   payload: UpdateCookiesJarTaskPayload
 ): Promise<CookiesJarTask> {
-  const baseUrl = getApiBaseUrl();
-  const res = await fetch(`${baseUrl}/api/cookies-jar/tasks/${id}`, {
+  const res = await apiFetch(`/api/cookies-jar/tasks/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),

@@ -35,10 +35,10 @@ export default function EventoDettaglioPage() {
   const rawId = params.id;
   const eventId =
     typeof rawId === "string"
-      ? parseInt(rawId, 10)
+      ? rawId
       : Array.isArray(rawId)
-        ? parseInt(rawId[0] ?? "", 10)
-        : NaN;
+        ? rawId[0] ?? ""
+        : "";
 
   const [event, setEvent] = useState<EventItem | null>(null);
   const [loading, setLoading] = useState(true);
@@ -49,7 +49,7 @@ export default function EventoDettaglioPage() {
   const [activeTab, setActiveTab] = useState<EventTab>("info");
 
   const load = useCallback(async () => {
-    if (!Number.isFinite(eventId)) {
+    if (!eventId.trim()) {
       setNotFound(true);
       setEvent(null);
       setLoading(false);
@@ -83,8 +83,8 @@ export default function EventoDettaglioPage() {
     const baseUrl = getApiBaseUrl();
     const url =
       type === "pdf"
-        ? `${baseUrl}/api/accrediti/${event.id}/pdf`
-        : `${baseUrl}/api/accrediti/${event.id}/export-xlsx`;
+        ? `${baseUrl}/api/accrediti/${encodeURIComponent(event.id)}/pdf`
+        : `${baseUrl}/api/accrediti/${encodeURIComponent(event.id)}/export-xlsx`;
     const filename =
       type === "pdf"
         ? `accrediti-event-${event.id}.pdf`

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
-import { getApiBaseUrl } from "@/lib/api/config";
+import { apiFetch } from "@/lib/api/apiFetch";
 
 type AccessLevel = "none" | "view" | "edit";
 
@@ -85,8 +85,7 @@ export default function MasterPage() {
     setLoading(true);
     setLoadError(null);
     try {
-      const base = getApiBaseUrl();
-      const res = await fetch(`${base}/api/staff-page-permissions`, {
+      const res = await apiFetch("/api/staff-page-permissions", {
         cache: "no-store",
       });
       if (!res.ok) {
@@ -146,8 +145,7 @@ export default function MasterPage() {
     );
 
     try {
-      const base = getApiBaseUrl();
-      const res = await fetch(`${base}/api/staff-page-permissions`, {
+      const res = await apiFetch("/api/staff-page-permissions", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ staffId, pageKey, accessLevel: next }),
@@ -174,7 +172,6 @@ export default function MasterPage() {
     const current = getFinanceValue(staffId);
     if (current === value) return;
 
-    const base = getApiBaseUrl();
     const savingKey = `finance:${staffId}`;
     setActionError(null);
     setSaving(savingKey, true);
@@ -185,7 +182,7 @@ export default function MasterPage() {
     setFinanceByStaff((prev) => ({ ...prev, [staffId]: value }));
 
     try {
-      const res = await fetch(`${base}/api/staff/${staffId}/finance-access`, {
+      const res = await apiFetch(`/api/staff/${staffId}/finance-access`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ financeAccessOverride }),

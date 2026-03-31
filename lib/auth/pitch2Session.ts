@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from "@/lib/api/config";
+import { apiFetch, apiFetchServer } from "@/lib/api/apiFetch";
 
 export type Pitch2MeResponse = {
   user_level?: string;
@@ -18,11 +18,9 @@ export function assignmentsHomeForUserLevel(levelRaw: string | undefined): strin
 export async function postSupabaseSessionToBackend(
   accessToken: string
 ): Promise<Response> {
-  const baseUrl = getApiBaseUrl();
-  return fetch(`${baseUrl}/api/auth/supabase/session`, {
+  return apiFetch("/api/auth/supabase/session", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    credentials: "include",
     body: JSON.stringify({ access_token: accessToken }),
   });
 }
@@ -33,12 +31,7 @@ export async function fetchPitch2MeFromBrowser(): Promise<{
   status: number;
   data: Pitch2MeResponse | null;
 }> {
-  const baseUrl = getApiBaseUrl();
-  const res = await fetch(`${baseUrl}/api/auth/me`, {
-    method: "GET",
-    credentials: "include",
-    cache: "no-store",
-  });
+  const res = await apiFetch("/api/auth/me", { cache: "no-store" });
   if (!res.ok) {
     return { ok: false, status: res.status, data: null };
   }
@@ -52,11 +45,8 @@ export async function fetchPitch2MeFromServer(cookieHeader: string): Promise<{
   status: number;
   data: Pitch2MeResponse | null;
 }> {
-  const baseUrl = getApiBaseUrl();
-  const res = await fetch(`${baseUrl}/api/auth/me`, {
+  const res = await apiFetchServer("/api/auth/me", cookieHeader, {
     method: "GET",
-    headers: cookieHeader ? { Cookie: cookieHeader } : {},
-    cache: "no-store",
   });
   if (!res.ok) {
     return { ok: false, status: res.status, data: null };

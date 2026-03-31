@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { PageHeader } from "@/components/PageHeader";
 import { SearchBar } from "@/components/SearchBar";
 import {
@@ -10,10 +11,16 @@ import { DatabaseSections } from "./DatabaseSections";
 export const dynamic = "force-dynamic";
 
 export default async function DatabasePage() {
+  const cookieStore = await cookies();
+  const cookieHeader = cookieStore
+    .getAll()
+    .map((c) => `${c.name}=${c.value}`)
+    .join("; ");
+
   const [roles, staffData, standardRequirements] = await Promise.all([
-    fetchRoles(),
-    fetchStaff({ limit: 100, offset: 0 }),
-    fetchAllStandardRequirements(),
+    fetchRoles({ cookieHeader }),
+    fetchStaff({ limit: 100, offset: 0 }, { cookieHeader }),
+    fetchAllStandardRequirements({ cookieHeader }),
   ]);
   const staff = staffData.items ?? [];
   const roleMap: Record<string, string> = Object.fromEntries(

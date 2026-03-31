@@ -1,4 +1,5 @@
 export { getApiBaseUrl } from "./config";
+export { apiFetch, apiFetchServer, apiUrl } from "./apiFetch";
 export {
   fetchEvents,
   type EventItem,

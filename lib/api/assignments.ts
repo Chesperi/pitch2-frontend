@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from "./config";
+import { apiFetch } from "./apiFetch";
 
 export class StaffRoleNotCompatibleError extends Error {
   expectedRoleCode?: string;
@@ -22,7 +22,7 @@ export type AssignmentStatus = "DRAFT" | "READY" | "SENT" | "CONFIRMED" | "REJEC
 
 export type AssignmentWithJoins = {
   id: number;
-  event_id: number;
+  event_id: string;
   role_id: number;
   staff_id: number | null;
   status: AssignmentStatus;
@@ -60,6 +60,7 @@ export type AssignmentWithJoins = {
 
 function normalizeAssignment(item: Record<string, unknown>): AssignmentWithJoins {
   const base = { ...item } as AssignmentWithJoins;
+  base.event_id = String(item.event_id ?? item.eventId ?? "");
   const roleCode = String(item.role_code ?? item.roleCode ?? "");
   const roleName = String(item.role_name ?? item.roleName ?? "");
   const staffId = (item.staff_id ?? item.staffId ?? null) as number | null;
@@ -107,10 +108,12 @@ export function preserveRoleFrom(
 }
 
 export async function fetchAssignmentsByEvent(
-  eventId: number
+  eventId: string
 ): Promise<AssignmentWithJoins[]> {
-  const url = `${getApiBaseUrl()}/api/assignments?eventId=${eventId}`;
-  const res = await fetch(url);
+  const q = new URLSearchParams({ eventId: String(eventId) });
+  const res = await apiFetch(`/api/assignments?${q.toString()}`, {
+    cache: "no-store",
+  });
   if (!res.ok) throw new Error(`Failed to fetch assignments: ${res.status}`);
   const data = await res.json();
   const items = Array.isArray(data) ? data : data.items ?? [];
@@ -120,8 +123,10 @@ export async function fetchAssignmentsByEvent(
 export async function fetchAssignmentsByStaff(
   staffId: number
 ): Promise<AssignmentWithJoins[]> {
-  const url = `${getApiBaseUrl()}/api/assignments?staffId=${staffId}`;
-  const res = await fetch(url);
+  const q = new URLSearchParams({ staffId: String(staffId) });
+  const res = await apiFetch(`/api/assignments?${q.toString()}`, {
+    cache: "no-store",
+  });
   if (!res.ok) throw new Error("Failed to fetch assignments by staff");
   const data = await res.json();
   const items = Array.isArray(data) ? data : data.items ?? [];
@@ -132,8 +137,13 @@ export async function fetchAssignmentsByPeriod(
   from: string,
   to: string
 ): Promise<AssignmentWithJoins[]> {
-  const url = `${getApiBaseUrl()}/api/assignments?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
-  const res = await fetch(url);
+  const q = new URLSearchParams({
+    from,
+    to,
+  });
+  const res = await apiFetch(`/api/assignments?${q.toString()}`, {
+    cache: "no-store",
+  });
   if (!res.ok) throw new Error("Failed to fetch assignments by period");
   const data = await res.json();
   const items = Array.isArray(data) ? data : data.items ?? [];
@@ -144,7 +154,7 @@ export async function sendDesignazioniForPerson(
   staffId: number,
   assignmentIds: number[]
 ): Promise<void> {
-  const res = await fetch(`${getApiBaseUrl()}/api/designazioni/send-person`, {
+  const res = await apiFetch("/api/designazioni/send-person", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ staffId, assignmentIds }),
@@ -162,7 +172,7 @@ export async function sendDesignazioniForPeriod(
   from: string,
   to: string
 ): Promise<void> {
-  const res = await fetch(`${getApiBaseUrl()}/api/designazioni/send-period`, {
+  const res = await apiFetch("/api/designazioni/send-period", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ from, to }),
@@ -171,11 +181,10 @@ export async function sendDesignazioniForPeriod(
 }
 
 export async function createEmptyAssignmentSlot(
-  eventId: number,
+  eventId: string,
   roleId: number
 ): Promise<AssignmentWithJoins> {
-  const url = `${getApiBaseUrl()}/api/assignments`;
-  const res = await fetch(url, {
+  const res = await apiFetch("/api/assignments", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ eventId, roleId }),
@@ -192,20 +201,19 @@ export type UpdateAssignmentPayload = {
 };
 
 export async function deleteDesignatorAssignment(id: number): Promise<void> {
-  const url = `${getApiBaseUrl()}/api/assignments/${id}`;
-  const res = await fetch(url, { method: "DELETE" });
+  const res = await apiFetch(`/api/assignments/${id}`, { method: "DELETE" });
   if (!res.ok) {
     throw new Error("Failed to delete assignment");
   }
 }
 
 export async function markAssignmentsReady(params: {
-  eventId: number;
+  eventId: string;
   assignmentIds: number[];
 }): Promise<void> {
   const { eventId, assignmentIds } = params;
-  const url = `${getApiBaseUrl()}/api/events/${eventId}/assignments-ready`;
-  const res = await fetch(url, {
+  const enc = encodeURIComponent(String(eventId));
+  const res = await apiFetch(`/api/events/${enc}/assignments-ready`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ assignmentIds }),
@@ -219,12 +227,11 @@ export async function updateDesignatorAssignment(
   id: number,
   payload: UpdateAssignmentPayload
 ): Promise<AssignmentWithJoins> {
-  const url = `${getApiBaseUrl()}/api/assignments/${id}`;
   const body: Record<string, unknown> = {};
   if (payload.staffId !== undefined) body.staffId = payload.staffId;
   if (payload.status !== undefined) body.status = payload.status;
   if (payload.notes !== undefined) body.notes = payload.notes;
-  const res = await fetch(url, {
+  const res = await apiFetch(`/api/assignments/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -278,15 +285,14 @@ export async function updateDesignatorAssignment(
 export async function fetchDesignazioniMe(): Promise<{
   items: AssignmentWithEvent[];
 }> {
-  const url = `${getApiBaseUrl()}/api/designazioni/me`;
-  const res = await fetch(url, { credentials: "include" });
+  const res = await apiFetch("/api/designazioni/me", { cache: "no-store" });
   if (!res.ok) throw new Error(`Failed to fetch designazioni: ${res.status}`);
   return res.json();
 }
 
 export type AssignmentDTO = {
   id: number;
-  event_id: number;
+  event_id: string;
   staff_id: number;
   role_code: string;
   fee: number | null;
@@ -299,7 +305,7 @@ export type AssignmentDTO = {
 };
 
 export type AssignmentEventSummary = {
-  id: number;
+  id: string;
   category: string;
   competition_name: string;
   competition_code: string | null;
@@ -342,8 +348,9 @@ export async function fetchStaffAssignments(params: {
   if (rest.limit != null) searchParams.set("limit", String(rest.limit));
   if (rest.offset != null) searchParams.set("offset", String(rest.offset));
 
-  const url = `${getApiBaseUrl()}/api/staff/${staffId}/assignments${searchParams.toString() ? `?${searchParams}` : ""}`;
-  const res = await fetch(url);
+  const qs = searchParams.toString();
+  const path = `/api/staff/${staffId}/assignments${qs ? `?${qs}` : ""}`;
+  const res = await apiFetch(path, { cache: "no-store" });
   if (!res.ok) throw new Error(`Failed to fetch assignments: ${res.status}`);
   return res.json();
 }
@@ -356,11 +363,9 @@ export async function updateAssignment(
     notes?: string | null;
   }
 ): Promise<AssignmentWithEvent> {
-  const url = `${getApiBaseUrl()}/api/assignments/${id}`;
-  const res = await fetch(url, {
+  const res = await apiFetch(`/api/assignments/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    credentials: "include",
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(`Failed to update assignment: ${res.status}`);

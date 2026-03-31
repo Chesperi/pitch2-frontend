@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from "./config";
+import { apiFetch, apiFetchServer } from "./apiFetch";
 
 export type StaffItem = {
   id: number;
@@ -36,6 +36,11 @@ export type CreateStaffPayload = {
 
 export type UpdateStaffPayload = Partial<CreateStaffPayload>;
 
+export type StaffFetchOptions = {
+  /** Per Server Components: header Cookie da `cookies()` */
+  cookieHeader?: string;
+};
+
 async function readStaffErrorMessage(
   res: Response,
   fallback: string
@@ -48,13 +53,16 @@ async function readStaffErrorMessage(
   }
 }
 
-export async function fetchStaff(params?: {
-  q?: string;
-  role_code?: string;
-  location?: string;
-  limit?: number;
-  offset?: number;
-}): Promise<StaffListResponse> {
+export async function fetchStaff(
+  params?: {
+    q?: string;
+    role_code?: string;
+    location?: string;
+    limit?: number;
+    offset?: number;
+  },
+  options?: StaffFetchOptions
+): Promise<StaffListResponse> {
   const searchParams = new URLSearchParams();
   if (params?.q) searchParams.set("q", params.q);
   if (params?.role_code) searchParams.set("role_code", params.role_code);
@@ -62,8 +70,11 @@ export async function fetchStaff(params?: {
   if (params?.limit != null) searchParams.set("limit", String(params.limit));
   if (params?.offset != null) searchParams.set("offset", String(params.offset));
 
-  const url = `${getApiBaseUrl()}/api/staff${searchParams.toString() ? `?${searchParams}` : ""}`;
-  const res = await fetch(url);
+  const qs = searchParams.toString();
+  const path = `/api/staff${qs ? `?${qs}` : ""}`;
+  const res = options?.cookieHeader
+    ? await apiFetchServer(path, options.cookieHeader, { cache: "no-store" })
+    : await apiFetch(path, { cache: "no-store" });
   if (!res.ok) throw new Error(`Failed to fetch staff: ${res.status}`);
   return res.json();
 }
@@ -71,8 +82,7 @@ export async function fetchStaff(params?: {
 export async function createStaff(
   payload: CreateStaffPayload
 ): Promise<StaffItem> {
-  const baseUrl = getApiBaseUrl();
-  const res = await fetch(`${baseUrl}/api/staff`, {
+  const res = await apiFetch("/api/staff", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -89,8 +99,7 @@ export async function updateStaff(
   id: number,
   payload: UpdateStaffPayload
 ): Promise<StaffItem> {
-  const baseUrl = getApiBaseUrl();
-  const res = await fetch(`${baseUrl}/api/staff/${id}`, {
+  const res = await apiFetch(`/api/staff/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),

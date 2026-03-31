@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from "./config";
+import { apiFetch } from "./apiFetch";
 
 export type UserProfile = {
   id: number;
@@ -33,7 +33,7 @@ export type MyAssignmentCrewMember = {
 
 export type MyAssignmentDetail = {
   assignmentId: number;
-  eventId: number;
+  eventId: string;
   competition_name: string;
   competition_code?: string | null;
   matchday?: number | null;
@@ -120,7 +120,7 @@ export function normalizeMyAssignmentDetail(
   raw: Record<string, unknown>
 ): MyAssignmentDetail {
   const aid = Number(raw.assignmentId ?? raw.id);
-  const eid = Number(raw.eventId ?? raw.event_id);
+  const eid = String(raw.eventId ?? raw.event_id ?? "");
   const crewRaw = raw.crew;
   const crew: MyAssignmentCrewMember[] = Array.isArray(crewRaw)
     ? (crewRaw as Record<string, unknown>[]).map((c) =>
@@ -130,7 +130,7 @@ export function normalizeMyAssignmentDetail(
 
   return {
     assignmentId: Number.isFinite(aid) ? aid : 0,
-    eventId: Number.isFinite(eid) ? eid : 0,
+    eventId: eid,
     competition_name:
       pickStr(raw, "competition_name", "competitionName") ?? "",
     competition_code: pickStr(raw, "competition_code", "competitionCode"),
@@ -189,9 +189,7 @@ export function normalizeMyAssignment(
 }
 
 export async function fetchAuthMe(): Promise<UserProfile> {
-  const res = await fetch(`${getApiBaseUrl()}/api/auth/me`, {
-    credentials: "include",
-  });
+  const res = await apiFetch("/api/auth/me", { cache: "no-store" });
   if (!res.ok) {
     const err = new Error(`auth/me failed: ${res.status}`);
     (err as Error & { status?: number }).status = res.status;
@@ -210,10 +208,9 @@ export async function fetchAuthMe(): Promise<UserProfile> {
 export async function fetchMyAssignmentDetail(
   assignmentId: number
 ): Promise<MyAssignmentDetail> {
-  const res = await fetch(
-    `${getApiBaseUrl()}/api/my-assignments/${assignmentId}`,
-    { credentials: "include" }
-  );
+  const res = await apiFetch(`/api/my-assignments/${assignmentId}`, {
+    cache: "no-store",
+  });
 
   if (res.status === 404) {
     let message = "Assegnazione non trovata.";
@@ -239,9 +236,7 @@ export async function fetchMyAssignmentDetail(
 }
 
 export async function fetchMyAssignments(): Promise<MyAssignmentListItem[]> {
-  const res = await fetch(`${getApiBaseUrl()}/api/my-assignments`, {
-    credentials: "include",
-  });
+  const res = await apiFetch("/api/my-assignments", { cache: "no-store" });
   if (!res.ok) {
     const err = new Error(`my-assignments failed: ${res.status}`);
     (err as Error & { status?: number }).status = res.status;
@@ -262,27 +257,20 @@ export async function patchMyAssignmentNotes(
   assignmentId: number,
   notes: string
 ): Promise<void> {
-  const res = await fetch(
-    `${getApiBaseUrl()}/api/my-assignments/${assignmentId}`,
-    {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ notes }),
-    }
-  );
+  const res = await apiFetch(`/api/my-assignments/${assignmentId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ notes }),
+  });
   if (!res.ok) {
     throw new Error(`Salvataggio note fallito (${res.status})`);
   }
 }
 
 export async function confirmMyAssignment(assignmentId: number): Promise<void> {
-  const res = await fetch(
-    `${getApiBaseUrl()}/api/my-assignments/${assignmentId}/confirm`,
-    {
-      method: "POST",
-      credentials: "include",
-    }
+  const res = await apiFetch(
+    `/api/my-assignments/${assignmentId}/confirm`,
+    { method: "POST" }
   );
   if (!res.ok) {
     throw new Error(`Conferma fallita (${res.status})`);
@@ -290,13 +278,9 @@ export async function confirmMyAssignment(assignmentId: number): Promise<void> {
 }
 
 export async function confirmAllMyAssignments(): Promise<void> {
-  const res = await fetch(
-    `${getApiBaseUrl()}/api/my-assignments/confirm-all`,
-    {
-      method: "POST",
-      credentials: "include",
-    }
-  );
+  const res = await apiFetch("/api/my-assignments/confirm-all", {
+    method: "POST",
+  });
   if (!res.ok) {
     throw new Error(`Conferma tutti fallita (${res.status})`);
   }

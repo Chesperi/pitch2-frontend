@@ -20,12 +20,32 @@ export type CreateStandardRequirementPayload = {
   site?: string;
   areaProduzione?: string | null;
   roleId: number;
+  roleLocation: string;
   quantity?: number;
   notes?: string | null;
 };
 
 export type UpdateStandardRequirementPayload =
   Partial<CreateStandardRequirementPayload>;
+
+function standardRequirementJsonBody(
+  payload: CreateStandardRequirementPayload | UpdateStandardRequirementPayload
+): Record<string, unknown> {
+  const o: Record<string, unknown> = {};
+  if (payload.standardOnsite !== undefined)
+    o.standardOnsite = payload.standardOnsite;
+  if (payload.standardCologno !== undefined)
+    o.standardCologno = payload.standardCologno;
+  if (payload.site !== undefined) o.site = payload.site;
+  if (payload.areaProduzione !== undefined)
+    o.areaProduzione = payload.areaProduzione;
+  if (payload.roleId !== undefined) o.roleId = payload.roleId;
+  if (payload.roleLocation !== undefined)
+    o.role_location = payload.roleLocation;
+  if (payload.quantity !== undefined) o.quantity = payload.quantity;
+  if (payload.notes !== undefined) o.notes = payload.notes;
+  return o;
+}
 
 export type StandardRequirementsFetchOptions = {
   cookieHeader?: string;
@@ -104,7 +124,7 @@ export async function createStandardRequirement(
   const res = await apiFetch("/api/standard-requirements", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(standardRequirementJsonBody(payload)),
   });
   if (!res.ok) {
     throw new Error(
@@ -124,7 +144,7 @@ export async function updateStandardRequirement(
   const res = await apiFetch(`/api/standard-requirements/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(standardRequirementJsonBody(payload)),
   });
   if (!res.ok) {
     throw new Error(

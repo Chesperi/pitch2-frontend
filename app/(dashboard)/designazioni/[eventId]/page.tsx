@@ -35,6 +35,16 @@ import { fetchStaff } from "@/lib/api/staff";
 import type { Role } from "@/lib/api/roles";
 import type { StaffItem } from "@/lib/api/staff";
 
+function assignmentRoleForApi(a: AssignmentWithJoins): {
+  roleCode: string;
+  roleLocation: string;
+} {
+  return {
+    roleCode: a.role_code ?? a.roleCode ?? "",
+    roleLocation: a.role_location ?? a.roleLocation ?? "",
+  };
+}
+
 function formatKoItaly(koItaly: string | null): string {
   if (!koItaly) return "—";
   try {
@@ -506,7 +516,15 @@ export default function DesignazioniEventPage() {
   const handleAssignStaff = async (assignmentId: number, staffId: number) => {
     setPickerError(null);
     try {
-      await updateDesignatorAssignment(assignmentId, { staffId });
+      const row = assignments.find((x) => x.id === assignmentId);
+      if (!row) {
+        setPickerError("Slot non trovato.");
+        return;
+      }
+      await updateDesignatorAssignment(assignmentId, {
+        staffId,
+        ...assignmentRoleForApi(row),
+      });
       await reloadAssignments();
       setStaffPickerForId(null);
     } catch (err) {
@@ -521,7 +539,11 @@ export default function DesignazioniEventPage() {
 
   const handleClearStaff = async (assignmentId: number) => {
     try {
-      await updateDesignatorAssignment(assignmentId, { staffId: null });
+      const row = assignments.find((x) => x.id === assignmentId);
+      await updateDesignatorAssignment(assignmentId, {
+        staffId: null,
+        ...(row ? assignmentRoleForApi(row) : {}),
+      });
       await reloadAssignments();
       setReadyMap((prev) => ({ ...prev, [assignmentId]: false }));
     } catch (err) {
@@ -535,8 +557,10 @@ export default function DesignazioniEventPage() {
   ) => {
     setActioningId(assignmentId);
     try {
+      const row = assignments.find((x) => x.id === assignmentId);
       const updated = await updateDesignatorAssignment(assignmentId, {
         notes,
+        ...(row ? assignmentRoleForApi(row) : {}),
       });
       setAssignments((prev) =>
         prev.map((a) => (a.id === assignmentId ? updated : a))
@@ -549,9 +573,19 @@ export default function DesignazioniEventPage() {
   };
 
   const handleAddSlot = async (roleId: number) => {
+    const role = roles.find((r) => r.id === roleId);
+    if (!role) {
+      alert("Ruolo non trovato.");
+      return;
+    }
     setAddingSlot(true);
     try {
-      await createEmptyAssignmentSlot(eventId, roleId);
+      await createEmptyAssignmentSlot(
+        eventId,
+        roleId,
+        role.code,
+        role.location
+      );
       await reloadAssignments();
     } catch (e) {
       alert(e instanceof Error ? e.message : "Errore");

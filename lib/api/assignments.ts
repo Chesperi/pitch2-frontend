@@ -58,6 +58,9 @@ export type AssignmentWithJoins = {
   staffFee?: number | null;
 };
 
+/** Alias esplicito per il tipo assignment designazioni. */
+export type Assignment = AssignmentWithJoins;
+
 function normalizeAssignment(item: Record<string, unknown>): AssignmentWithJoins {
   const base = { ...item } as AssignmentWithJoins;
   base.event_id = String(item.event_id ?? item.eventId ?? "");
@@ -97,6 +100,7 @@ export function preserveRoleFrom(
   if (hasRole(updated)) return updated;
   const prevCode = previous.roleCode ?? previous.role_code;
   const prevName = previous.roleName ?? previous.role_name;
+  const prevLoc = previous.roleLocation ?? previous.role_location ?? "";
   if (!prevCode) return updated;
   return {
     ...updated,
@@ -104,6 +108,8 @@ export function preserveRoleFrom(
     roleName: prevName ?? "",
     role_code: prevCode,
     role_name: prevName ?? "",
+    roleLocation: prevLoc,
+    role_location: prevLoc,
   };
 }
 
@@ -180,24 +186,47 @@ export async function sendDesignazioniForPeriod(
   if (!res.ok) throw new Error("Failed to send period emails");
 }
 
-export async function createEmptyAssignmentSlot(
-  eventId: string,
-  roleId: number
+export type CreateAssignmentParams = {
+  eventId: string;
+  roleId: number;
+  roleCode: string;
+  roleLocation: string;
+};
+
+export async function createAssignment(
+  params: CreateAssignmentParams
 ): Promise<AssignmentWithJoins> {
+  const { eventId, roleId, roleCode, roleLocation } = params;
   const res = await apiFetch("/api/assignments", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ eventId, roleId }),
+    body: JSON.stringify({
+      eventId,
+      roleId,
+      roleCode,
+      role_location: roleLocation,
+    }),
   });
   if (!res.ok) throw new Error(`Failed to create assignment: ${res.status}`);
   const data = await res.json();
   return normalizeAssignment(data);
 }
 
+export async function createEmptyAssignmentSlot(
+  eventId: string,
+  roleId: number,
+  roleCode: string,
+  roleLocation: string
+): Promise<AssignmentWithJoins> {
+  return createAssignment({ eventId, roleId, roleCode, roleLocation });
+}
+
 export type UpdateAssignmentPayload = {
   staffId?: number | null;
   status?: AssignmentStatus;
   notes?: string | null;
+  roleCode?: string;
+  roleLocation?: string;
 };
 
 export async function deleteDesignatorAssignment(id: number): Promise<void> {
@@ -223,7 +252,7 @@ export async function markAssignmentsReady(params: {
   }
 }
 
-export async function updateDesignatorAssignment(
+export async function updateAssignment(
   id: number,
   payload: UpdateAssignmentPayload
 ): Promise<AssignmentWithJoins> {
@@ -231,6 +260,9 @@ export async function updateDesignatorAssignment(
   if (payload.staffId !== undefined) body.staffId = payload.staffId;
   if (payload.status !== undefined) body.status = payload.status;
   if (payload.notes !== undefined) body.notes = payload.notes;
+  if (payload.roleCode !== undefined) body.role_code = payload.roleCode;
+  if (payload.roleLocation !== undefined)
+    body.role_location = payload.roleLocation;
   const res = await apiFetch(`/api/assignments/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -279,6 +311,9 @@ export async function updateDesignatorAssignment(
   }
   return normalizeAssignment(parsed);
 }
+
+/** Alias storico per PATCH slot designazioni. */
+export const updateDesignatorAssignment = updateAssignment;
 
 // --- Staff assignments (Le mie assegnazioni) ---
 
@@ -355,7 +390,8 @@ export async function fetchStaffAssignments(params: {
   return res.json();
 }
 
-export async function updateAssignment(
+/** PATCH /api/assignments/:id per flusso staff (plate, notes, status). */
+export async function updateStaffAssignment(
   id: number,
   payload: {
     status?: string;

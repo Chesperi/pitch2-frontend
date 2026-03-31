@@ -408,12 +408,14 @@ export function DatabaseSections({
     try {
       /* TODO: ripristinare quando createStandardRequirement / updateStandardRequirement sono esportati
       if (editingStdReq) {
+        const selectedRole = roles.find((r) => r.id === roleIdNum);
         const updated = await updateStandardRequirement(editingStdReq.id, {
           standardOnsite: onsite,
           standardCologno: cologno,
           site: stdReqFormValues.site,
           areaProduzione: stdReqFormValues.areaProduzione || undefined,
           roleId: roleIdNum,
+          roleLocation: selectedRole?.location ?? "",
           quantity: safeQty,
           notes: stdReqFormValues.notes.trim() || undefined,
         });
@@ -421,12 +423,14 @@ export function DatabaseSections({
           prev.map((r) => (r.id === updated.id ? updated : r))
         );
       } else {
+        const selectedRoleNew = roles.find((r) => r.id === roleIdNum);
         const created = await createStandardRequirement({
           standardOnsite: onsite,
           standardCologno: cologno,
           site: stdReqFormValues.site,
           areaProduzione: stdReqFormValues.areaProduzione || undefined,
           roleId: roleIdNum,
+          roleLocation: selectedRoleNew?.location ?? "",
           quantity: safeQty,
           notes: stdReqFormValues.notes.trim() || undefined,
         });

@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { fetchAuthMe } from "@/lib/api/freelanceAssignments";
+import { logoutPitch2 } from "@/lib/auth/pitch2Session";
 
 const LINKS = [
   { href: "/le-mie-assegnazioni", label: "Le mie assegnazioni" },
@@ -26,8 +28,12 @@ function initialsFromNameSurname(name: string, surname: string): string {
 }
 
 export default function TopBar() {
+  const router = useRouter();
   const [displayName, setDisplayName] = useState("User");
   const [avatarInitials, setAvatarInitials] = useState("U");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [logoutBusy, setLogoutBusy] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -51,6 +57,34 @@ export default function TopBar() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handlePointerDown(e: PointerEvent) {
+      if (menuRef.current?.contains(e.target as Node)) return;
+      setMenuOpen(false);
+    }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setMenuOpen(false);
+    }
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [menuOpen]);
+
+  async function handleLogout() {
+    setLogoutBusy(true);
+    setMenuOpen(false);
+    try {
+      await logoutPitch2();
+    } finally {
+      setLogoutBusy(false);
+      router.replace("/login");
+    }
+  }
 
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between gap-4 border-b border-pitch-gray-dark bg-pitch-bg px-4 py-3 md:px-6">
@@ -81,13 +115,51 @@ export default function TopBar() {
           </Link>
         ))}
       </nav>
-      <div className="flex items-center gap-2 shrink-0">
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-pitch-gray-dark text-pitch-gray text-xs">
-          {avatarInitials}
-        </div>
-        <span className="hidden text-sm text-pitch-gray-light sm:inline">
-          {displayName}
-        </span>
+
+      <div className="relative shrink-0" ref={menuRef}>
+        <button
+          type="button"
+          onClick={() => setMenuOpen((o) => !o)}
+          disabled={logoutBusy}
+          className="flex max-w-[14rem] items-center gap-2 rounded-lg border border-transparent px-2 py-1 text-left transition-colors hover:border-pitch-gray-dark hover:bg-pitch-gray-dark/40 disabled:cursor-not-allowed disabled:opacity-50"
+          aria-expanded={menuOpen}
+          aria-haspopup="menu"
+          aria-label="Menu utente"
+        >
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-pitch-gray-dark text-xs text-pitch-gray">
+            {avatarInitials}
+          </span>
+          <span className="hidden min-w-0 truncate text-sm text-pitch-gray-light sm:inline">
+            {displayName}
+          </span>
+          <svg
+            className={`hidden h-4 w-4 shrink-0 text-pitch-gray sm:block ${menuOpen ? "rotate-180" : ""} transition-transform`}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            aria-hidden
+          >
+            <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+
+        {menuOpen ? (
+          <div
+            role="menu"
+            className="absolute right-0 top-full z-50 mt-1 min-w-[10rem] rounded-lg border border-pitch-gray-dark bg-pitch-bg py-1 shadow-xl"
+          >
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => void handleLogout()}
+              disabled={logoutBusy}
+              className="w-full px-4 py-2 text-left text-sm text-pitch-gray-light hover:bg-pitch-gray-dark hover:text-pitch-white disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {logoutBusy ? "Uscita…" : "Logout"}
+            </button>
+          </div>
+        ) : null}
       </div>
     </header>
   );

@@ -1,5 +1,4 @@
-import { supabase } from "@/lib/supabaseClient";
-import { apiUrl } from "./apiFetch";
+import { apiFetch } from "./apiFetch";
 
 const BASE = "/api/production-contacts-leeds";
 
@@ -82,34 +81,18 @@ export type ProductionContactLeedsPayload = Omit<
   "id"
 >;
 
-async function getBearerHeaders(): Promise<Headers> {
-  const { data, error } = await supabase.auth.getSession();
-  if (error) throw new Error(error.message);
-  const token = data.session?.access_token;
-  if (!token) {
-    throw new Error(
-      "Sessione non disponibile. Effettua di nuovo l'accesso per ottenere il token."
-    );
-  }
-  const h = new Headers();
-  h.set("Authorization", `Bearer ${token}`);
-  return h;
-}
-
-async function productionContactsFetch(
+function productionContactsRequest(
   path: string,
   init?: RequestInit
 ): Promise<Response> {
-  const authHeaders = await getBearerHeaders();
   const headers = new Headers(init?.headers);
-  headers.set("Authorization", authHeaders.get("Authorization")!);
   if (init?.body != null && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
-  return fetch(apiUrl(path), {
+  return apiFetch(path, {
     ...init,
-    credentials: "include",
     headers,
+    cache: init?.cache ?? "no-store",
   });
 }
 
@@ -258,7 +241,7 @@ async function readErrorMessage(
 export async function fetchProductionContactsLeeds(): Promise<
   ProductionContactLeeds[]
 > {
-  const res = await productionContactsFetch(BASE, { cache: "no-store" });
+  const res = await productionContactsRequest(BASE, { cache: "no-store" });
   if (!res.ok) {
     throw new Error(
       await readErrorMessage(res, `Errore caricamento Leeds TX: ${res.status}`)
@@ -284,7 +267,7 @@ export async function fetchProductionContactsLeeds(): Promise<
 export async function createProductionContactLeeds(
   payload: ProductionContactLeedsPayload
 ): Promise<ProductionContactLeeds> {
-  const res = await productionContactsFetch(BASE, {
+  const res = await productionContactsRequest(BASE, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(toApiJsonBody(payload)),
@@ -302,7 +285,7 @@ export async function updateProductionContactLeeds(
   id: number,
   payload: ProductionContactLeedsPayload
 ): Promise<ProductionContactLeeds> {
-  const res = await productionContactsFetch(`${BASE}/${id}`, {
+  const res = await productionContactsRequest(`${BASE}/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(toApiJsonBody(payload)),
@@ -317,7 +300,7 @@ export async function updateProductionContactLeeds(
 }
 
 export async function deleteProductionContactLeeds(id: number): Promise<void> {
-  const res = await productionContactsFetch(`${BASE}/${id}`, {
+  const res = await productionContactsRequest(`${BASE}/${id}`, {
     method: "DELETE",
   });
   if (!res.ok) {

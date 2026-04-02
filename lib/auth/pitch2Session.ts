@@ -1,4 +1,5 @@
 import { apiFetch, apiFetchServer } from "@/lib/api/apiFetch";
+import { supabase } from "@/lib/supabaseClient";
 
 export type Pitch2MeResponse = {
   user_level?: string;
@@ -58,4 +59,17 @@ export async function fetchPitch2MeFromServer(cookieHeader: string): Promise<{
 export function pickUserLevel(data: Pitch2MeResponse | null): string | undefined {
   if (!data) return undefined;
   return data.user_level ?? data.userLevel;
+}
+
+/**
+ * Chiude la sessione backend (cookie `pitch2_session`) e la sessione Supabase locale.
+ * Se `POST /api/auth/logout` non è disponibile, si procede comunque con `signOut` locale.
+ */
+export async function logoutPitch2(): Promise<void> {
+  try {
+    await apiFetch("/api/auth/logout", { method: "POST", cache: "no-store" });
+  } catch {
+    /* errore di rete: continua con signOut Supabase */
+  }
+  await supabase.auth.signOut().catch(() => undefined);
 }

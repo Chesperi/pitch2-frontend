@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import {
   usePagePermissions,
   type PageAccessLevel,
 } from "@/hooks/usePagePermissions";
+import { fetchAuthMe } from "@/lib/api/freelanceAssignments";
 
 export type NavItem = {
   href: string;
@@ -15,6 +16,8 @@ export type NavItem = {
   icon?: React.ReactNode;
   /** Se assente, la voce è sempre visibile. Se presente, controllata da /api/me/permissions */
   pageKey?: string;
+  /** Se presente, visibile solo per questi `user_level` (es. MASTER, STAFF). */
+  userLevels?: string[];
 };
 
 const NAV_ITEMS: NavItem[] = [
@@ -58,14 +61,32 @@ const NAV_ITEMS: NavItem[] = [
     pageKey: "cronologia",
   },
   { href: "/master", label: "Master", short: "Ma", pageKey: "master" },
+  {
+    href: "/leeds-tx",
+    label: "Leeds TX",
+    short: "LX",
+    userLevels: ["MASTER", "STAFF"],
+  },
 ];
 
 function isNavItemVisible(
   item: NavItem,
-  loading: boolean,
-  levelByPageKey: Record<string, PageAccessLevel>
+  loadingPermissions: boolean,
+  levelByPageKey: Record<string, PageAccessLevel>,
+  meLevelUpper: string | null,
+  meReady: boolean
 ): boolean {
-  if (loading) return true;
+  if (item.userLevels?.length) {
+    if (!meReady) return false;
+    const u = (meLevelUpper ?? "").trim();
+    if (!u) return false;
+    const allowed = item.userLevels.some(
+      (l) => l.toUpperCase() === u.toUpperCase()
+    );
+    if (!allowed) return false;
+  }
+
+  if (loadingPermissions) return true;
   if (!item.pageKey) return true;
   const level = levelByPageKey[item.pageKey];
   if (level === "none") return false;
@@ -79,13 +100,34 @@ type SidebarNavProps = {
 export default function SidebarNav({ collapsed }: SidebarNavProps) {
   const pathname = usePathname();
   const { loading, levelByPageKey } = usePagePermissions();
+  const [meLevelUpper, setMeLevelUpper] = useState<string | null>(null);
+  const [meReady, setMeReady] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const me = await fetchAuthMe();
+        if (!cancelled) {
+          setMeLevelUpper((me.user_level ?? "").toUpperCase().trim());
+        }
+      } catch {
+        if (!cancelled) setMeLevelUpper(null);
+      } finally {
+        if (!cancelled) setMeReady(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const visibleItems = useMemo(
     () =>
       NAV_ITEMS.filter((item) =>
-        isNavItemVisible(item, loading, levelByPageKey)
+        isNavItemVisible(item, loading, levelByPageKey, meLevelUpper, meReady)
       ),
-    [loading, levelByPageKey]
+    [loading, levelByPageKey, meLevelUpper, meReady]
   );
 
   return (

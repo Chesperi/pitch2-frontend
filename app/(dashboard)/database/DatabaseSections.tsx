@@ -37,7 +37,12 @@ const ROLE_LOCATION_OPTIONS = [
 
 const STAFF_DEFAULT_LOCATION_OPTIONS = ROLE_LOCATION_OPTIONS;
 
-const USER_LEVEL_OPTIONS = ["FREELANCE", "MASTER"] as const;
+const USER_LEVEL_OPTIONS = [
+  "FREELANCE",
+  "STAFF",
+  "MANAGER",
+  "MASTER",
+] as const;
 
 type RoleFormValues = {
   roleCode: string;
@@ -237,10 +242,23 @@ export function DatabaseSections({
   }, [editingStaff, staffFormValues.defaultLocation]);
 
   const userLevelSelectOptions = useMemo(() => {
-    const set = new Set<string>([...USER_LEVEL_OPTIONS]);
-    if (editingStaff?.user_level) set.add(editingStaff.user_level);
-    if (staffFormValues.userLevel) set.add(staffFormValues.userLevel);
-    return [...set];
+    const ordered = [...USER_LEVEL_OPTIONS];
+    const canonical = new Set<string>(ordered);
+    const extras: string[] = [];
+    if (
+      editingStaff?.user_level &&
+      !canonical.has(editingStaff.user_level)
+    ) {
+      extras.push(editingStaff.user_level);
+    }
+    if (
+      staffFormValues.userLevel &&
+      !canonical.has(staffFormValues.userLevel)
+    ) {
+      extras.push(staffFormValues.userLevel);
+    }
+    const uniqueExtras = [...new Set(extras)].sort();
+    return [...ordered, ...uniqueExtras];
   }, [editingStaff, staffFormValues.userLevel]);
 
   useEffect(() => {

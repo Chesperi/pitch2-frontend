@@ -130,3 +130,21 @@ export async function inviteStaff(id: number): Promise<void> {
     await res.text().catch(() => undefined);
   }
 }
+
+export async function deleteStaff(id: number): Promise<void> {
+  const res = await apiFetch(`/api/staff/${id}`, {
+    method: "DELETE",
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw new Error(
+      await readStaffErrorMessage(res, `Eliminazione fallita: ${res.status}`)
+    );
+  }
+  const ct = res.headers.get("content-type");
+  if (ct?.includes("application/json")) {
+    await res.json().catch(() => undefined);
+  } else {
+    await res.text().catch(() => undefined);
+  }
+}

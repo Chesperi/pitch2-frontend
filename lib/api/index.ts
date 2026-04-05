@@ -11,6 +11,7 @@ export {
   createStaff,
   updateStaff,
   inviteStaff,
+  deleteStaff,
   type StaffItem,
   type StaffListResponse,
   type CreateStaffPayload,

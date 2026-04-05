@@ -12,6 +12,7 @@ import { usePagePermissions } from "@/hooks/usePagePermissions";
 import {
   type StaffItem,
   createStaff,
+  deleteStaff,
   fetchStaff,
   inviteStaff,
   updateStaff,
@@ -194,6 +195,7 @@ export function DatabaseSections({
   });
   const [savingStaff, setSavingStaff] = useState(false);
   const [invitingStaffId, setInvitingStaffId] = useState<number | null>(null);
+  const [deletingStaffId, setDeletingStaffId] = useState<number | null>(null);
 
   const { levelByPageKey } = usePagePermissions();
   const canEditDatabase = levelByPageKey.database === "edit";
@@ -426,6 +428,27 @@ export function DatabaseSections({
     }
   };
 
+  const handleDeleteStaff = async (s: StaffItem) => {
+    const nomeCognome = `${s.name} ${s.surname}`.trim();
+    const ok = window.confirm(
+      `Vuoi eliminare ${nomeCognome} dalla rubrica? L'operazione non può essere annullata.`
+    );
+    if (!ok) return;
+
+    setDeletingStaffId(s.id);
+    try {
+      await deleteStaff(s.id);
+      const data = await fetchStaff({ limit: 100, offset: 0 });
+      setStaff(data.items ?? []);
+    } catch (e) {
+      alert(
+        e instanceof Error ? e.message : "Errore durante l'eliminazione."
+      );
+    } finally {
+      setDeletingStaffId(null);
+    }
+  };
+
   const handleSubmitStdReq = async (e: FormEvent) => {
     e.preventDefault();
     setStdReqFormError(null);
@@ -630,7 +653,8 @@ export function DatabaseSections({
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                           <button
                             type="button"
-                            className="text-xs text-pitch-accent underline-offset-2 hover:underline"
+                            disabled={deletingStaffId === s.id}
+                            className="text-xs text-pitch-accent underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
                             onClick={() => {
                               setEditingStaff(s);
                               setStaffFormError(null);
@@ -654,13 +678,29 @@ export function DatabaseSections({
                           </button>
                           <button
                             type="button"
-                            disabled={invitingStaffId === s.id}
+                            disabled={
+                              invitingStaffId === s.id ||
+                              deletingStaffId === s.id
+                            }
                             className="inline-flex items-center gap-1 text-xs text-pitch-accent underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
                             title="Invia invito"
                             onClick={() => void handleInviteStaff(s)}
                           >
                             <span aria-hidden>✉</span>
                             {invitingStaffId === s.id ? "Invio…" : "Invita"}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={
+                              deletingStaffId === s.id ||
+                              invitingStaffId === s.id
+                            }
+                            className="inline-flex items-center gap-1 text-xs text-pitch-accent underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                            title="Elimina dalla rubrica"
+                            onClick={() => void handleDeleteStaff(s)}
+                          >
+                            <span aria-hidden>🗑</span>
+                            {deletingStaffId === s.id ? "Eliminazione…" : "Elimina"}
                           </button>
                         </div>
                       ) : (

@@ -8,7 +8,12 @@
  */
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { type StaffItem, fetchStaff } from "@/lib/api/staff";
+import {
+  type StaffItem,
+  createStaff,
+  fetchStaff,
+  updateStaff,
+} from "@/lib/api/staff";
 import { type Role, fetchRoles } from "@/lib/api/roles";
 import {
   type StandardRequirementWithRole,
@@ -336,7 +341,6 @@ export function DatabaseSections({
 
     setSavingStaff(true);
     try {
-      /* TODO: ripristinare quando createStaff / updateStaff sono esportati da @/lib/api/staff
       if (editingStaff) {
         const updated = await updateStaff(editingStaff.id, {
           surname,
@@ -370,10 +374,6 @@ export function DatabaseSections({
       }
       setIsStaffModalOpen(false);
       setEditingStaff(null);
-      */
-      setStaffFormError(
-        "Salvataggio staff temporaneamente disabilitato (createStaff/updateStaff non disponibili)."
-      );
     } catch (err) {
       setStaffFormError(
         err instanceof Error

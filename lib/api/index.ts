@@ -10,6 +10,7 @@ export {
   fetchStaff,
   createStaff,
   updateStaff,
+  inviteStaff,
   type StaffItem,
   type StaffListResponse,
   type CreateStaffPayload,

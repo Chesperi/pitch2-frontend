@@ -111,3 +111,22 @@ export async function updateStaff(
   }
   return (await res.json()) as StaffItem;
 }
+
+/** Invia email di invito al membro staff (ripetibile). */
+export async function inviteStaff(id: number): Promise<void> {
+  const res = await apiFetch(`/api/staff/${id}/invite`, {
+    method: "POST",
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw new Error(
+      await readStaffErrorMessage(res, `Invito fallito: ${res.status}`)
+    );
+  }
+  const ct = res.headers.get("content-type");
+  if (ct?.includes("application/json")) {
+    await res.json().catch(() => undefined);
+  } else {
+    await res.text().catch(() => undefined);
+  }
+}

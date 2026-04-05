@@ -8,10 +8,12 @@
  */
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { usePagePermissions } from "@/hooks/usePagePermissions";
 import {
   type StaffItem,
   createStaff,
   fetchStaff,
+  inviteStaff,
   updateStaff,
 } from "@/lib/api/staff";
 import { type Role, fetchRoles } from "@/lib/api/roles";
@@ -191,6 +193,10 @@ export function DatabaseSections({
     active: true,
   });
   const [savingStaff, setSavingStaff] = useState(false);
+  const [invitingStaffId, setInvitingStaffId] = useState<number | null>(null);
+
+  const { levelByPageKey } = usePagePermissions();
+  const canEditDatabase = levelByPageKey.database === "edit";
 
   const [roles, setRoles] = useState<Role[]>(initialRoles);
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
@@ -403,6 +409,23 @@ export function DatabaseSections({
     }
   };
 
+  const handleInviteStaff = async (s: StaffItem) => {
+    setInvitingStaffId(s.id);
+    try {
+      await inviteStaff(s.id);
+      const fullName = `${s.name} ${s.surname}`.trim();
+      alert(`Invito inviato a ${fullName}`);
+    } catch (e) {
+      alert(
+        e instanceof Error
+          ? e.message
+          : "Errore durante l'invio dell'invito."
+      );
+    } finally {
+      setInvitingStaffId(null);
+    }
+  };
+
   const handleSubmitStdReq = async (e: FormEvent) => {
     e.preventDefault();
     setStdReqFormError(null);
@@ -603,30 +626,46 @@ export function DatabaseSections({
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <button
-                        type="button"
-                        className="text-xs text-pitch-accent underline-offset-2 hover:underline"
-                        onClick={() => {
-                          setEditingStaff(s);
-                          setStaffFormError(null);
-                          setStaffFormValues({
-                            surname: s.surname ?? "",
-                            name: s.name ?? "",
-                            email: s.email ?? "",
-                            phone: s.phone ?? "",
-                            company: s.company ?? "",
-                            defaultRoleCode: s.default_role_code ?? "",
-                            defaultLocation: s.default_location ?? "STADIO",
-                            userLevel: s.user_level ?? "FREELANCE",
-                            fee: s.fee != null ? String(s.fee) : "",
-                            plates: s.plates ?? "",
-                            active: s.active ?? true,
-                          });
-                          setIsStaffModalOpen(true);
-                        }}
-                      >
-                        Modifica
-                      </button>
+                      {canEditDatabase ? (
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                          <button
+                            type="button"
+                            className="text-xs text-pitch-accent underline-offset-2 hover:underline"
+                            onClick={() => {
+                              setEditingStaff(s);
+                              setStaffFormError(null);
+                              setStaffFormValues({
+                                surname: s.surname ?? "",
+                                name: s.name ?? "",
+                                email: s.email ?? "",
+                                phone: s.phone ?? "",
+                                company: s.company ?? "",
+                                defaultRoleCode: s.default_role_code ?? "",
+                                defaultLocation: s.default_location ?? "STADIO",
+                                userLevel: s.user_level ?? "FREELANCE",
+                                fee: s.fee != null ? String(s.fee) : "",
+                                plates: s.plates ?? "",
+                                active: s.active ?? true,
+                              });
+                              setIsStaffModalOpen(true);
+                            }}
+                          >
+                            Modifica
+                          </button>
+                          <button
+                            type="button"
+                            disabled={invitingStaffId === s.id}
+                            className="inline-flex items-center gap-1 text-xs text-pitch-accent underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                            title="Invia invito"
+                            onClick={() => void handleInviteStaff(s)}
+                          >
+                            <span aria-hidden>✉</span>
+                            {invitingStaffId === s.id ? "Invio…" : "Invita"}
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-pitch-gray">—</span>
+                      )}
                     </td>
                   </tr>
                 ))}

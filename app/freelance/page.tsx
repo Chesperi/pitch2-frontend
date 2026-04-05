@@ -1,25 +1,37 @@
 "use client";
 
 import { Suspense, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
+/**
+ * Punto d’ingresso /freelance (es. link con ?token=).
+ * Reindirizza a /freelance/dashboard dove useFreelanceContext valida token/sessione,
+ * poi la dashboard reindirizza a /le-mie-assegnazioni (con ?staffId= se noto).
+ */
 function FreelanceRedirectContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   useEffect(() => {
     const token = searchParams.get("token");
-    const redirectUrl = token
+    const path = token
       ? `/freelance/dashboard?token=${encodeURIComponent(token)}`
       : "/freelance/dashboard";
-    window.location.href = redirectUrl;
-  }, [searchParams]);
+    router.replace(path);
+  }, [searchParams, router]);
 
-  return null;
+  return (
+    <div className="p-6 text-sm text-neutral-400">Reindirizzamento…</div>
+  );
 }
 
 export default function FreelancePage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense
+      fallback={
+        <div className="p-6 text-sm text-neutral-400">Caricamento…</div>
+      }
+    >
       <FreelanceRedirectContent />
     </Suspense>
   );

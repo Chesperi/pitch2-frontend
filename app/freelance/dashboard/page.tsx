@@ -1,32 +1,45 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { useFreelanceContext } from "@/hooks/useFreelanceContext";
 
 function FreelanceDashboardContent() {
+  const router = useRouter();
   const { loading, error, staffIdFromToken, userStaffId } =
     useFreelanceContext();
+  const didRedirect = useRef(false);
 
-  if (loading) return null;
+  useEffect(() => {
+    if (loading || error != null) return;
+    if (didRedirect.current) return;
+    didRedirect.current = true;
+
+    const effectiveStaffId = staffIdFromToken ?? userStaffId;
+    const hasStaff =
+      effectiveStaffId != null && Number.isFinite(Number(effectiveStaffId));
+    const qs = hasStaff
+      ? `?staffId=${encodeURIComponent(String(effectiveStaffId))}`
+      : "";
+    router.replace(`/le-mie-assegnazioni${qs}`);
+  }, [loading, error, staffIdFromToken, userStaffId, router]);
 
   if (error) {
     return <div className="p-6 text-red-400">{error}</div>;
   }
 
-  // staffId effettivo su cui filtrare
-  const effectiveStaffId = staffIdFromToken ?? userStaffId;
-
   return (
-    <div className="p-6 text-white">
-      {/* Qui, usando effectiveStaffId, carica e mostra le designazioni di quella persona */}
-      Dashboard freelance – staffId: {effectiveStaffId ?? "—"}
+    <div className="p-6 text-sm text-neutral-400">
+      Reindirizzamento in corso…
     </div>
   );
 }
 
 export default function FreelanceDashboardPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={
+      <div className="p-6 text-sm text-neutral-400">Caricamento…</div>
+    }>
       <FreelanceDashboardContent />
     </Suspense>
   );

@@ -24,6 +24,24 @@ export const PAGE_KEY_TO_ROUTE: Record<string, string> = {
   master: "/master",
 };
 
+/**
+ * Visibilità voci menu dashboard da `levelByPageKey` (dopo caricamento permessi).
+ * - `le_mie_assegnazioni` è sempre visibile per utenti autenticati.
+ * - Voci senza `pageKey` (es. solo `userLevels`): true qui; il chiamante applica `userLevels`.
+ * - Con `loadingPermissions` true: nasconde tutto tranne ciò che non ha pageKey / le_mie (il chiamante gestisce i casi senza key).
+ */
+export function isDashboardPageNavVisible(
+  pageKey: string | undefined,
+  loadingPermissions: boolean,
+  levelByPageKey: Record<string, PageAccessLevel>
+): boolean {
+  if (pageKey === "le_mie_assegnazioni") return true;
+  if (pageKey == null || pageKey === "") return true;
+  if (loadingPermissions) return false;
+  const level = levelByPageKey[pageKey];
+  return level === "view" || level === "edit";
+}
+
 export function usePagePermissions(): {
   loading: boolean;
   error: string | null;

@@ -1,21 +1,29 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchAuthMe } from "@/lib/api/freelanceAssignments";
 import { logoutPitch2 } from "@/lib/auth/pitch2Session";
+import {
+  usePagePermissions,
+  isDashboardPageNavVisible,
+} from "@/hooks/usePagePermissions";
 
-const LINKS = [
-  { href: "/le-mie-assegnazioni", label: "Le mie assegnazioni" },
-  { href: "/eventi", label: "Eventi" },
-  { href: "/designazioni", label: "Designazioni" },
-  { href: "/accrediti", label: "Accrediti" },
-  { href: "/database", label: "Database" },
-  { href: "/call-sheet", label: "Call sheet" },
-  { href: "/consuntivo", label: "Consuntivo" },
-  { href: "/cronologia", label: "Cronologia" },
-  { href: "/master", label: "Master" },
+const TOPBAR_LINKS: { href: string; label: string; pageKey: string }[] = [
+  {
+    href: "/le-mie-assegnazioni",
+    label: "Le mie assegnazioni",
+    pageKey: "le_mie_assegnazioni",
+  },
+  { href: "/eventi", label: "Eventi", pageKey: "eventi" },
+  { href: "/designazioni", label: "Designazioni", pageKey: "designazioni" },
+  { href: "/accrediti", label: "Accrediti", pageKey: "accrediti" },
+  { href: "/database", label: "Database", pageKey: "database" },
+  { href: "/call-sheet", label: "Call sheet", pageKey: "call_sheet" },
+  { href: "/consuntivo", label: "Consuntivo", pageKey: "consuntivo" },
+  { href: "/cronologia", label: "Cronologia", pageKey: "cronologia" },
+  { href: "/master", label: "Master", pageKey: "master" },
 ];
 
 function initialsFromNameSurname(name: string, surname: string): string {
@@ -29,11 +37,24 @@ function initialsFromNameSurname(name: string, surname: string): string {
 
 export default function TopBar() {
   const router = useRouter();
+  const { loading: permissionsLoading, levelByPageKey } = usePagePermissions();
   const [displayName, setDisplayName] = useState("User");
   const [avatarInitials, setAvatarInitials] = useState("U");
   const [menuOpen, setMenuOpen] = useState(false);
   const [logoutBusy, setLogoutBusy] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const visibleTopLinks = useMemo(
+    () =>
+      TOPBAR_LINKS.filter((link) =>
+        isDashboardPageNavVisible(
+          link.pageKey,
+          permissionsLoading,
+          levelByPageKey
+        )
+      ),
+    [permissionsLoading, levelByPageKey]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -93,7 +114,7 @@ export default function TopBar() {
       </div>
       {/* Desktop: centered shortcut bar */}
       <nav className="hidden md:flex flex-1 items-center justify-center gap-4">
-        {LINKS.map((link) => (
+        {visibleTopLinks.map((link) => (
           <Link
             key={link.href}
             href={link.href}
@@ -105,7 +126,7 @@ export default function TopBar() {
       </nav>
       {/* Mobile: horizontal scroll shortcut bar */}
       <nav className="flex md:hidden flex-1 items-center gap-3 overflow-x-auto min-w-0 -mx-2 px-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-        {LINKS.map((link) => (
+        {visibleTopLinks.map((link) => (
           <Link
             key={link.href}
             href={link.href}

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import {
   usePagePermissions,
+  isDashboardPageNavVisible,
   type PageAccessLevel,
 } from "@/hooks/usePagePermissions";
 import { fetchAuthMe } from "@/lib/api/freelanceAssignments";
@@ -86,11 +87,11 @@ function isNavItemVisible(
     if (!allowed) return false;
   }
 
-  if (loadingPermissions) return true;
-  if (!item.pageKey) return true;
-  const level = levelByPageKey[item.pageKey];
-  if (level === "none") return false;
-  return true;
+  return isDashboardPageNavVisible(
+    item.pageKey,
+    loadingPermissions,
+    levelByPageKey
+  );
 }
 
 type SidebarNavProps = {

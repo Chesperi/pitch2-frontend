@@ -13,6 +13,14 @@ export type StaffItem = {
   plates: string | null;
   user_level: string;
   active: boolean;
+  place_of_birth: string | null;
+  date_of_birth: string | null;
+  residential_address: string | null;
+  id_number: string | null;
+  extra_fee: string | null;
+  team_dazn: string | null;
+  notes: string | null;
+  finance_visibility: boolean | null;
 };
 
 export type StaffListResponse = {

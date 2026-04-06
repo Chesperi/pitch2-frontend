@@ -517,6 +517,16 @@ export function DatabaseSections({
     }
   };
 
+  function staffReadOnlyText(v: string | null | undefined): string {
+    if (v == null || String(v).trim() === "") return "—";
+    return String(v);
+  }
+  function staffReadOnlyBool(v: boolean | null | undefined): string {
+    if (v === true) return "Sì";
+    if (v === false) return "No";
+    return "—";
+  }
+
   return (
     <>
       <CollapsibleSection
@@ -1327,7 +1337,7 @@ export function DatabaseSections({
             role="dialog"
             aria-modal="true"
             aria-labelledby="staff-modal-title"
-            className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg border border-pitch-gray-dark bg-pitch-bg p-5 shadow-xl"
+            className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-pitch-gray-dark bg-pitch-bg p-5 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <h2
@@ -1341,6 +1351,89 @@ export function DatabaseSections({
                 {staffFormError}
               </p>
             ) : null}
+            {editingStaff && (
+              <div className="mb-4 space-y-4">
+                <div>
+                  <p className="mb-2 border-b border-pitch-gray-dark pb-1 text-xs font-semibold uppercase text-pitch-gray">
+                    Dati Anagrafici
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-xs text-pitch-gray">
+                        Luogo di nascita
+                      </label>
+                      <p className="text-sm text-pitch-white">
+                        {staffReadOnlyText(editingStaff.place_of_birth)}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-xs text-pitch-gray">
+                        Data di nascita
+                      </label>
+                      <p className="text-sm text-pitch-white">
+                        {staffReadOnlyText(editingStaff.date_of_birth)}
+                      </p>
+                    </div>
+                    <div className="col-span-2">
+                      <label className="text-xs text-pitch-gray">
+                        Indirizzo di residenza
+                      </label>
+                      <p className="text-sm text-pitch-white">
+                        {staffReadOnlyText(editingStaff.residential_address)}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-xs text-pitch-gray">
+                        Documento / ID
+                      </label>
+                      <p className="text-sm text-pitch-white">
+                        {staffReadOnlyText(editingStaff.id_number)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="mb-2 border-b border-pitch-gray-dark pb-1 text-xs font-semibold uppercase text-pitch-gray">
+                    Dati Contrattuali
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-xs text-pitch-gray">Extra fee</label>
+                      <p className="text-sm text-pitch-white">
+                        {staffReadOnlyText(editingStaff.extra_fee)}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-xs text-pitch-gray">Team DAZN</label>
+                      <p className="text-sm text-pitch-white">
+                        {staffReadOnlyText(editingStaff.team_dazn)}
+                      </p>
+                    </div>
+                    <div className="col-span-2">
+                      <label className="text-xs text-pitch-gray">Note</label>
+                      <p className="text-sm whitespace-pre-wrap text-pitch-white">
+                        {staffReadOnlyText(editingStaff.notes)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="mb-2 border-b border-pitch-gray-dark pb-1 text-xs font-semibold uppercase text-pitch-gray">
+                    Impostazioni
+                  </p>
+                  <div>
+                    <label className="text-xs text-pitch-gray">
+                      Visibilità finanziaria
+                    </label>
+                    <p className="text-sm text-pitch-white">
+                      {staffReadOnlyBool(editingStaff.finance_visibility)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
             <form className="mt-4 space-y-3" onSubmit={handleSubmitStaff}>
               <div>
                 <label

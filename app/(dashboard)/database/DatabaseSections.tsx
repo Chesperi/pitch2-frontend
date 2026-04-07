@@ -47,6 +47,14 @@ const USER_LEVEL_OPTIONS = [
   "MASTER",
 ] as const;
 
+const STAFF_PAGE_SIZE = 50;
+
+function staffDateToInputValue(raw: string | null | undefined): string {
+  if (!raw) return "";
+  const s = String(raw).trim();
+  return s.length >= 10 ? s.slice(0, 10) : s;
+}
+
 type RoleFormValues = {
   roleCode: string;
   name: string;
@@ -67,6 +75,14 @@ type StaffFormValues = {
   fee: string;
   plates: string;
   active: boolean;
+  placeOfBirth: string;
+  dateOfBirth: string;
+  residentialAddress: string;
+  idNumber: string;
+  extraFee: string;
+  teamDazn: string;
+  staffNotes: string;
+  financeVisibility: boolean;
 };
 
 const PRIMARY_BTN_SM =
@@ -106,6 +122,7 @@ function emptyStdReqForm(): StdReqFormValues {
 
 interface DatabaseSectionsProps {
   staff: StaffItem[];
+  staffTotal: number;
   roles: Role[];
   standardRequirements: StandardRequirementWithRole[];
   roleMap: Record<string, string>;
@@ -168,6 +185,7 @@ function CollapsibleSection({
 
 export function DatabaseSections({
   staff: initialStaff,
+  staffTotal: initialStaffTotal,
   roles: initialRoles,
   standardRequirements: initialStandardRequirements,
   roleMap,
@@ -192,7 +210,18 @@ export function DatabaseSections({
     fee: "",
     plates: "",
     active: true,
+    placeOfBirth: "",
+    dateOfBirth: "",
+    residentialAddress: "",
+    idNumber: "",
+    extraFee: "",
+    teamDazn: "",
+    staffNotes: "",
+    financeVisibility: false,
   });
+  const [staffOffset, setStaffOffset] = useState(0);
+  const [staffTotal, setStaffTotal] = useState(initialStaffTotal);
+  const [staffLoadingMore, setStaffLoadingMore] = useState(false);
   const [savingStaff, setSavingStaff] = useState(false);
   const [invitingStaffId, setInvitingStaffId] = useState<number | null>(null);
   const [deletingStaffId, setDeletingStaffId] = useState<number | null>(null);
@@ -222,7 +251,9 @@ export function DatabaseSections({
 
   useEffect(() => {
     setStaff(initialStaff);
-  }, [initialStaff]);
+    setStaffOffset(0);
+    setStaffTotal(initialStaffTotal);
+  }, [initialStaff, initialStaffTotal]);
 
   useEffect(() => {
     setRoles(initialRoles);
@@ -365,6 +396,17 @@ export function DatabaseSections({
     const feeValue =
       feeNum != null && Number.isFinite(feeNum) ? feeNum : undefined;
 
+    const extraStaffFields = {
+      place_of_birth: staffFormValues.placeOfBirth.trim() || null,
+      date_of_birth: staffFormValues.dateOfBirth.trim() || null,
+      residential_address: staffFormValues.residentialAddress.trim() || null,
+      id_number: staffFormValues.idNumber.trim() || null,
+      extra_fee: staffFormValues.extraFee.trim() || null,
+      team_dazn: staffFormValues.teamDazn.trim() || null,
+      notes: staffFormValues.staffNotes.trim() || null,
+      finance_visibility: staffFormValues.financeVisibility,
+    };
+
     setSavingStaff(true);
     try {
       if (editingStaff) {
@@ -380,6 +422,7 @@ export function DatabaseSections({
           company: staffFormValues.company.trim() || undefined,
           fee: feeValue,
           plates: staffFormValues.plates.trim() || undefined,
+          ...extraStaffFields,
         });
         setStaff((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
       } else {
@@ -395,6 +438,7 @@ export function DatabaseSections({
           company: staffFormValues.company.trim() || undefined,
           fee: feeValue,
           plates: staffFormValues.plates.trim() || undefined,
+          ...extraStaffFields,
         });
         setStaff((prev) => [...prev, created]);
       }
@@ -438,8 +482,13 @@ export function DatabaseSections({
     setDeletingStaffId(s.id);
     try {
       await deleteStaff(s.id);
-      const data = await fetchStaff({ limit: 100, offset: 0 });
+      const data = await fetchStaff({
+        limit: STAFF_PAGE_SIZE,
+        offset: 0,
+      });
       setStaff(data.items ?? []);
+      setStaffOffset(0);
+      setStaffTotal(data.total ?? 0);
     } catch (e) {
       alert(
         e instanceof Error ? e.message : "Errore durante l'eliminazione."
@@ -517,16 +566,6 @@ export function DatabaseSections({
     }
   };
 
-  function staffReadOnlyText(v: string | null | undefined): string {
-    if (v == null || String(v).trim() === "") return "—";
-    return String(v);
-  }
-  function staffReadOnlyBool(v: boolean | null | undefined): string {
-    if (v === true) return "Sì";
-    if (v === false) return "No";
-    return "—";
-  }
-
   return (
     <>
       <CollapsibleSection
@@ -554,6 +593,14 @@ export function DatabaseSections({
                 fee: "",
                 plates: "",
                 active: true,
+                placeOfBirth: "",
+                dateOfBirth: "",
+                residentialAddress: "",
+                idNumber: "",
+                extraFee: "",
+                teamDazn: "",
+                staffNotes: "",
+                financeVisibility: false,
               });
               setIsStaffModalOpen(true);
             }}
@@ -680,6 +727,16 @@ export function DatabaseSections({
                                 fee: s.fee != null ? String(s.fee) : "",
                                 plates: s.plates ?? "",
                                 active: s.active ?? true,
+                                placeOfBirth: s.place_of_birth ?? "",
+                                dateOfBirth: staffDateToInputValue(
+                                  s.date_of_birth
+                                ),
+                                residentialAddress: s.residential_address ?? "",
+                                idNumber: s.id_number ?? "",
+                                extraFee: s.extra_fee ?? "",
+                                teamDazn: s.team_dazn ?? "",
+                                staffNotes: s.notes ?? "",
+                                financeVisibility: s.finance_visibility ?? false,
                               });
                               setIsStaffModalOpen(true);
                             }}
@@ -723,6 +780,39 @@ export function DatabaseSections({
             </table>
           )}
         </div>
+        {staff.length < staffTotal && (
+          <div className="mt-4 flex justify-center">
+            <button
+              type="button"
+              disabled={staffLoadingMore}
+              className={PRIMARY_BTN_SM}
+              onClick={async () => {
+                setStaffLoadingMore(true);
+                try {
+                  const newOffset = staffOffset + STAFF_PAGE_SIZE;
+                  const data = await fetchStaff({
+                    limit: STAFF_PAGE_SIZE,
+                    offset: newOffset,
+                  });
+                  const items = data.items ?? [];
+                  setStaff((prev) => [...prev, ...items]);
+                  setStaffOffset(newOffset);
+                  if (typeof data.total === "number") setStaffTotal(data.total);
+                } catch (e) {
+                  alert(
+                    e instanceof Error
+                      ? e.message
+                      : "Errore nel caricamento di altri record."
+                  );
+                } finally {
+                  setStaffLoadingMore(false);
+                }
+              }}
+            >
+              {staffLoadingMore ? "Caricamento…" : "Carica altri"}
+            </button>
+          </div>
+        )}
       </CollapsibleSection>
 
       <CollapsibleSection
@@ -1351,90 +1441,186 @@ export function DatabaseSections({
                 {staffFormError}
               </p>
             ) : null}
-            {editingStaff && (
-              <div className="mb-4 space-y-4">
-                <div>
-                  <p className="mb-2 border-b border-pitch-gray-dark pb-1 text-xs font-semibold uppercase text-pitch-gray">
-                    Dati Anagrafici
-                  </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-xs text-pitch-gray">
-                        Luogo di nascita
-                      </label>
-                      <p className="text-sm text-pitch-white">
-                        {staffReadOnlyText(editingStaff.place_of_birth)}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-xs text-pitch-gray">
-                        Data di nascita
-                      </label>
-                      <p className="text-sm text-pitch-white">
-                        {staffReadOnlyText(editingStaff.date_of_birth)}
-                      </p>
-                    </div>
-                    <div className="col-span-2">
-                      <label className="text-xs text-pitch-gray">
-                        Indirizzo di residenza
-                      </label>
-                      <p className="text-sm text-pitch-white">
-                        {staffReadOnlyText(editingStaff.residential_address)}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-xs text-pitch-gray">
-                        Documento / ID
-                      </label>
-                      <p className="text-sm text-pitch-white">
-                        {staffReadOnlyText(editingStaff.id_number)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <p className="mb-2 border-b border-pitch-gray-dark pb-1 text-xs font-semibold uppercase text-pitch-gray">
-                    Dati Contrattuali
-                  </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-xs text-pitch-gray">Extra fee</label>
-                      <p className="text-sm text-pitch-white">
-                        {staffReadOnlyText(editingStaff.extra_fee)}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-xs text-pitch-gray">Team DAZN</label>
-                      <p className="text-sm text-pitch-white">
-                        {staffReadOnlyText(editingStaff.team_dazn)}
-                      </p>
-                    </div>
-                    <div className="col-span-2">
-                      <label className="text-xs text-pitch-gray">Note</label>
-                      <p className="text-sm whitespace-pre-wrap text-pitch-white">
-                        {staffReadOnlyText(editingStaff.notes)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <p className="mb-2 border-b border-pitch-gray-dark pb-1 text-xs font-semibold uppercase text-pitch-gray">
-                    Impostazioni
-                  </p>
+            <form className="mt-4 space-y-3" onSubmit={handleSubmitStaff}>
+              <div>
+                <p className="mb-2 border-b border-pitch-gray-dark pb-1 text-xs font-semibold uppercase text-pitch-gray">
+                  Dati Anagrafici
+                </p>
+                <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-xs text-pitch-gray">
-                      Visibilità finanziaria
+                    <label
+                      htmlFor="staff-place-birth"
+                      className="mb-1 block text-xs text-pitch-gray"
+                    >
+                      Luogo di nascita
                     </label>
-                    <p className="text-sm text-pitch-white">
-                      {staffReadOnlyBool(editingStaff.finance_visibility)}
-                    </p>
+                    <input
+                      id="staff-place-birth"
+                      type="text"
+                      value={staffFormValues.placeOfBirth}
+                      onChange={(e) =>
+                        setStaffFormValues((v) => ({
+                          ...v,
+                          placeOfBirth: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="staff-date-birth"
+                      className="mb-1 block text-xs text-pitch-gray"
+                    >
+                      Data di nascita
+                    </label>
+                    <input
+                      id="staff-date-birth"
+                      type="date"
+                      value={staffFormValues.dateOfBirth}
+                      onChange={(e) =>
+                        setStaffFormValues((v) => ({
+                          ...v,
+                          dateOfBirth: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+                    />
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <label
+                    htmlFor="staff-address"
+                    className="mb-1 block text-xs text-pitch-gray"
+                  >
+                    Indirizzo di residenza
+                  </label>
+                  <input
+                    id="staff-address"
+                    type="text"
+                    value={staffFormValues.residentialAddress}
+                    onChange={(e) =>
+                      setStaffFormValues((v) => ({
+                        ...v,
+                        residentialAddress: e.target.value,
+                      }))
+                    }
+                    className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+                  />
+                </div>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <div>
+                    <label
+                      htmlFor="staff-id-number"
+                      className="mb-1 block text-xs text-pitch-gray"
+                    >
+                      Documento / ID
+                    </label>
+                    <input
+                      id="staff-id-number"
+                      type="text"
+                      value={staffFormValues.idNumber}
+                      onChange={(e) =>
+                        setStaffFormValues((v) => ({
+                          ...v,
+                          idNumber: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+                    />
                   </div>
                 </div>
               </div>
-            )}
-            <form className="mt-4 space-y-3" onSubmit={handleSubmitStaff}>
+
+              <div>
+                <p className="mb-2 border-b border-pitch-gray-dark pb-1 text-xs font-semibold uppercase text-pitch-gray">
+                  Dati Contrattuali
+                </p>
+                <div className="space-y-2">
+                  <div>
+                    <label
+                      htmlFor="staff-extra-fee"
+                      className="mb-1 block text-xs text-pitch-gray"
+                    >
+                      Extra fee
+                    </label>
+                    <input
+                      id="staff-extra-fee"
+                      type="text"
+                      value={staffFormValues.extraFee}
+                      onChange={(e) =>
+                        setStaffFormValues((v) => ({
+                          ...v,
+                          extraFee: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="staff-team-dazn"
+                      className="mb-1 block text-xs text-pitch-gray"
+                    >
+                      Team DAZN
+                    </label>
+                    <input
+                      id="staff-team-dazn"
+                      type="text"
+                      value={staffFormValues.teamDazn}
+                      onChange={(e) =>
+                        setStaffFormValues((v) => ({
+                          ...v,
+                          teamDazn: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="staff-notes"
+                      className="mb-1 block text-xs text-pitch-gray"
+                    >
+                      Note
+                    </label>
+                    <textarea
+                      id="staff-notes"
+                      rows={3}
+                      value={staffFormValues.staffNotes}
+                      onChange={(e) =>
+                        setStaffFormValues((v) => ({
+                          ...v,
+                          staffNotes: e.target.value,
+                        }))
+                      }
+                      className="w-full resize-y rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <p className="mb-2 border-b border-pitch-gray-dark pb-1 text-xs font-semibold uppercase text-pitch-gray">
+                  Impostazioni
+                </p>
+                <label className="flex cursor-pointer items-center gap-2 text-sm text-pitch-gray-light">
+                  <input
+                    id="staff-finance-visibility"
+                    type="checkbox"
+                    checked={staffFormValues.financeVisibility}
+                    onChange={(e) =>
+                      setStaffFormValues((v) => ({
+                        ...v,
+                        financeVisibility: e.target.checked,
+                      }))
+                    }
+                    className="rounded border-pitch-gray-dark"
+                  />
+                  Visibilità finanziaria
+                </label>
+              </div>
+
               <div>
                 <label
                   htmlFor="staff-surname"

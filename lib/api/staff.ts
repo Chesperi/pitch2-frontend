@@ -40,6 +40,14 @@ export type CreateStaffPayload = {
   company?: string | null;
   fee?: number | null;
   plates?: string | null;
+  place_of_birth?: string | null;
+  date_of_birth?: string | null;
+  residential_address?: string | null;
+  id_number?: string | null;
+  extra_fee?: string | null;
+  team_dazn?: string | null;
+  notes?: string | null;
+  finance_visibility?: boolean | null;
 };
 
 export type UpdateStaffPayload = Partial<CreateStaffPayload>;

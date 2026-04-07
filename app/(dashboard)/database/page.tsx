@@ -19,7 +19,7 @@ export default async function DatabasePage() {
 
   const [roles, staffData, standardRequirements] = await Promise.all([
     fetchRoles({ cookieHeader }),
-    fetchStaff({ limit: 100, offset: 0 }, { cookieHeader }),
+    fetchStaff({ limit: 50, offset: 0 }, { cookieHeader }),
     fetchAllStandardRequirements({ cookieHeader }),
   ]);
   const staff = staffData.items ?? [];
@@ -44,6 +44,7 @@ export default async function DatabasePage() {
       <div className="mt-8">
         <DatabaseSections
           staff={staff}
+          staffTotal={staffData.total ?? 0}
           roles={roles}
           standardRequirements={reqs}
           roleMap={roleMap}

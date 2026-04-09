@@ -125,7 +125,7 @@ export default function ForgotPasswordPage() {
           <button
             type="button"
             className="mt-2 w-full text-sm text-pitch-gray hover:underline"
-            onClick={() => router.push("/magic-login")}
+            onClick={() => router.push("/login")}
           >
             Torna al login
           </button>

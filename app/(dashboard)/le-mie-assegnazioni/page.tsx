@@ -107,7 +107,7 @@ export default function LeMieAssegnazioniPage() {
     } catch (e) {
       const err = e as FetchMyAssignmentsStaffError;
       if (err.status === 401) {
-        router.push("/magic-login");
+        router.push("/login");
         return;
       }
       if (err.status === 429) {

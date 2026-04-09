@@ -13,16 +13,21 @@ export function assignmentsHomeForUserLevel(levelRaw: string | undefined): strin
 }
 
 /**
- * POST /api/auth/supabase/session con body { access_token } e cookie session
- * impostati dal backend (SameSite / dominio da allineare in produzione).
+ * POST /api/auth/supabase/session: imposta cookie pitch2_session lato backend.
+ * rememberMe: true (default) = sessione lunga; false = sessione breve (~1 giorno).
  */
 export async function postSupabaseSessionToBackend(
-  accessToken: string
+  accessToken: string,
+  options?: { rememberMe?: boolean }
 ): Promise<Response> {
+  const payload: Record<string, unknown> = { access_token: accessToken };
+  if (options && typeof options.rememberMe === "boolean") {
+    payload.rememberMe = options.rememberMe;
+  }
   return apiFetch("/api/auth/supabase/session", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ access_token: accessToken }),
+    body: JSON.stringify(payload),
   });
 }
 

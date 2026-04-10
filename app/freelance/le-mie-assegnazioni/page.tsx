@@ -515,16 +515,20 @@ export default function FreelanceLeMieAssegnazioniPage() {
               style={{
                 fontFamily: "Arial Black, system-ui, sans-serif",
                 fontWeight: 900,
+                fontSize: 20,
                 color: "#fff",
               }}
             >
               P<span style={{ color: "#FFFA00", fontSize: "1.4em" }}>/</span>TCH
             </div>
+            <span style={{ color: "#868A8C", fontSize: 14, margin: "0 8px" }}>
+              ×
+            </span>
             <img
               src="/logo-dazn.png"
               alt="DAZN"
-              height={24}
-              style={{ height: 24, filter: "brightness(0) invert(1)", opacity: 0.8 }}
+              height={22}
+              style={{ height: 22, filter: "brightness(0) invert(1)" }}
             />
             <div className="h-6 w-px" style={{ background: "#2a2a2a" }} />
             <button

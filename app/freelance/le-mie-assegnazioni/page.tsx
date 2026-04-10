@@ -2,352 +2,803 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import FreelanceTopBar from "@/components/FreelanceTopBar";
-import {
-  type MyAssignmentListItem,
-  type UserProfile,
-  confirmAllMyAssignments,
-  confirmMyAssignment,
-  fetchAuthMe,
-  fetchMyAssignments,
-  patchMyAssignmentNotes,
-} from "@/lib/api/freelanceAssignments";
+import { useEffect, useMemo, useState } from "react";
+import { apiFetch } from "@/lib/api/apiFetch";
 
-function formatUpdatedLine(): string {
-  return new Intl.DateTimeFormat("it-IT", {
-    dateStyle: "long",
-    timeStyle: "short",
-  }).format(new Date());
-}
+type UserProfile = {
+  id: number | null;
+  name: string;
+  surname: string;
+};
 
-function formatDateRow(
-  dateStr: string | null,
-  weekdayFromApi: string | null
-): string {
-  if (!dateStr) return "—";
-  const d = new Date(`${dateStr}T12:00:00`);
-  if (Number.isNaN(d.getTime())) return dateStr;
-  const base = new Intl.DateTimeFormat("it-IT", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
+type AssignmentItem = {
+  id: number;
+  eventId: string;
+  competitionName: string;
+  date: string | null;
+  koTime: string | null;
+  roleName: string;
+  location: string | null;
+  status: string;
+  plateSelected: string | null;
+};
+
+type ColleagueItem = {
+  id: number;
+  staffName: string;
+  roleCode: string;
+  roleLocation: string;
+};
+
+type CalendarCell = {
+  isoDate: string;
+  day: number;
+  inCurrentMonth: boolean;
+};
+
+function toIsoDate(date: Date): string {
+  return new Intl.DateTimeFormat("en-CA", {
     year: "numeric",
-  }).format(d);
-  if (weekdayFromApi?.trim()) {
-    return `${weekdayFromApi.trim()}, ${base}`;
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+function parseIsoDate(iso: string | null): Date | null {
+  if (!iso) return null;
+  const d = new Date(`${iso}T12:00:00`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function normalizeAssignments(raw: unknown): AssignmentItem[] {
+  const list: Record<string, unknown>[] = Array.isArray(raw)
+    ? (raw as Record<string, unknown>[])
+    : [];
+  return list.map((row) => {
+    const idRaw = row.assignmentId ?? row.id;
+    return {
+      id: Number(idRaw ?? 0),
+      eventId: String(row.eventId ?? row.event_id ?? ""),
+      competitionName: String(
+        row.competition_name ?? row.competitionName ?? "EVENTO"
+      ).trim(),
+      date:
+        row.date != null && String(row.date).trim() !== ""
+          ? String(row.date).slice(0, 10)
+          : null,
+      koTime:
+        row.ko_time != null && String(row.ko_time).trim() !== ""
+          ? String(row.ko_time).slice(0, 5)
+          : null,
+      roleName: String(row.role_name ?? row.roleName ?? "—").trim(),
+      location:
+        row.location != null && String(row.location).trim() !== ""
+          ? String(row.location).trim()
+          : null,
+      status: String(row.status ?? "").trim().toUpperCase(),
+      plateSelected:
+        row.plate_selected != null && String(row.plate_selected).trim() !== ""
+          ? String(row.plate_selected).trim()
+          : null,
+    };
+  });
+}
+
+function isPendingStatus(status: string): boolean {
+  const s = status.toUpperCase();
+  return s === "PENDING" || s === "SENT";
+}
+
+function isConfirmedStatus(status: string): boolean {
+  return status.toUpperCase() === "CONFIRMED";
+}
+
+function isPastDate(isoDate: string | null, todayIso: string): boolean {
+  if (!isoDate) return false;
+  return isoDate < todayIso;
+}
+
+function buildMonthGrid(currentMonth: Date): CalendarCell[] {
+  const year = currentMonth.getFullYear();
+  const month = currentMonth.getMonth();
+  const first = new Date(year, month, 1);
+  const firstDayMondayIndex = (first.getDay() + 6) % 7;
+  const start = new Date(year, month, 1 - firstDayMondayIndex);
+
+  const cells: CalendarCell[] = [];
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    cells.push({
+      isoDate: toIsoDate(d),
+      day: d.getDate(),
+      inCurrentMonth: d.getMonth() === month,
+    });
   }
-  return base;
+  return cells;
 }
 
-function statusLabel(status: string): string {
-  const u = status.toUpperCase();
-  if (u === "SENT") return "DA CONFERMARE";
-  if (u === "CONFIRMED") return "CONFERMATO";
-  if (u === "CANCELED" || u === "CANCELLED") return "ANNULLATO";
-  if (u === "REJECTED") return "RIFIUTATO";
-  return u || "—";
-}
-
-function venueLine(row: MyAssignmentListItem): string {
-  const parts = [row.venue_name, row.venue_city].filter(
-    (p): p is string => !!p && String(p).trim() !== ""
-  );
-  if (parts.length) return parts.join(", ");
-  if (row.location?.trim()) return row.location.trim();
-  return "—";
+function getInitials(name: string, surname: string): string {
+  const a = name.trim().charAt(0).toUpperCase();
+  const b = surname.trim().charAt(0).toUpperCase();
+  return `${a || "?"}${b || ""}`;
 }
 
 export default function FreelanceLeMieAssegnazioniPage() {
   const router = useRouter();
+  const [tab, setTab] = useState<"LISTA" | "CALENDARIO">("LISTA");
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [profileLoading, setProfileLoading] = useState(true);
-  const [authError, setAuthError] = useState<string | null>(null);
-
-  const [items, setItems] = useState<MyAssignmentListItem[]>([]);
-  const [listLoading, setListLoading] = useState(true);
-  const [listError, setListError] = useState<string | null>(null);
-
-  const [noteDrafts, setNoteDrafts] = useState<Record<number, string>>({});
-  const [savingNoteId, setSavingNoteId] = useState<number | null>(null);
+  const [items, setItems] = useState<AssignmentItem[]>([]);
+  const [plates, setPlates] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showPast, setShowPast] = useState(false);
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
-  const [confirmingAll, setConfirmingAll] = useState(false);
+  const [savingPlateId, setSavingPlateId] = useState<number | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalTitle, setModalTitle] = useState("");
+  const [modalCols, setModalCols] = useState<ColleagueItem[]>([]);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [monthDate, setMonthDate] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  });
+  const [selectedCalendarDay, setSelectedCalendarDay] = useState<string | null>(
+    null
+  );
+  const todayIso = useMemo(() => toIsoDate(new Date()), []);
 
-  const updatedLine = useMemo(() => formatUpdatedLine(), []);
-
-  const loadProfile = useCallback(async () => {
-    setProfileLoading(true);
-    setAuthError(null);
+  async function loadAll(): Promise<void> {
+    setLoading(true);
+    setError(null);
     try {
-      const me = await fetchAuthMe();
-      setProfile(me);
-    } catch (e) {
-      const status = (e as Error & { status?: number }).status;
-      if (status === 401 || status === 403) {
+      const [meRes, assignmentsRes, platesRes] = await Promise.all([
+        apiFetch("/api/auth/me", { cache: "no-store" }),
+        apiFetch("/api/my-assignments", { cache: "no-store" }),
+        apiFetch("/api/my-assignments/car-plates", { cache: "no-store" }),
+      ]);
+
+      if (meRes.status === 401 || assignmentsRes.status === 401) {
         router.replace("/login");
         return;
       }
-      setAuthError("Sessione scaduta o non disponibile. Accedi di nuovo.");
-      setProfile(null);
-      setListLoading(false);
-    } finally {
-      setProfileLoading(false);
-    }
-  }, [router]);
 
-  const loadAssignments = useCallback(async () => {
-    setListLoading(true);
-    setListError(null);
-    try {
-      const list = await fetchMyAssignments();
-      setItems(list);
-      setNoteDrafts((prev) => {
-        const next = { ...prev };
-        for (const row of list) {
-          if (next[row.id] === undefined) {
-            next[row.id] = row.notes ?? "";
-          }
-        }
-        return next;
+      if (!meRes.ok || !assignmentsRes.ok) {
+        throw new Error("Impossibile caricare le assegnazioni.");
+      }
+
+      const meData = (await meRes.json()) as Record<string, unknown>;
+      setProfile({
+        id: meData.id != null ? Number(meData.id) : null,
+        name: String(meData.name ?? ""),
+        surname: String(meData.surname ?? ""),
       });
-    } catch (e) {
-      const status = (e as Error & { status?: number }).status;
-      if (status === 401 || status === 403) {
-        router.replace("/login");
-        return;
+
+      const assignmentsData = await assignmentsRes.json();
+      setItems(normalizeAssignments(assignmentsData));
+
+      if (platesRes.ok) {
+        const platesData = (await platesRes.json()) as { plates?: unknown };
+        const list = Array.isArray(platesData.plates)
+          ? platesData.plates
+              .map((p) => String(p).trim())
+              .filter((p) => p.length > 0)
+          : [];
+        setPlates(list);
+      } else {
+        setPlates([]);
       }
-      setListError(
-        e instanceof Error ? e.message : "Errore nel caricamento delle assegnazioni."
-      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Errore imprevisto.");
     } finally {
-      setListLoading(false);
+      setLoading(false);
     }
-  }, [router]);
+  }
 
   useEffect(() => {
-    loadProfile();
-  }, [loadProfile]);
+    void loadAll();
+  }, []);
 
-  useEffect(() => {
-    if (authError) return;
-    if (!profileLoading && profile) {
-      loadAssignments();
-    }
-    if (!profileLoading && !profile && !authError) {
-      setListLoading(false);
-    }
-  }, [profile, profileLoading, authError, loadAssignments]);
-
-  const sentCount = useMemo(
-    () => items.filter((i) => i.status.toUpperCase() === "SENT").length,
+  const pendingCount = useMemo(
+    () => items.filter((i) => isPendingStatus(i.status)).length,
     [items]
   );
 
-  const handleSaveNotes = async (id: number) => {
-    const text = noteDrafts[id] ?? "";
-    setSavingNoteId(id);
-    try {
-      await patchMyAssignmentNotes(id, text);
-      setItems((prev) =>
-        prev.map((row) =>
-          row.id === id ? { ...row, notes: text } : row
-        )
-      );
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Errore salvataggio note");
-    } finally {
-      setSavingNoteId(null);
-    }
-  };
+  const sections = useMemo(() => {
+    const pendingFuture = items
+      .filter((i) => isPendingStatus(i.status) && !isPastDate(i.date, todayIso))
+      .sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""));
+    const confirmedFuture = items
+      .filter(
+        (i) => isConfirmedStatus(i.status) && !isPastDate(i.date, todayIso)
+      )
+      .sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""));
+    const past = items
+      .filter((i) => isPastDate(i.date, todayIso))
+      .sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
+    return { pendingFuture, confirmedFuture, past };
+  }, [items, todayIso]);
 
-  const handleConfirmOne = async (id: number) => {
+  const monthCells = useMemo(() => buildMonthGrid(monthDate), [monthDate]);
+  const eventsByDate = useMemo(() => {
+    const map = new Map<string, AssignmentItem[]>();
+    for (const item of items) {
+      if (!item.date) continue;
+      const arr = map.get(item.date) ?? [];
+      arr.push(item);
+      map.set(item.date, arr);
+    }
+    return map;
+  }, [items]);
+
+  const selectedDayEvents = useMemo(() => {
+    if (!selectedCalendarDay) return [];
+    return eventsByDate.get(selectedCalendarDay) ?? [];
+  }, [eventsByDate, selectedCalendarDay]);
+
+  async function handleConfirm(id: number): Promise<void> {
     setConfirmingId(id);
     try {
-      await confirmMyAssignment(id);
+      const res = await apiFetch(`/api/my-assignments/${id}/confirm`, {
+        method: "POST",
+      });
+      if (!res.ok) throw new Error("Conferma non riuscita");
       setItems((prev) =>
-        prev.map((row) =>
-          row.id === id ? { ...row, status: "CONFIRMED" } : row
-        )
+        prev.map((it) => (it.id === id ? { ...it, status: "CONFIRMED" } : it))
       );
     } catch (err) {
       alert(err instanceof Error ? err.message : "Errore conferma");
     } finally {
       setConfirmingId(null);
     }
-  };
+  }
 
-  const handleConfirmAll = async () => {
-    setConfirmingAll(true);
+  async function handlePlateChange(
+    assignmentId: number,
+    value: string
+  ): Promise<void> {
+    setSavingPlateId(assignmentId);
     try {
-      await confirmAllMyAssignments();
-      await loadAssignments();
+      const payload = { plate_selected: value || null };
+      const res = await apiFetch(`/api/my-assignments/${assignmentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error("Salvataggio pass auto non riuscito");
+      setItems((prev) =>
+        prev.map((it) =>
+          it.id === assignmentId
+            ? { ...it, plateSelected: value || null }
+            : it
+        )
+      );
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Errore conferma tutti");
+      alert(err instanceof Error ? err.message : "Errore salvataggio pass auto");
     } finally {
-      setConfirmingAll(false);
+      setSavingPlateId(null);
     }
-  };
+  }
 
-  if (authError) {
+  async function openColleaguesModal(item: AssignmentItem): Promise<void> {
+    setModalTitle(item.competitionName || "Evento");
+    setModalOpen(true);
+    setModalLoading(true);
+    setModalCols([]);
+    try {
+      const res = await apiFetch(
+        `/api/assignments?eventId=${encodeURIComponent(item.eventId)}`,
+        { cache: "no-store" }
+      );
+      if (!res.ok) throw new Error("Impossibile caricare i colleghi");
+      const data = (await res.json()) as {
+        items?: Record<string, unknown>[];
+      };
+      const parsed = (data.items ?? []).map((r) => ({
+        id: Number(r.id ?? 0),
+        staffName:
+          `${String(r.staffName ?? "").trim()} ${String(
+            r.staffSurname ?? ""
+          ).trim()}`.trim() || "Slot non assegnato",
+        roleCode: String(r.roleCode ?? "—"),
+        roleLocation: String(r.roleLocation ?? "—").toUpperCase(),
+      }));
+      setModalCols(parsed);
+    } catch {
+      setModalCols([]);
+    } finally {
+      setModalLoading(false);
+    }
+  }
+
+  function renderStatusBadge(status: string): React.ReactNode {
+    if (isPendingStatus(status)) {
+      return (
+        <span
+          className="rounded-full border px-2 py-1 text-[10px] font-bold"
+          style={{
+            color: "#E24B4A",
+            borderColor: "#E24B4A44",
+            background: "#E24B4A22",
+          }}
+        >
+          DA CONFERMARE
+        </span>
+      );
+    }
     return (
-      <div className="min-h-screen bg-black text-white">
-        <FreelanceTopBar
-          title="LE MIE ASSEGNAZIONI"
-          user={null}
-          userLoading={false}
-        />
-        <main className="mx-auto max-w-5xl px-4 py-8 md:px-6">
-          <p className="text-pitch-gray-light">{authError}</p>
-          <Link
-            href="/login"
-            className="mt-4 inline-block text-sm text-pitch-accent underline"
-          >
-            Vai al login
-          </Link>
-        </main>
-      </div>
+      <span
+        className="rounded-full border px-2 py-1 text-[10px] font-bold"
+        style={{
+          color: "#639922",
+          borderColor: "#63992244",
+          background: "#63992222",
+        }}
+      >
+        CONFERMATA
+      </span>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-black text-white">
-      <FreelanceTopBar
-        title="LE MIE ASSEGNAZIONI"
-        user={profile}
-        userLoading={profileLoading}
-      />
+  function renderCard(item: AssignmentItem): React.ReactNode {
+    const isPending = isPendingStatus(item.status);
+    const isStadio = (item.location ?? "").toUpperCase().includes("STADIO");
+    return (
+      <button
+        key={item.id}
+        type="button"
+        onClick={() => void openColleaguesModal(item)}
+        className="w-full rounded-xl border p-4 text-left"
+        style={{
+          background: "#1a1a1a",
+          borderColor: "#2a2a2a",
+        }}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div
+              className="text-[10px] font-bold uppercase tracking-[2px]"
+              style={{ color: "#F5C400" }}
+            >
+              {item.competitionName || "EVENTO"}
+            </div>
+            <h3
+              className="mt-1 text-[20px] uppercase leading-tight"
+              style={{ color: "#fff", fontWeight: 900 }}
+            >
+              {item.competitionName || "EVENTO"}
+            </h3>
+          </div>
+          {renderStatusBadge(item.status)}
+        </div>
 
-      <main className="mx-auto max-w-5xl px-4 py-6 md:px-6">
-        <p className="text-sm text-pitch-gray-light">
-          Di seguito le tue assegnazioni. Ultimo aggiornamento: {updatedLine}
-        </p>
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          {[
+            { label: "DATA", value: item.date ?? "—" },
+            { label: "ORA", value: item.koTime ?? "—" },
+            { label: "RUOLO", value: item.roleName || "—" },
+            { label: "SEDE", value: item.location || "—" },
+          ].map((box) => (
+            <div key={box.label}>
+              <div
+                className="text-[10px] uppercase"
+                style={{ color: "#555", letterSpacing: "1px" }}
+              >
+                {box.label}
+              </div>
+              <div className="text-[13px]" style={{ color: "#ccc" }}>
+                {box.value}
+              </div>
+            </div>
+          ))}
+        </div>
 
-        {sentCount > 0 && (
-          <div className="mt-4">
+        <div
+          className="mt-4 flex flex-wrap items-center gap-3 border-t pt-3"
+          style={{ borderColor: "#2a2a2a" }}
+        >
+          {isPending ? (
             <button
               type="button"
-              onClick={handleConfirmAll}
-              disabled={confirmingAll || listLoading}
-              className="rounded-lg bg-pitch-accent px-4 py-2 text-sm font-medium text-black hover:bg-yellow-200 disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={(e) => {
+                e.stopPropagation();
+                void handleConfirm(item.id);
+              }}
+              disabled={confirmingId === item.id}
+              className="inline-flex items-center gap-2"
+              style={{ color: "#F5C400", fontWeight: 700 }}
             >
-              {confirmingAll ? "Conferma in corso…" : "Conferma tutti"}
+              CONFERMA ORA
+              <span
+                className="inline-flex h-6 w-6 items-center justify-center rounded-full"
+                style={{ background: "#F5C400", color: "#111" }}
+              >
+                →
+              </span>
+            </button>
+          ) : null}
+
+          {isStadio ? (
+            <label className="ml-auto flex items-center gap-2 text-xs text-[#888]">
+              PASS AUTO
+              <select
+                value={item.plateSelected ?? ""}
+                disabled={savingPlateId === item.id}
+                onClick={(e) => e.stopPropagation()}
+                onChange={(e) => {
+                  void handlePlateChange(item.id, e.target.value);
+                }}
+                className="rounded-md border px-2 py-1 text-xs"
+                style={{
+                  background: "#0a0a0a",
+                  borderColor: "#2a2a2a",
+                  color: "#fff",
+                }}
+              >
+                <option value="">Nessun pass auto</option>
+                {plates.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+        </div>
+      </button>
+    );
+  }
+
+  const groupedColleagues = useMemo(() => {
+    const groups: Record<"STADIO" | "COLOGNO" | "REMOTE", ColleagueItem[]> = {
+      STADIO: [],
+      COLOGNO: [],
+      REMOTE: [],
+    };
+    for (const c of modalCols) {
+      const key =
+        c.roleLocation.includes("STADIO")
+          ? "STADIO"
+          : c.roleLocation.includes("COLOGNO")
+            ? "COLOGNO"
+            : "REMOTE";
+      groups[key].push(c);
+    }
+    return groups;
+  }, [modalCols]);
+
+  return (
+    <div
+      className="min-h-screen"
+      style={{ background: "linear-gradient(180deg, #111 0%, #0a0a0a 100%)" }}
+    >
+      <header
+        className="sticky top-0 z-20 border-b px-4 py-3"
+        style={{ background: "#111", borderColor: "#2a2a2a" }}
+      >
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div
+              className="text-xl"
+              style={{
+                fontFamily: "Arial Black, system-ui, sans-serif",
+                fontWeight: 900,
+                color: "#fff",
+              }}
+            >
+              P<span style={{ color: "#F5C400", fontSize: "1.4em" }}>/</span>TCH
+            </div>
+            <img
+              src="/logo-dazn.png"
+              alt="DAZN"
+              height={24}
+              style={{ height: 24, filter: "brightness(0) invert(1)", opacity: 0.8 }}
+            />
+            <div className="h-6 w-px" style={{ background: "#2a2a2a" }} />
+            <button
+              type="button"
+              onClick={() => setTab("LISTA")}
+              className="text-xs font-bold tracking-wide"
+              style={{ color: tab === "LISTA" ? "#F5C400" : "#888" }}
+            >
+              LE MIE ASSEGNAZIONI
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("CALENDARIO")}
+              className="text-xs font-bold tracking-wide"
+              style={{ color: tab === "CALENDARIO" ? "#F5C400" : "#888" }}
+            >
+              CALENDARIO
             </button>
           </div>
-        )}
 
-        {listLoading && (
-          <p className="mt-8 text-center text-pitch-gray">Caricamento…</p>
-        )}
-
-        {!listLoading && listError && (
-          <p className="mt-8 text-red-400">{listError}</p>
-        )}
-
-        {!listLoading && !listError && items.length === 0 && (
-          <p className="mt-8 text-center text-pitch-gray-light">
-            Al momento non hai assegnazioni attive.
-          </p>
-        )}
-
-        {!listLoading && !listError && items.length > 0 && (
-          <ul className="mt-8 flex flex-col gap-6">
-            {items.map((row) => {
-              const isSent = row.status.toUpperCase() === "SENT";
-              const noteValue = noteDrafts[row.id] ?? row.notes ?? "";
-
-              return (
-                <li
-                  key={row.id}
-                  className="rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/20 p-4 md:p-5"
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                className="h-5 w-5"
+                style={{ color: "#fff" }}
+              >
+                <path
+                  d="M15 17h5l-1.4-1.4a2 2 0 0 1-.6-1.4V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5m6 0a3 3 0 1 1-6 0m6 0H9"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              {pendingCount > 0 ? (
+                <span
+                  className="absolute -right-2 -top-2 min-w-5 rounded-full px-1 text-center text-[10px] font-bold"
+                  style={{ background: "#E24B4A", color: "#fff" }}
                 >
-                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                    <div className="min-w-0 flex-1 space-y-1 text-sm">
-                      <p>
-                        <span className="text-pitch-gray">Competizione: </span>
-                        <span className="text-pitch-white">
-                          {row.competition_name || "—"}
-                        </span>
-                      </p>
-                      <p>
-                        <span className="text-pitch-gray">Data: </span>
-                        <span className="text-pitch-white">
-                          {formatDateRow(row.date, row.weekday ?? null)}
-                        </span>
-                      </p>
-                      <p>
-                        <span className="text-pitch-gray">Ora KO: </span>
-                        <span className="text-pitch-white">
-                          {row.ko_time ?? "—"}
-                        </span>
-                      </p>
-                      <p>
-                        <span className="text-pitch-gray">Ruolo: </span>
-                        <span className="text-pitch-white">
-                          {row.role_name || "—"}
-                        </span>
-                      </p>
-                      <p>
-                        <span className="text-pitch-gray">Sede: </span>
-                        <span className="text-pitch-white">{venueLine(row)}</span>
-                      </p>
-                      <p>
-                        <span className="text-pitch-gray">Stato: </span>
-                        <span className="font-medium text-pitch-accent">
-                          {statusLabel(row.status)}
-                        </span>
-                      </p>
-                    </div>
+                  {pendingCount}
+                </span>
+              ) : null}
+            </div>
+            <div className="text-right">
+              <div className="text-sm text-white">
+                {profile ? `${profile.name} ${profile.surname}`.trim() : "Utente"}
+              </div>
+            </div>
+            <div
+              className="flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold"
+              style={{ background: "#F5C400", color: "#000" }}
+            >
+              {profile ? getInitials(profile.name, profile.surname) : "?"}
+            </div>
+          </div>
+        </div>
+      </header>
 
-                    <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center md:flex-col md:items-stretch">
-                      {isSent && (
-                        <button
-                          type="button"
-                          onClick={() => handleConfirmOne(row.id)}
-                          disabled={confirmingId === row.id}
-                          className="rounded-lg bg-pitch-accent px-3 py-2 text-sm font-medium text-black hover:bg-yellow-200 disabled:opacity-50"
-                        >
-                          {confirmingId === row.id ? "…" : "Conferma"}
-                        </button>
+      <main className="mx-auto max-w-7xl px-4 py-6">
+        {loading ? (
+          <p style={{ color: "#888" }}>Caricamento assegnazioni…</p>
+        ) : error ? (
+          <div>
+            <p style={{ color: "#E24B4A" }}>{error}</p>
+            <Link href="/login" className="mt-3 inline-block underline" style={{ color: "#F5C400" }}>
+              Torna al login
+            </Link>
+          </div>
+        ) : (
+          <>
+            <h1
+              className="text-[28px] uppercase"
+              style={{ color: "#fff", fontWeight: 900 }}
+            >
+              LE MIE ASSEGNAZIONI
+            </h1>
+            <p className="mt-1 text-sm" style={{ color: "#888" }}>
+              Designazioni operative per{" "}
+              <span style={{ color: "#F5C400" }}>
+                {profile ? `${profile.name} ${profile.surname}`.trim() : "—"}
+              </span>
+            </p>
+
+            {tab === "LISTA" ? (
+              <div className="mt-6 space-y-6">
+                <section
+                  className="rounded-xl border p-4"
+                  style={{ background: "#111", borderColor: "#2a2a2a", borderLeft: "4px solid #E24B4A" }}
+                >
+                  <div className="mb-3 flex items-center justify-between">
+                    <h2 className="text-sm font-bold uppercase text-white">AZIONE RICHIESTA</h2>
+                    <span className="rounded-full px-2 py-1 text-xs font-bold" style={{ background: "#E24B4A", color: "#fff" }}>
+                      {sections.pendingFuture.length}
+                    </span>
+                  </div>
+                  <div className="space-y-3">
+                    {sections.pendingFuture.length === 0 ? (
+                      <p className="text-sm" style={{ color: "#888" }}>Nessuna assegnazione da confermare.</p>
+                    ) : (
+                      sections.pendingFuture.map((item) => renderCard(item))
+                    )}
+                  </div>
+                </section>
+
+                <section
+                  className="rounded-xl border p-4"
+                  style={{ background: "#111", borderColor: "#2a2a2a", borderLeft: "4px solid #639922" }}
+                >
+                  <div className="mb-3 flex items-center justify-between">
+                    <h2 className="text-sm font-bold uppercase text-white">CONFERMATE</h2>
+                    <span className="rounded-full bg-[#2a2a2a] px-2 py-1 text-xs font-bold text-[#ccc]">
+                      {sections.confirmedFuture.length}
+                    </span>
+                  </div>
+                  <div className="space-y-3">
+                    {sections.confirmedFuture.length === 0 ? (
+                      <p className="text-sm" style={{ color: "#888" }}>Nessuna confermata futura.</p>
+                    ) : (
+                      sections.confirmedFuture.map((item) => renderCard(item))
+                    )}
+                  </div>
+                </section>
+
+                <section className="rounded-xl border p-4" style={{ background: "#111", borderColor: "#2a2a2a" }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowPast((s) => !s)}
+                    className="flex w-full items-center justify-between text-left"
+                  >
+                    <h2 className="text-sm font-bold uppercase text-white">PASSATE</h2>
+                    <span className="text-sm" style={{ color: "#888" }}>
+                      {showPast ? "Nascondi" : `Mostra (${sections.past.length})`}
+                    </span>
+                  </button>
+                  {showPast ? (
+                    <div className="mt-3 space-y-3">
+                      {sections.past.length === 0 ? (
+                        <p className="text-sm" style={{ color: "#888" }}>Nessun evento passato.</p>
+                      ) : (
+                        sections.past.map((item) => renderCard(item))
                       )}
-                      <Link
-                        href={`/freelance/le-mie-assegnazioni/${row.id}`}
-                        className="rounded-lg border border-pitch-gray-dark px-3 py-2 text-center text-sm text-pitch-gray-light hover:bg-pitch-gray-dark/50"
+                    </div>
+                  ) : null}
+                </section>
+              </div>
+            ) : (
+              <div className="mt-6 rounded-xl border p-4" style={{ background: "#111", borderColor: "#2a2a2a" }}>
+                <div className="mb-4 flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setMonthDate(
+                        (prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1)
+                      )
+                    }
+                    style={{ color: "#F5C400" }}
+                  >
+                    ←
+                  </button>
+                  <div className="font-bold text-white">
+                    {monthDate.toLocaleDateString("it-IT", {
+                      month: "long",
+                      year: "numeric",
+                    })}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setMonthDate(
+                        (prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1)
+                      )
+                    }
+                    style={{ color: "#F5C400" }}
+                  >
+                    →
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-7 gap-1 text-center text-xs uppercase" style={{ color: "#888" }}>
+                  {["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"].map((d) => (
+                    <div key={d} className="py-1">{d}</div>
+                  ))}
+                </div>
+                <div className="mt-2 grid grid-cols-7 gap-1">
+                  {monthCells.map((cell) => {
+                    const dayEvents = eventsByDate.get(cell.isoDate) ?? [];
+                    const hasPending = dayEvents.some((e) => isPendingStatus(e.status));
+                    const hasConfirmed = dayEvents.some((e) => isConfirmedStatus(e.status));
+                    return (
+                      <button
+                        key={cell.isoDate}
+                        type="button"
+                        onClick={() => setSelectedCalendarDay(cell.isoDate)}
+                        className="min-h-16 rounded border p-1 text-left"
+                        style={{
+                          borderColor: "#2a2a2a",
+                          background: cell.inCurrentMonth ? "#1a1a1a" : "#0f0f0f",
+                          color: cell.inCurrentMonth ? "#fff" : "#666",
+                        }}
                       >
-                        Dettaglio
-                      </Link>
+                        <div className="text-xs">{cell.day}</div>
+                        <div className="mt-1 flex gap-1">
+                          {hasPending ? (
+                            <span className="h-2 w-2 rounded-full" style={{ background: "#E24B4A" }} />
+                          ) : null}
+                          {hasConfirmed ? (
+                            <span className="h-2 w-2 rounded-full" style={{ background: "#639922" }} />
+                          ) : null}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {selectedCalendarDay ? (
+                  <div className="mt-5 rounded-lg border p-3" style={{ borderColor: "#2a2a2a", background: "#1a1a1a" }}>
+                    <div className="text-sm font-bold text-white">
+                      Eventi del {selectedCalendarDay}
+                    </div>
+                    <div className="mt-2 space-y-2">
+                      {selectedDayEvents.length === 0 ? (
+                        <p className="text-sm" style={{ color: "#888" }}>Nessun evento.</p>
+                      ) : (
+                        selectedDayEvents.map((item) => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => void openColleaguesModal(item)}
+                            className="w-full rounded border px-3 py-2 text-left"
+                            style={{ borderColor: "#2a2a2a", background: "#111", color: "#fff" }}
+                          >
+                            {item.competitionName} - {item.koTime ?? "--:--"}
+                          </button>
+                        ))
+                      )}
                     </div>
                   </div>
-
-                  <div className="mt-4 border-t border-pitch-gray-dark/50 pt-4">
-                    <label className="mb-1 block text-xs text-pitch-gray">
-                      Note
-                    </label>
-                    <textarea
-                      value={noteValue}
-                      onChange={(e) =>
-                        setNoteDrafts((prev) => ({
-                          ...prev,
-                          [row.id]: e.target.value,
-                        }))
-                      }
-                      rows={3}
-                      className="w-full rounded border border-pitch-gray-dark bg-black px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleSaveNotes(row.id)}
-                      disabled={savingNoteId === row.id}
-                      className="mt-2 rounded border border-pitch-gray-dark px-3 py-1.5 text-xs text-pitch-gray-light hover:bg-pitch-gray-dark/50 disabled:opacity-50"
-                    >
-                      {savingNoteId === row.id ? "Salvataggio…" : "Salva note"}
-                    </button>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+                ) : null}
+              </div>
+            )}
+          </>
         )}
       </main>
+
+      {modalOpen ? (
+        <div className="fixed inset-0 z-30">
+          <button
+            type="button"
+            className="absolute inset-0"
+            style={{ background: "rgba(0,0,0,0.65)" }}
+            onClick={() => setModalOpen(false)}
+          />
+          <aside
+            className="absolute right-0 top-0 h-full w-full max-w-[400px] border-l p-4"
+            style={{ background: "#111", borderColor: "#2a2a2a" }}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <h3 className="text-lg font-bold text-white">{modalTitle}</h3>
+              <button
+                type="button"
+                onClick={() => setModalOpen(false)}
+                className="text-sm"
+                style={{ color: "#F5C400" }}
+              >
+                X
+              </button>
+            </div>
+            <div className="mt-4 space-y-4">
+              {modalLoading ? (
+                <p style={{ color: "#888" }}>Caricamento colleghi…</p>
+              ) : modalCols.length === 0 ? (
+                <p style={{ color: "#888" }}>Nessun altro collega assegnato</p>
+              ) : (
+                (["STADIO", "COLOGNO", "REMOTE"] as const).map((group) => (
+                  <div key={group}>
+                    <div className="mb-2 text-xs font-bold uppercase" style={{ color: "#F5C400" }}>
+                      {group}
+                    </div>
+                    <div className="space-y-2">
+                      {groupedColleagues[group].length === 0 ? (
+                        <p className="text-xs" style={{ color: "#666" }}>Nessuno</p>
+                      ) : (
+                        groupedColleagues[group].map((c) => (
+                          <div
+                            key={`${group}-${c.id}-${c.roleCode}`}
+                            className="rounded border p-2"
+                            style={{ borderColor: "#2a2a2a", background: "#1a1a1a" }}
+                          >
+                            <div className="text-sm font-bold text-white">{c.staffName}</div>
+                            <div className="text-xs" style={{ color: "#888" }}>
+                              {c.roleCode} - {c.roleLocation}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </aside>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -2,13 +2,15 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api/apiFetch";
+import { logoutPitch2 } from "@/lib/auth/pitch2Session";
 
 type UserProfile = {
   id: number | null;
   name: string;
   surname: string;
+  email: string | null;
 };
 
 type AssignmentItem = {
@@ -146,6 +148,8 @@ export default function FreelanceLeMieAssegnazioniPage() {
   const [selectedCalendarDay, setSelectedCalendarDay] = useState<string | null>(
     null
   );
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement | null>(null);
   const todayIso = useMemo(() => toIsoDate(new Date()), []);
 
   async function loadAll(): Promise<void> {
@@ -172,6 +176,10 @@ export default function FreelanceLeMieAssegnazioniPage() {
         id: meData.id != null ? Number(meData.id) : null,
         name: String(meData.name ?? ""),
         surname: String(meData.surname ?? ""),
+        email:
+          meData.email != null && String(meData.email).trim() !== ""
+            ? String(meData.email)
+            : null,
       });
 
       const assignmentsData = await assignmentsRes.json();
@@ -198,6 +206,22 @@ export default function FreelanceLeMieAssegnazioniPage() {
   useEffect(() => {
     void loadAll();
   }, []);
+
+  useEffect(() => {
+    function onDocumentMouseDown(ev: MouseEvent): void {
+      if (!isUserMenuOpen) return;
+      const target = ev.target;
+      if (!(target instanceof Node)) return;
+      if (userMenuRef.current && !userMenuRef.current.contains(target)) {
+        setIsUserMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", onDocumentMouseDown);
+    return () => {
+      document.removeEventListener("mousedown", onDocumentMouseDown);
+    };
+  }, [isUserMenuOpen]);
 
   const pendingCount = useMemo(
     () => items.filter((i) => isPendingStatus(i.status)).length,
@@ -358,7 +382,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
           <div>
             <div
               className="text-[10px] font-bold uppercase tracking-[2px]"
-              style={{ color: "#F5C400" }}
+              style={{ color: "#FFFA00" }}
             >
               {item.competitionName || "EVENTO"}
             </div>
@@ -406,12 +430,12 @@ export default function FreelanceLeMieAssegnazioniPage() {
               }}
               disabled={confirmingId === item.id}
               className="inline-flex items-center gap-2"
-              style={{ color: "#F5C400", fontWeight: 700 }}
+              style={{ color: "#FFFA00", fontWeight: 700 }}
             >
               CONFERMA ORA
               <span
                 className="inline-flex h-6 w-6 items-center justify-center rounded-full"
-                style={{ background: "#F5C400", color: "#111" }}
+                style={{ background: "#FFFA00", color: "#111" }}
               >
                 →
               </span>
@@ -467,6 +491,14 @@ export default function FreelanceLeMieAssegnazioniPage() {
     return groups;
   }, [modalCols]);
 
+  async function handleLogout(): Promise<void> {
+    try {
+      await logoutPitch2();
+    } finally {
+      router.push("/login");
+    }
+  }
+
   return (
     <div
       className="min-h-screen"
@@ -486,7 +518,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
                 color: "#fff",
               }}
             >
-              P<span style={{ color: "#F5C400", fontSize: "1.4em" }}>/</span>TCH
+              P<span style={{ color: "#FFFA00", fontSize: "1.4em" }}>/</span>TCH
             </div>
             <img
               src="/logo-dazn.png"
@@ -499,7 +531,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
               type="button"
               onClick={() => setTab("LISTA")}
               className="text-xs font-bold tracking-wide"
-              style={{ color: tab === "LISTA" ? "#F5C400" : "#888" }}
+              style={{ color: tab === "LISTA" ? "#FFFA00" : "#888" }}
             >
               LE MIE ASSEGNAZIONI
             </button>
@@ -507,7 +539,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
               type="button"
               onClick={() => setTab("CALENDARIO")}
               className="text-xs font-bold tracking-wide"
-              style={{ color: tab === "CALENDARIO" ? "#F5C400" : "#888" }}
+              style={{ color: tab === "CALENDARIO" ? "#FFFA00" : "#888" }}
             >
               CALENDARIO
             </button>
@@ -539,16 +571,46 @@ export default function FreelanceLeMieAssegnazioniPage() {
                 </span>
               ) : null}
             </div>
-            <div className="text-right">
-              <div className="text-sm text-white">
-                {profile ? `${profile.name} ${profile.surname}`.trim() : "Utente"}
-              </div>
-            </div>
-            <div
-              className="flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold"
-              style={{ background: "#F5C400", color: "#000" }}
-            >
-              {profile ? getInitials(profile.name, profile.surname) : "?"}
+            <div className="relative" ref={userMenuRef}>
+              <button
+                type="button"
+                onClick={() => setIsUserMenuOpen((s) => !s)}
+                className="flex items-center gap-3"
+              >
+                <div className="text-right">
+                  <div className="text-sm text-white">
+                    {profile ? `${profile.name} ${profile.surname}`.trim() : "Utente"}
+                  </div>
+                </div>
+                <div
+                  className="flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold"
+                  style={{ background: "#FFFA00", color: "#000" }}
+                >
+                  {profile ? getInitials(profile.name, profile.surname) : "?"}
+                </div>
+              </button>
+              {isUserMenuOpen ? (
+                <div
+                  className="absolute right-0 mt-2 min-w-[220px] rounded-lg border p-2 shadow-xl"
+                  style={{ background: "#1a1a1a", borderColor: "#2a2a2a" }}
+                >
+                  <div className="px-2 py-1 text-sm font-bold text-white">
+                    {profile ? `${profile.name} ${profile.surname}`.trim() : "Utente"}
+                  </div>
+                  <div className="px-2 pb-2 text-xs" style={{ color: "#fff" }}>
+                    {profile?.email ?? "Email non disponibile"}
+                  </div>
+                  <div className="my-1 h-px" style={{ background: "#2a2a2a" }} />
+                  <button
+                    type="button"
+                    onClick={() => void handleLogout()}
+                    className="w-full rounded px-2 py-1 text-left text-sm hover:bg-black/30"
+                    style={{ color: "#E24B4A" }}
+                  >
+                    Esci
+                  </button>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>
@@ -560,7 +622,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
         ) : error ? (
           <div>
             <p style={{ color: "#E24B4A" }}>{error}</p>
-            <Link href="/login" className="mt-3 inline-block underline" style={{ color: "#F5C400" }}>
+            <Link href="/login" className="mt-3 inline-block underline" style={{ color: "#FFFA00" }}>
               Torna al login
             </Link>
           </div>
@@ -574,7 +636,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
             </h1>
             <p className="mt-1 text-sm" style={{ color: "#888" }}>
               Designazioni operative per{" "}
-              <span style={{ color: "#F5C400" }}>
+              <span style={{ color: "#FFFA00" }}>
                 {profile ? `${profile.name} ${profile.surname}`.trim() : "—"}
               </span>
             </p>
@@ -651,7 +713,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
                         (prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1)
                       )
                     }
-                    style={{ color: "#F5C400" }}
+                    style={{ color: "#FFFA00" }}
                   >
                     ←
                   </button>
@@ -668,7 +730,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
                         (prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1)
                       )
                     }
-                    style={{ color: "#F5C400" }}
+                    style={{ color: "#FFFA00" }}
                   >
                     →
                   </button>
@@ -758,7 +820,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
                 type="button"
                 onClick={() => setModalOpen(false)}
                 className="text-sm"
-                style={{ color: "#F5C400" }}
+                style={{ color: "#FFFA00" }}
               >
                 X
               </button>
@@ -771,7 +833,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
               ) : (
                 (["STADIO", "COLOGNO", "REMOTE"] as const).map((group) => (
                   <div key={group}>
-                    <div className="mb-2 text-xs font-bold uppercase" style={{ color: "#F5C400" }}>
+                    <div className="mb-2 text-xs font-bold uppercase" style={{ color: "#FFFA00" }}>
                       {group}
                     </div>
                     <div className="space-y-2">

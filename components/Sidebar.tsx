@@ -19,19 +19,23 @@ export function Sidebar() {
 
       {/* Sidebar */}
       <aside
-        className={`fixed left-0 top-0 z-50 h-full w-64 transform border-r border-pitch-gray-dark bg-pitch-bg transition-transform duration-200 md:translate-x-0 ${
+        className={`fixed left-0 top-0 z-50 h-full w-64 transform border-r transition-transform duration-200 md:translate-x-0 ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
+        style={{ background: "#000000", borderColor: "#2a2a2a" }}
       >
-        <div className="flex h-14 items-center justify-between border-b border-pitch-gray-dark px-4 md:justify-start">
-          <span className="font-bold text-pitch-accent">PITCH_2</span>
+        <div
+          className="flex h-14 items-center justify-between border-b px-4 md:justify-start"
+          style={{ borderColor: "#2a2a2a" }}
+        >
+          <span className="font-bold text-[#FFFA00]">PITCH_2</span>
           <button
             type="button"
             onClick={() => setOpen(false)}
             className="md:hidden"
             aria-label="Chiudi menu"
           >
-            <svg className="h-6 w-6 text-pitch-gray" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="h-6 w-6 text-[#868A8C]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>

@@ -9,7 +9,8 @@ export function SidebarTrigger() {
     <button
       type="button"
       onClick={() => setOpen(true)}
-      className="flex h-9 w-9 items-center justify-center rounded-lg bg-pitch-gray-dark text-pitch-white hover:bg-pitch-gray md:hidden"
+      className="flex h-9 w-9 items-center justify-center rounded-lg text-[#FFFFFF] hover:bg-[#2a2a2a] md:hidden"
+      style={{ background: "#1a1a1a" }}
       aria-label="Apri menu"
     >
       <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

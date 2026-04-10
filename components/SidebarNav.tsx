@@ -3,6 +3,20 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
+import type { LucideIcon } from "lucide-react";
+import {
+  CalendarCheck,
+  Zap,
+  Users,
+  BadgeCheck,
+  FileText,
+  Database,
+  CheckSquare,
+  BarChart2,
+  Clock,
+  Settings,
+  Monitor,
+} from "lucide-react";
 import {
   usePagePermissions,
   isDashboardPageNavVisible,
@@ -13,8 +27,7 @@ import { fetchAuthMe } from "@/lib/api/freelanceAssignments";
 export type NavItem = {
   href: string;
   label: string;
-  short: string;
-  icon?: React.ReactNode;
+  icon: LucideIcon;
   /** Se assente, la voce è sempre visibile. Se presente, controllata da /api/me/permissions */
   pageKey?: string;
   /** Se presente, visibile solo per questi `user_level` (es. MASTER, STAFF). */
@@ -25,47 +38,52 @@ const NAV_ITEMS: NavItem[] = [
   {
     href: "/le-mie-assegnazioni",
     label: "Le mie assegnazioni",
-    short: "As",
+    icon: CalendarCheck,
     pageKey: "le_mie_assegnazioni",
   },
-  { href: "/eventi", label: "Eventi", short: "Ev", pageKey: "eventi" },
+  { href: "/eventi", label: "Eventi", icon: Zap, pageKey: "eventi" },
   {
     href: "/designazioni",
     label: "Designazioni",
-    short: "Ds",
+    icon: Users,
     pageKey: "designazioni",
   },
-  { href: "/accrediti", label: "Accrediti", short: "Ac", pageKey: "accrediti" },
+  {
+    href: "/accrediti",
+    label: "Accrediti",
+    icon: BadgeCheck,
+    pageKey: "accrediti",
+  },
   {
     href: "/call-sheet",
     label: "Call sheet",
-    short: "CS",
+    icon: FileText,
     pageKey: "call_sheet",
   },
-  { href: "/database", label: "Database", short: "DB", pageKey: "database" },
+  { href: "/database", label: "Database", icon: Database, pageKey: "database" },
   {
     href: "/cookies-jar",
     label: "Cookies jar",
-    short: "CJ",
+    icon: CheckSquare,
     pageKey: "cookies_jar",
   },
   {
     href: "/consuntivo",
     label: "Consuntivo",
-    short: "Co",
+    icon: BarChart2,
     pageKey: "consuntivo",
   },
   {
     href: "/cronologia",
     label: "Cronologia",
-    short: "Cr",
+    icon: Clock,
     pageKey: "cronologia",
   },
-  { href: "/master", label: "Master", short: "Ma", pageKey: "master" },
+  { href: "/master", label: "Master", icon: Settings, pageKey: "master" },
   {
     href: "/leeds-tx",
     label: "Leeds TX",
-    short: "LX",
+    icon: Monitor,
     userLevels: ["MASTER", "STAFF"],
   },
 ];
@@ -132,50 +150,86 @@ export default function SidebarNav({ collapsed }: SidebarNavProps) {
   );
 
   return (
-    <nav className="flex flex-col gap-1 p-3">
+    <nav className="flex flex-col gap-1 p-3" style={{ background: "#000000" }}>
       {collapsed ? (
         <>
-          <div className="mb-4 flex h-10 items-center justify-center border-b border-pitch-gray-dark pb-3">
-            <span className="text-xs font-bold text-pitch-accent">P2</span>
+          <div
+            className="mb-4 flex h-10 items-center justify-center pb-3"
+            style={{ borderBottom: "1px solid #2a2a2a" }}
+          >
+            <span
+              style={{
+                fontFamily: "'Arial Black', Arial, sans-serif",
+                fontWeight: 900,
+                fontSize: 11,
+                color: "#FFFFFF",
+                lineHeight: 1,
+              }}
+            >
+              P<span style={{ color: "#FFFA00" }}>/</span>TCH
+            </span>
           </div>
           {visibleItems.map((item) => {
             const isActive =
               pathname === item.href || pathname.startsWith(`${item.href}/`);
+            const Icon = item.icon;
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 title={item.label}
-                className={`flex items-center justify-center rounded-lg px-2 py-2.5 text-xs font-medium transition-colors ${
+                className={`flex items-center justify-center rounded-lg px-2 py-2.5 transition-colors hover:text-white ${
                   isActive
-                    ? "bg-pitch-gray-dark text-pitch-accent"
-                    : "text-pitch-gray-light hover:bg-pitch-gray-dark hover:text-pitch-white"
+                    ? "bg-[#1a1a1a] text-[#FFFA00]"
+                    : "bg-transparent text-[#868A8C] hover:bg-[#1a1a1a]"
                 }`}
               >
-                {item.short}
+                <Icon size={20} stroke="currentColor" />
               </Link>
             );
           })}
         </>
       ) : (
         <>
-          <div className="mb-4 border-b border-pitch-gray-dark px-3 pb-3">
-            <span className="font-bold text-pitch-accent">PITCH_2</span>
+          <div
+            className="mb-4 flex items-center px-3 pb-3"
+            style={{ borderBottom: "1px solid #2a2a2a" }}
+          >
+            <span
+              style={{
+                fontFamily: "'Arial Black', Arial, sans-serif",
+                fontWeight: 900,
+                fontSize: 20,
+                color: "#FFFFFF",
+                lineHeight: 1,
+              }}
+            >
+              P<span style={{ color: "#FFFA00" }}>/</span>TCH
+            </span>
+            <span style={{ color: "#3F4547", fontSize: 14, margin: "0 10px" }}>
+              ×
+            </span>
+            <img
+              src="/DAZN_BoxedLogo.jpg"
+              alt="DAZN"
+              style={{ height: "20px", width: "auto", display: "block" }}
+            />
           </div>
           {visibleItems.map((item) => {
             const isActive =
               pathname === item.href || pathname.startsWith(`${item.href}/`);
+            const Icon = item.icon;
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors hover:text-white ${
                   isActive
-                    ? "bg-pitch-gray-dark text-pitch-accent"
-                    : "text-pitch-gray-light hover:bg-pitch-gray-dark hover:text-pitch-white"
+                    ? "bg-[#1a1a1a] text-[#FFFA00]"
+                    : "bg-transparent text-[#868A8C] hover:bg-[#1a1a1a]"
                 }`}
               >
-                {item.icon}
+                <Icon size={20} stroke="currentColor" />
                 <span>{item.label}</span>
               </Link>
             );

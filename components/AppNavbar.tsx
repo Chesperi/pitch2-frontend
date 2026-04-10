@@ -71,35 +71,12 @@ export default function AppNavbar({
           <span style={{ color: "#3F4547", fontSize: 14, margin: "0 10px" }}>
             ×
           </span>
-          <svg
-            width="44"
-            height="36"
-            viewBox="0 0 44 36"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            aria-label="DAZN"
-            role="img"
-          >
-            {/* Sfondo quadrato bianco */}
-            <rect x="6" y="0" width="32" height="36" fill="white" />
-            {/* Freccia sinistra */}
-            <polygon points="6,0 0,18 6,36" fill="white" />
-            {/* Freccia destra */}
-            <polygon points="38,0 44,18 38,36" fill="white" />
-            {/* Lettere DAZN nere */}
-            <text
-              x="22"
-              y="25"
-              fontFamily="Arial Black, Arial"
-              fontWeight="900"
-              fontSize="14"
-              fill="#0d1117"
-              textAnchor="middle"
-              letterSpacing="-0.5"
-            >
-              DAZN
-            </text>
-          </svg>
+          <img
+            src="/DAZN_BoxedLogo.jpg"
+            alt="DAZN"
+            height={32}
+            style={{ display: "block" }}
+          />
           {centerContent ? (
             <>
               <div className="h-6 w-px" style={{ background: "#2a2a2a" }} />

@@ -50,16 +50,16 @@ export default function DashboardLayout({
   }, []);
 
   return (
-    <div className="flex min-h-screen">
+    <div style={{ display: "flex", minHeight: "100vh" }}>
       {!isFreelance ? (
         <aside
-          className={`transition-all duration-200 border-r flex-shrink-0 ${
+          className={`transition-all duration-200 flex-shrink-0 ${
             collapsed ? "w-16" : "w-64"
           }`}
           style={{
             background: "#000000",
             color: "#FFFFFF",
-            borderColor: "#2a2a2a",
+            borderRight: "1px solid #2a2a2a",
           }}
           onMouseEnter={() => setCollapsed(false)}
           onMouseLeave={() => setCollapsed(true)}
@@ -67,7 +67,14 @@ export default function DashboardLayout({
           <SidebarNav collapsed={collapsed} />
         </aside>
       ) : null}
-      <div className="flex flex-1 flex-col min-w-0">
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          minWidth: 0,
+        }}
+      >
         <AppNavbar
           userName={userName}
           userEmail={userEmail}

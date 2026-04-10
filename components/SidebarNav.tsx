@@ -116,6 +116,28 @@ type SidebarNavProps = {
   collapsed: boolean;
 };
 
+/** Campo da calcio stilizzato per header sidebar (linee bianche su sfondo nero). */
+function FootballFieldSvg({ size }: { size: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 32 32"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden
+    >
+      <rect x="1" y="1" width="30" height="30" rx="2" stroke="white" strokeWidth="1.5" />
+      <line x1="16" y1="1" x2="16" y2="31" stroke="white" strokeWidth="1" />
+      <circle cx="16" cy="16" r="5" stroke="white" strokeWidth="1" />
+      <path d="M1 10 Q8 16 1 22" stroke="white" strokeWidth="1" fill="none" />
+      <path d="M31 10 Q24 16 31 22" stroke="white" strokeWidth="1" fill="none" />
+      <rect x="1" y="12" width="4" height="8" stroke="white" strokeWidth="1" fill="none" />
+      <rect x="27" y="12" width="4" height="8" stroke="white" strokeWidth="1" fill="none" />
+    </svg>
+  );
+}
+
 export default function SidebarNav({ collapsed }: SidebarNavProps) {
   const pathname = usePathname();
   const { loading, levelByPageKey } = usePagePermissions();
@@ -150,25 +172,21 @@ export default function SidebarNav({ collapsed }: SidebarNavProps) {
   );
 
   return (
-    <nav className="flex flex-col gap-1 p-3" style={{ background: "#000000" }}>
+    <nav className="flex flex-col" style={{ background: "#000000" }}>
       {collapsed ? (
         <>
           <div
-            className="mb-4 flex h-10 items-center justify-center pb-3"
-            style={{ borderBottom: "1px solid #2a2a2a" }}
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              padding: "16px 0",
+              borderBottom: "1px solid #2a2a2a",
+            }}
           >
-            <span
-              style={{
-                fontFamily: "'Arial Black', Arial, sans-serif",
-                fontWeight: 900,
-                fontSize: 11,
-                color: "#FFFFFF",
-                lineHeight: 1,
-              }}
-            >
-              P<span style={{ color: "#FFFA00" }}>/</span>TCH
-            </span>
+            <FootballFieldSvg size={32} />
           </div>
+          <div className="flex flex-col gap-1 px-3 py-3">
           {visibleItems.map((item) => {
             const isActive =
               pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -188,33 +206,32 @@ export default function SidebarNav({ collapsed }: SidebarNavProps) {
               </Link>
             );
           })}
+          </div>
         </>
       ) : (
         <>
           <div
-            className="mb-4 flex items-center px-3 pb-3"
-            style={{ borderBottom: "1px solid #2a2a2a" }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: 16,
+              borderBottom: "1px solid #2a2a2a",
+            }}
           >
+            <FootballFieldSvg size={28} />
             <span
               style={{
-                fontFamily: "'Arial Black', Arial, sans-serif",
-                fontWeight: 900,
-                fontSize: 20,
-                color: "#FFFFFF",
-                lineHeight: 1,
+                fontSize: 11,
+                color: "#868A8C",
+                letterSpacing: "1px",
+                textTransform: "uppercase",
               }}
             >
-              P<span style={{ color: "#FFFA00" }}>/</span>TCH
+              Pitch
             </span>
-            <span style={{ color: "#3F4547", fontSize: 14, margin: "0 10px" }}>
-              ×
-            </span>
-            <img
-              src="/DAZN_BoxedLogo.jpg"
-              alt="DAZN"
-              style={{ height: "20px", width: "auto", display: "block" }}
-            />
           </div>
+          <div className="flex flex-col gap-1 px-3 py-3">
           {visibleItems.map((item) => {
             const isActive =
               pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -234,6 +251,7 @@ export default function SidebarNav({ collapsed }: SidebarNavProps) {
               </Link>
             );
           })}
+          </div>
         </>
       )}
     </nav>

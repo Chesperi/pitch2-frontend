@@ -9,7 +9,46 @@ export type Pitch2MeResponse = {
 export function assignmentsHomeForUserLevel(levelRaw: string | undefined): string {
   const u = (levelRaw ?? "").toUpperCase();
   if (u === "FREELANCE") return "/freelance/le-mie-assegnazioni";
+  if (u === "PROVIDER") return "/provider/le-mie-assegnazioni";
+  if (u === "STAFF" || u === "MANAGER" || u === "MASTER") {
+    return "/le-mie-assegnazioni";
+  }
   return "/le-mie-assegnazioni";
+}
+
+export async function loginAndSync(
+  email: string,
+  password: string,
+  rememberMe: boolean
+): Promise<{ ok: boolean; userLevel?: string; error?: string }> {
+  const { data, error: signErr } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (signErr) {
+    return { ok: false, error: signErr.message };
+  }
+
+  const accessToken = data.session?.access_token;
+  if (!accessToken) {
+    return { ok: false, error: "Sessione non disponibile dopo il login." };
+  }
+
+  const sessionRes = await postSupabaseSessionToBackend(accessToken, {
+    rememberMe,
+  });
+  if (!sessionRes.ok) {
+    const text = await sessionRes.text().catch(() => "");
+    return { ok: false, error: text || `Errore server (${sessionRes.status})` };
+  }
+
+  const me = await fetchPitch2MeFromBrowser();
+  if (!me.ok || !me.data) {
+    return { ok: false, error: "Impossibile recuperare il profilo. Riprova." };
+  }
+
+  return { ok: true, userLevel: pickUserLevel(me.data) };
 }
 
 /**

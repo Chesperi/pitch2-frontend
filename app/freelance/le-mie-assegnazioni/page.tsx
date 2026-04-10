@@ -84,7 +84,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
     } catch (e) {
       const status = (e as Error & { status?: number }).status;
       if (status === 401 || status === 403) {
-        router.replace("/freelance/login");
+        router.replace("/login");
         return;
       }
       setAuthError("Sessione scaduta o non disponibile. Accedi di nuovo.");
@@ -113,7 +113,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
     } catch (e) {
       const status = (e as Error & { status?: number }).status;
       if (status === 401 || status === 403) {
-        router.replace("/freelance/login");
+        router.replace("/login");
         return;
       }
       setListError(
@@ -199,7 +199,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
         <main className="mx-auto max-w-5xl px-4 py-8 md:px-6">
           <p className="text-pitch-gray-light">{authError}</p>
           <Link
-            href="/freelance/login"
+            href="/login"
             className="mt-4 inline-block text-sm text-pitch-accent underline"
           >
             Vai al login

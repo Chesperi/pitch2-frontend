@@ -46,8 +46,8 @@ export function useFreelanceContext(): FreelanceContext {
         const { data } = await supabase.auth.getUser();
         if (!data.user) {
           const loginUrl = token
-            ? `/freelance/login?token=${encodeURIComponent(token)}`
-            : "/freelance/login";
+            ? `/login?token=${encodeURIComponent(token)}`
+            : "/login";
           window.location.href = loginUrl;
           return;
         }

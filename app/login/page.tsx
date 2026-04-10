@@ -3,12 +3,9 @@
 import { FormEvent, Suspense, useId, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { supabase } from "@/lib/supabaseClient";
 import {
   assignmentsHomeForUserLevel,
-  fetchPitch2MeFromBrowser,
-  pickUserLevel,
-  postSupabaseSessionToBackend,
+  loginAndSync,
 } from "@/lib/auth/pitch2Session";
 
 function EyeIcon({ className }: { className?: string }) {
@@ -84,40 +81,15 @@ function LoginContent() {
     setLoading(true);
 
     try {
-      const { data, error: signErr } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (signErr) {
-        setError(signErr.message);
+      const result = await loginAndSync(email, password, rememberMe);
+      if (!result.ok) {
+        setError(result.error || "Login non riuscito.");
         return;
       }
 
-      const accessToken = data.session?.access_token;
-      if (!accessToken) {
-        setError("Sessione non disponibile dopo il login.");
-        return;
-      }
-
-      const sessionRes = await postSupabaseSessionToBackend(accessToken, {
-        rememberMe,
-      });
-
-      if (!sessionRes.ok) {
-        const text = await sessionRes.text().catch(() => "");
-        setError(text || `Errore server (${sessionRes.status})`);
-        return;
-      }
-
-      const me = await fetchPitch2MeFromBrowser();
-      if (!me.ok || !me.data) {
-        setError("Impossibile recuperare il profilo. Riprova.");
-        return;
-      }
-
+      // Se presente, onoriamo un redirect interno sicuro; altrimenti usiamo la home coerente col ruolo.
       const fromQuery = safeInternalRedirect(searchParams.get("redirect"));
-      const fallback = assignmentsHomeForUserLevel(pickUserLevel(me.data));
+      const fallback = assignmentsHomeForUserLevel(result.userLevel);
       router.replace(fromQuery ?? fallback);
     } catch (err) {
       console.error(err);

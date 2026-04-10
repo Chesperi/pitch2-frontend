@@ -72,21 +72,30 @@ export default function AppNavbar({
             ×
           </span>
           <svg
-            height="20"
-            viewBox="0 0 80 20"
+            width="44"
+            height="36"
+            viewBox="0 0 44 36"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
             aria-label="DAZN"
             role="img"
           >
+            {/* Sfondo quadrato bianco */}
+            <rect x="6" y="0" width="32" height="36" fill="white" />
+            {/* Freccia sinistra */}
+            <polygon points="6,0 0,18 6,36" fill="white" />
+            {/* Freccia destra */}
+            <polygon points="38,0 44,18 38,36" fill="white" />
+            {/* Lettere DAZN nere */}
             <text
-              x="0"
-              y="16"
+              x="22"
+              y="25"
               fontFamily="Arial Black, Arial"
               fontWeight="900"
-              fontSize="18"
-              fill="white"
-              letterSpacing="1"
+              fontSize="14"
+              fill="#0d1117"
+              textAnchor="middle"
+              letterSpacing="-0.5"
             >
               DAZN
             </text>

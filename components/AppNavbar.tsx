@@ -1,0 +1,172 @@
+"use client";
+
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { logoutPitch2 } from "@/lib/auth/pitch2Session";
+
+type AppNavbarProps = {
+  userName: string;
+  userEmail: string;
+  userInitials: string;
+  pendingCount: number;
+  centerContent?: ReactNode;
+};
+
+export default function AppNavbar({
+  userName,
+  userEmail,
+  userInitials,
+  pendingCount,
+  centerContent,
+}: AppNavbarProps) {
+  const router = useRouter();
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    function onDocumentMouseDown(ev: MouseEvent): void {
+      if (!isUserMenuOpen) return;
+      const target = ev.target;
+      if (!(target instanceof Node)) return;
+      if (userMenuRef.current && !userMenuRef.current.contains(target)) {
+        setIsUserMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", onDocumentMouseDown);
+    return () => {
+      document.removeEventListener("mousedown", onDocumentMouseDown);
+    };
+  }, [isUserMenuOpen]);
+
+  async function handleLogout(): Promise<void> {
+    try {
+      await logoutPitch2();
+    } finally {
+      router.push("/login");
+    }
+  }
+
+  return (
+    <header
+      className="sticky top-0 z-20 border-b px-4 py-3"
+      style={{ background: "#111", borderColor: "#2a2a2a" }}
+    >
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div
+            className="flex items-center"
+            style={{
+              fontFamily: "'Arial Black', Arial, sans-serif",
+              fontWeight: 900,
+              fontSize: 20,
+              color: "#fff",
+              lineHeight: 1,
+            }}
+          >
+            <span style={{ color: "#fff" }}>P</span>
+            <span style={{ color: "#FFFA00" }}>/</span>
+            <span style={{ color: "#fff" }}>TCH</span>
+          </div>
+          <span style={{ color: "#3F4547", fontSize: 14, margin: "0 10px" }}>
+            ×
+          </span>
+          <svg
+            height="20"
+            viewBox="0 0 80 20"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-label="DAZN"
+            role="img"
+          >
+            <text
+              x="0"
+              y="16"
+              fontFamily="Arial Black, Arial"
+              fontWeight="900"
+              fontSize="18"
+              fill="white"
+              letterSpacing="1"
+            >
+              DAZN
+            </text>
+          </svg>
+          {centerContent ? (
+            <>
+              <div className="h-6 w-px" style={{ background: "#2a2a2a" }} />
+              {centerContent}
+            </>
+          ) : null}
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              className="h-5 w-5"
+              style={{ color: "#fff" }}
+            >
+              <path
+                d="M15 17h5l-1.4-1.4a2 2 0 0 1-.6-1.4V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5m6 0a3 3 0 1 1-6 0m6 0H9"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            {pendingCount > 0 ? (
+              <span
+                className="absolute -right-2 -top-2 min-w-5 rounded-full px-1 text-center text-[10px] font-bold"
+                style={{ background: "#E24B4A", color: "#fff" }}
+              >
+                {pendingCount}
+              </span>
+            ) : null}
+          </div>
+
+          <div className="relative" ref={userMenuRef}>
+            <button
+              type="button"
+              onClick={() => setIsUserMenuOpen((s) => !s)}
+              className="flex items-center gap-3"
+            >
+              <div className="text-right">
+                <div className="text-sm text-white">{userName || "Utente"}</div>
+              </div>
+              <div
+                className="flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold"
+                style={{ background: "#FFFA00", color: "#000" }}
+              >
+                {userInitials || "?"}
+              </div>
+            </button>
+            {isUserMenuOpen ? (
+              <div
+                className="absolute right-0 mt-2 min-w-[220px] rounded-lg border p-2 shadow-xl"
+                style={{ background: "#1a1a1a", borderColor: "#2a2a2a" }}
+              >
+                <div className="px-2 py-1 text-sm font-bold text-white">
+                  {userName || "Utente"}
+                </div>
+                <div className="px-2 pb-2 text-xs" style={{ color: "#fff" }}>
+                  {userEmail || "Email non disponibile"}
+                </div>
+                <div className="my-1 h-px" style={{ background: "#2a2a2a" }} />
+                <button
+                  type="button"
+                  onClick={() => void handleLogout()}
+                  className="w-full rounded px-2 py-1 text-left text-sm hover:bg-black/30"
+                  style={{ color: "#E24B4A" }}
+                >
+                  Esci
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}

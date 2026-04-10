@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api/apiFetch";
-import { logoutPitch2 } from "@/lib/auth/pitch2Session";
+import AppNavbar from "@/components/AppNavbar";
 
 type UserProfile = {
   id: number | null;
@@ -148,8 +148,6 @@ export default function FreelanceLeMieAssegnazioniPage() {
   const [selectedCalendarDay, setSelectedCalendarDay] = useState<string | null>(
     null
   );
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const userMenuRef = useRef<HTMLDivElement | null>(null);
   const todayIso = useMemo(() => toIsoDate(new Date()), []);
 
   async function loadAll(): Promise<void> {
@@ -206,22 +204,6 @@ export default function FreelanceLeMieAssegnazioniPage() {
   useEffect(() => {
     void loadAll();
   }, []);
-
-  useEffect(() => {
-    function onDocumentMouseDown(ev: MouseEvent): void {
-      if (!isUserMenuOpen) return;
-      const target = ev.target;
-      if (!(target instanceof Node)) return;
-      if (userMenuRef.current && !userMenuRef.current.contains(target)) {
-        setIsUserMenuOpen(false);
-      }
-    }
-
-    document.addEventListener("mousedown", onDocumentMouseDown);
-    return () => {
-      document.removeEventListener("mousedown", onDocumentMouseDown);
-    };
-  }, [isUserMenuOpen]);
 
   const pendingCount = useMemo(
     () => items.filter((i) => isPendingStatus(i.status)).length,
@@ -491,46 +473,18 @@ export default function FreelanceLeMieAssegnazioniPage() {
     return groups;
   }, [modalCols]);
 
-  async function handleLogout(): Promise<void> {
-    try {
-      await logoutPitch2();
-    } finally {
-      router.push("/login");
-    }
-  }
-
   return (
     <div
       className="min-h-screen"
       style={{ background: "linear-gradient(180deg, #111 0%, #0a0a0a 100%)" }}
     >
-      <header
-        className="sticky top-0 z-20 border-b px-4 py-3"
-        style={{ background: "#111", borderColor: "#2a2a2a" }}
-      >
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div
-              className="text-xl"
-              style={{
-                fontFamily: "Arial Black, system-ui, sans-serif",
-                fontWeight: 900,
-                fontSize: 20,
-                color: "#fff",
-              }}
-            >
-              P<span style={{ color: "#FFFA00", fontSize: "1.4em" }}>/</span>TCH
-            </div>
-            <span style={{ color: "#868A8C", fontSize: 14, margin: "0 8px" }}>
-              ×
-            </span>
-            <img
-              src="/logo-dazn.png"
-              alt="DAZN"
-              height={22}
-              style={{ height: 22, filter: "brightness(0) invert(1)" }}
-            />
-            <div className="h-6 w-px" style={{ background: "#2a2a2a" }} />
+      <AppNavbar
+        userName={profile ? `${profile.name} ${profile.surname}`.trim() : "Utente"}
+        userEmail={profile?.email ?? "Email non disponibile"}
+        userInitials={profile ? getInitials(profile.name, profile.surname) : "?"}
+        pendingCount={pendingCount}
+        centerContent={
+          <>
             <button
               type="button"
               onClick={() => setTab("LISTA")}
@@ -547,78 +501,9 @@ export default function FreelanceLeMieAssegnazioniPage() {
             >
               CALENDARIO
             </button>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                className="h-5 w-5"
-                style={{ color: "#fff" }}
-              >
-                <path
-                  d="M15 17h5l-1.4-1.4a2 2 0 0 1-.6-1.4V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5m6 0a3 3 0 1 1-6 0m6 0H9"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              {pendingCount > 0 ? (
-                <span
-                  className="absolute -right-2 -top-2 min-w-5 rounded-full px-1 text-center text-[10px] font-bold"
-                  style={{ background: "#E24B4A", color: "#fff" }}
-                >
-                  {pendingCount}
-                </span>
-              ) : null}
-            </div>
-            <div className="relative" ref={userMenuRef}>
-              <button
-                type="button"
-                onClick={() => setIsUserMenuOpen((s) => !s)}
-                className="flex items-center gap-3"
-              >
-                <div className="text-right">
-                  <div className="text-sm text-white">
-                    {profile ? `${profile.name} ${profile.surname}`.trim() : "Utente"}
-                  </div>
-                </div>
-                <div
-                  className="flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold"
-                  style={{ background: "#FFFA00", color: "#000" }}
-                >
-                  {profile ? getInitials(profile.name, profile.surname) : "?"}
-                </div>
-              </button>
-              {isUserMenuOpen ? (
-                <div
-                  className="absolute right-0 mt-2 min-w-[220px] rounded-lg border p-2 shadow-xl"
-                  style={{ background: "#1a1a1a", borderColor: "#2a2a2a" }}
-                >
-                  <div className="px-2 py-1 text-sm font-bold text-white">
-                    {profile ? `${profile.name} ${profile.surname}`.trim() : "Utente"}
-                  </div>
-                  <div className="px-2 pb-2 text-xs" style={{ color: "#fff" }}>
-                    {profile?.email ?? "Email non disponibile"}
-                  </div>
-                  <div className="my-1 h-px" style={{ background: "#2a2a2a" }} />
-                  <button
-                    type="button"
-                    onClick={() => void handleLogout()}
-                    className="w-full rounded px-2 py-1 text-left text-sm hover:bg-black/30"
-                    style={{ color: "#E24B4A" }}
-                  >
-                    Esci
-                  </button>
-                </div>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      </header>
+          </>
+        }
+      />
 
       <main className="mx-auto max-w-7xl px-4 py-6">
         {loading ? (

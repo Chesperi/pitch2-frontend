@@ -74,9 +74,7 @@ export default function AppNavbar({
           <img
             src="/DAZN_BoxedLogo.jpg"
             alt="DAZN"
-            height={28}
-            width="auto"
-            style={{ display: "block" }}
+            style={{ height: "28px", width: "auto", display: "block" }}
           />
           {centerContent ? (
             <>

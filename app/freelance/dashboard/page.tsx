@@ -21,7 +21,7 @@ function FreelanceDashboardContent() {
     const qs = hasStaff
       ? `?staffId=${encodeURIComponent(String(effectiveStaffId))}`
       : "";
-    router.replace(`/le-mie-assegnazioni${qs}`);
+    router.replace(`/freelance/le-mie-assegnazioni${qs}`);
   }, [loading, error, staffIdFromToken, userStaffId, router]);
 
   if (error) {

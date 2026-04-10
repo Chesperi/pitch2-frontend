@@ -181,8 +181,9 @@ const btnSmallGrey =
   "rounded border border-pitch-gray px-2 py-1 text-xs text-pitch-gray hover:bg-pitch-gray-dark disabled:opacity-50";
 
 type RoleSummary = {
-  roleId: number;
+  roleKey: string;
   roleCode: string;
+  roleLocation: string;
   description?: string;
   required: number;
   slots: number;
@@ -195,9 +196,12 @@ function safeStandardQuantity(q: unknown): number {
   return Math.floor(n);
 }
 
-function assignmentRoleId(a: AssignmentWithJoins): number {
-  const id = a.role_id ?? (a as { roleId?: number }).roleId;
-  return Number(id);
+function assignmentRoleKey(a: AssignmentWithJoins): string {
+  const code = String(a.roleCode ?? a.role_code ?? "").trim().toUpperCase();
+  const location = String(a.roleLocation ?? a.role_location ?? "")
+    .trim()
+    .toUpperCase();
+  return `${code}__${location}`;
 }
 
 function assignmentRoleCode(a: AssignmentWithJoins): string {
@@ -210,67 +214,76 @@ function buildRoleSummaries(
   assignments: AssignmentWithJoins[]
 ): RoleSummary[] {
   const fromStandards = new Map<
-    number,
-    { required: number; roleCode: string; description: string }
+    string,
+    { required: number; roleCode: string; roleLocation: string; description: string }
   >();
 
   for (const req of standardRequirements) {
-    const rid = Number(req.roleId);
-    if (!Number.isFinite(rid)) continue;
+    const roleCode = String(req.roleCode ?? "").trim().toUpperCase();
+    const roleLocation = String(req.roleLocation ?? "").trim().toUpperCase();
+    if (!roleCode || !roleLocation) continue;
+    const key = `${roleCode}__${roleLocation}`;
     const q = safeStandardQuantity(req.quantity);
-    const code = String(req.roleCode ?? "").trim();
     const desc = String(req.roleName ?? "").trim();
-    const prev = fromStandards.get(rid);
+    const prev = fromStandards.get(key);
     if (prev) {
-      fromStandards.set(rid, {
+      fromStandards.set(key, {
         required: prev.required + q,
-        roleCode: prev.roleCode || code,
+        roleCode: prev.roleCode || roleCode,
+        roleLocation: prev.roleLocation || roleLocation,
         description: prev.description || desc,
       });
     } else {
-      fromStandards.set(rid, {
+      fromStandards.set(key, {
         required: q,
-        roleCode: code,
+        roleCode,
+        roleLocation,
         description: desc,
       });
     }
   }
 
   const slotStats = new Map<
-    number,
-    { slots: number; assigned: number; roleCode: string }
+    string,
+    { slots: number; assigned: number; roleCode: string; roleLocation: string }
   >();
 
   for (const a of assignments) {
-    const rid = assignmentRoleId(a);
-    if (!Number.isFinite(rid)) continue;
-    const code = assignmentRoleCode(a);
+    const key = assignmentRoleKey(a);
+    if (!key || key === "__") continue;
+    const code = assignmentRoleCode(a).toUpperCase();
+    const roleLocation = String(a.roleLocation ?? a.role_location ?? "")
+      .trim()
+      .toUpperCase();
     const staff = a.staffId ?? a.staff_id;
     const assignedInc = staff != null ? 1 : 0;
-    const cur = slotStats.get(rid) ?? {
+    const cur = slotStats.get(key) ?? {
       slots: 0,
       assigned: 0,
       roleCode: code,
+      roleLocation,
     };
-    slotStats.set(rid, {
+    slotStats.set(key, {
       slots: cur.slots + 1,
       assigned: cur.assigned + assignedInc,
       roleCode: cur.roleCode || code,
+      roleLocation: cur.roleLocation || roleLocation,
     });
   }
 
-  const allIds = new Set<number>([
+  const allIds = new Set<string>([
     ...fromStandards.keys(),
     ...slotStats.keys(),
   ]);
 
   const rows: RoleSummary[] = [];
-  for (const roleId of allIds) {
-    const std = fromStandards.get(roleId);
-    const st = slotStats.get(roleId);
+  for (const roleKey of allIds) {
+    const std = fromStandards.get(roleKey);
+    const st = slotStats.get(roleKey);
     rows.push({
-      roleId,
+      roleKey,
       roleCode: std?.roleCode || st?.roleCode || "—",
+      roleLocation: std?.roleLocation || st?.roleLocation || "—",
       description: std?.description?.trim()
         ? std.description
         : undefined,
@@ -926,7 +939,7 @@ export default function DesignazioniEventPage() {
 
                   return (
                     <tr
-                      key={row.roleId}
+                      key={row.roleKey}
                       className="border-b border-pitch-gray-dark/40"
                     >
                       <td className="px-3 py-2 text-pitch-white">
@@ -937,7 +950,7 @@ export default function DesignazioniEventPage() {
                           </span>
                         ) : null}
                         <span className="mt-0.5 block text-[10px] text-pitch-gray">
-                          id {row.roleId}
+                          {row.roleLocation}
                         </span>
                       </td>
                       <td className="px-3 py-2 text-right text-pitch-gray-light">
@@ -977,7 +990,15 @@ export default function DesignazioniEventPage() {
           <select
             onChange={(e) => {
               const v = e.target.value;
-              if (v) handleAddSlot(Number(v));
+              if (v) {
+                const [roleCode, roleLocation] = v.split("__");
+                const role = roles.find(
+                  (r) => r.code === roleCode && r.location === roleLocation
+                );
+                if (role) {
+                  void handleAddSlot(role.id);
+                }
+              }
               e.target.value = "";
             }}
             disabled={addingSlot}
@@ -985,8 +1006,8 @@ export default function DesignazioniEventPage() {
           >
             <option value="">Aggiungi slot...</option>
             {roles.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.code} - {r.name}
+              <option key={r.id} value={`${r.code}__${r.location}`}>
+                {r.code} - {r.name} ({r.location})
               </option>
             ))}
           </select>

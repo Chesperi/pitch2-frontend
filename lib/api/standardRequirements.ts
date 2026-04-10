@@ -6,12 +6,14 @@ export interface StandardRequirementWithRole {
   standardCologno: string;
   site: string; // sede: STADIO | COLOGNO
   areaProduzione: string;
-  roleId: number;
   quantity: number;
   notes: string | null;
   roleCode: string;
-  roleName: string;
+  roleName: string | null;
   roleLocation: string;
+  coverageType: "FREELANCE" | "PROVIDER" | "EITHER";
+  facilities?: string | null;
+  studio?: string | null;
 }
 
 export type CreateStandardRequirementPayload = {
@@ -19,10 +21,11 @@ export type CreateStandardRequirementPayload = {
   standardCologno: string;
   site?: string;
   areaProduzione?: string | null;
-  roleId: number;
+  roleCode: string;
   roleLocation: string;
   quantity?: number;
   notes?: string | null;
+  coverageType?: "FREELANCE" | "PROVIDER" | "EITHER";
 };
 
 export type UpdateStandardRequirementPayload =
@@ -39,17 +42,45 @@ function standardRequirementJsonBody(
   if (payload.site !== undefined) o.site = payload.site;
   if (payload.areaProduzione !== undefined)
     o.areaProduzione = payload.areaProduzione;
-  if (payload.roleId !== undefined) o.roleId = payload.roleId;
-  if (payload.roleLocation !== undefined)
-    o.role_location = payload.roleLocation;
+  if (payload.roleCode !== undefined) o.roleCode = payload.roleCode;
+  if (payload.roleLocation !== undefined) o.roleLocation = payload.roleLocation;
   if (payload.quantity !== undefined) o.quantity = payload.quantity;
   if (payload.notes !== undefined) o.notes = payload.notes;
+  if (payload.coverageType !== undefined) o.coverageType = payload.coverageType;
   return o;
 }
 
 export type StandardRequirementsFetchOptions = {
   cookieHeader?: string;
 };
+
+function mapStandardRequirement(
+  raw: Record<string, unknown>
+): StandardRequirementWithRole {
+  return {
+    id: Number(raw.id ?? 0),
+    standardOnsite: String(raw.standardOnsite ?? raw.standard_onsite ?? ""),
+    standardCologno: String(
+      raw.standardCologno ?? raw.standard_cologno ?? ""
+    ),
+    site: String(raw.site ?? ""),
+    areaProduzione: String(raw.areaProduzione ?? raw.area_produzione ?? ""),
+    roleCode: String(raw.roleCode ?? raw.role_code ?? ""),
+    roleName: (raw.roleName ??
+      raw.role_name ??
+      raw.roleDescription ??
+      raw.role_description ??
+      null) as string | null,
+    roleLocation: String(raw.roleLocation ?? raw.role_location ?? ""),
+    quantity: Number(raw.quantity ?? 1),
+    notes: (raw.notes as string | null) ?? null,
+    coverageType: (String(
+      raw.coverageType ?? raw.coverage_type ?? "FREELANCE"
+    ).toUpperCase() as "FREELANCE" | "PROVIDER" | "EITHER"),
+    facilities: (raw.facilities as string | null) ?? null,
+    studio: (raw.studio as string | null) ?? null,
+  };
+}
 
 async function readStandardRequirementErrorMessage(
   res: Response,
@@ -101,7 +132,8 @@ export async function fetchStandardRequirements(
   }
 
   const data = await res.json();
-  return data.items ?? data;
+  const items = (data.items ?? data ?? []) as Record<string, unknown>[];
+  return items.map(mapStandardRequirement);
 }
 
 export async function fetchAllStandardRequirements(
@@ -115,7 +147,8 @@ export async function fetchAllStandardRequirements(
     throw new Error(`Failed to fetch standard requirements: ${res.status}`);
   }
   const data = await res.json();
-  return data.items ?? data ?? [];
+  const items = (data.items ?? data ?? []) as Record<string, unknown>[];
+  return items.map(mapStandardRequirement);
 }
 
 export async function createStandardRequirement(
@@ -134,7 +167,8 @@ export async function createStandardRequirement(
       )
     );
   }
-  return (await res.json()) as StandardRequirementWithRole;
+  const data = (await res.json()) as Record<string, unknown>;
+  return mapStandardRequirement(data);
 }
 
 export async function updateStandardRequirement(
@@ -154,7 +188,8 @@ export async function updateStandardRequirement(
       )
     );
   }
-  return (await res.json()) as StandardRequirementWithRole;
+  const data = (await res.json()) as Record<string, unknown>;
+  return mapStandardRequirement(data);
 }
 
 export async function generateAssignmentsFromStandard(

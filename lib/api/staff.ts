@@ -20,7 +20,7 @@ export type StaffItem = {
   extra_fee: string | null;
   team_dazn: string | null;
   notes: string | null;
-  finance_visibility: boolean | null;
+  finance_visibility: "HIDDEN" | "VISIBLE" | null;
 };
 
 export type StaffListResponse = {
@@ -47,7 +47,7 @@ export type CreateStaffPayload = {
   extra_fee?: string | null;
   team_dazn?: string | null;
   notes?: string | null;
-  finance_visibility?: boolean | null;
+  financeVisibility?: "HIDDEN" | "VISIBLE" | null;
 };
 
 export type UpdateStaffPayload = Partial<CreateStaffPayload>;

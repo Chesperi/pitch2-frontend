@@ -20,7 +20,9 @@ import {
 import { type Role, fetchRoles } from "@/lib/api/roles";
 import {
   type StandardRequirementWithRole,
+  createStandardRequirement,
   fetchStandardRequirements,
+  updateStandardRequirement,
 } from "@/lib/api/standardRequirements";
 
 /** Usate quando si ripristinano POST/PATCH su staff/ruoli/standard (evita import “unused”). */
@@ -103,7 +105,9 @@ type StdReqFormValues = {
   standardCologno: string;
   site: string;
   areaProduzione: string;
-  roleId: number | "";
+  roleCode: string;
+  roleLocation: string;
+  coverageType: "FREELANCE" | "PROVIDER" | "EITHER";
   quantity: string;
   notes: string;
 };
@@ -114,7 +118,9 @@ function emptyStdReqForm(): StdReqFormValues {
     standardCologno: "",
     site: "STADIO",
     areaProduzione: "",
-    roleId: "",
+    roleCode: "",
+    roleLocation: "STADIO",
+    coverageType: "FREELANCE",
     quantity: "1",
     notes: "",
   };
@@ -397,14 +403,16 @@ export function DatabaseSections({
       feeNum != null && Number.isFinite(feeNum) ? feeNum : undefined;
 
     const extraStaffFields = {
-      place_of_birth: staffFormValues.placeOfBirth.trim() || null,
-      date_of_birth: staffFormValues.dateOfBirth.trim() || null,
-      residential_address: staffFormValues.residentialAddress.trim() || null,
-      id_number: staffFormValues.idNumber.trim() || null,
-      extra_fee: staffFormValues.extraFee.trim() || null,
-      team_dazn: staffFormValues.teamDazn.trim() || null,
+      placeOfBirth: staffFormValues.placeOfBirth.trim() || null,
+      dateOfBirth: staffFormValues.dateOfBirth.trim() || null,
+      residentialAddress: staffFormValues.residentialAddress.trim() || null,
+      idNumber: staffFormValues.idNumber.trim() || null,
+      extraFee: staffFormValues.extraFee.trim() || null,
+      teamDazn: staffFormValues.teamDazn.trim() || null,
       notes: staffFormValues.staffNotes.trim() || null,
-      finance_visibility: staffFormValues.financeVisibility,
+      financeVisibility: staffFormValues.financeVisibility
+        ? ("VISIBLE" as const)
+        : ("HIDDEN" as const),
     };
 
     setSavingStaff(true);
@@ -508,10 +516,10 @@ export function DatabaseSections({
       setStdReqFormError("Standard onsite e cologno sono obbligatori.");
       return;
     }
-    const roleIdNum =
-      stdReqFormValues.roleId === "" ? NaN : Number(stdReqFormValues.roleId);
-    if (!Number.isFinite(roleIdNum) || roleIdNum < 1) {
-      setStdReqFormError("Devi selezionare un ruolo valido.");
+    const roleCode = stdReqFormValues.roleCode.trim();
+    const roleLocation = stdReqFormValues.roleLocation.trim().toUpperCase();
+    if (!roleCode || !roleLocation) {
+      setStdReqFormError("Devi selezionare ruolo e sede validi.");
       return;
     }
     const qtyNum = parseInt(stdReqFormValues.quantity, 10);
@@ -519,16 +527,15 @@ export function DatabaseSections({
 
     setSavingStdReq(true);
     try {
-      /* TODO: ripristinare quando createStandardRequirement / updateStandardRequirement sono esportati
       if (editingStdReq) {
-        const selectedRole = roles.find((r) => r.id === roleIdNum);
         const updated = await updateStandardRequirement(editingStdReq.id, {
           standardOnsite: onsite,
           standardCologno: cologno,
           site: stdReqFormValues.site,
           areaProduzione: stdReqFormValues.areaProduzione || undefined,
-          roleId: roleIdNum,
-          roleLocation: selectedRole?.location ?? "",
+          roleCode,
+          roleLocation,
+          coverageType: stdReqFormValues.coverageType,
           quantity: safeQty,
           notes: stdReqFormValues.notes.trim() || undefined,
         });
@@ -536,14 +543,14 @@ export function DatabaseSections({
           prev.map((r) => (r.id === updated.id ? updated : r))
         );
       } else {
-        const selectedRoleNew = roles.find((r) => r.id === roleIdNum);
         const created = await createStandardRequirement({
           standardOnsite: onsite,
           standardCologno: cologno,
           site: stdReqFormValues.site,
           areaProduzione: stdReqFormValues.areaProduzione || undefined,
-          roleId: roleIdNum,
-          roleLocation: selectedRoleNew?.location ?? "",
+          roleCode,
+          roleLocation,
+          coverageType: stdReqFormValues.coverageType,
           quantity: safeQty,
           notes: stdReqFormValues.notes.trim() || undefined,
         });
@@ -551,10 +558,6 @@ export function DatabaseSections({
       }
       setIsStdReqModalOpen(false);
       setEditingStdReq(null);
-      */
-      setStdReqFormError(
-        "Salvataggio standard temporaneamente disabilitato (create/update non disponibili)."
-      );
     } catch (err) {
       setStdReqFormError(
         err instanceof Error
@@ -736,7 +739,7 @@ export function DatabaseSections({
                                 extraFee: s.extra_fee ?? "",
                                 teamDazn: s.team_dazn ?? "",
                                 staffNotes: s.notes ?? "",
-                                financeVisibility: s.finance_visibility ?? false,
+                                financeVisibility: s.finance_visibility === "VISIBLE",
                               });
                               setIsStaffModalOpen(true);
                             }}
@@ -1092,7 +1095,9 @@ export function DatabaseSections({
                 standardCologno: "",
                 site: "STADIO",
                 areaProduzione: "",
-                roleId: "",
+                roleCode: "",
+                roleLocation: "STADIO",
+                coverageType: "FREELANCE",
                 quantity: "1",
                 notes: "",
               });
@@ -1126,6 +1131,9 @@ export function DatabaseSections({
                   <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
                     Ruolo
                   </th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+                    Coverage
+                  </th>
                   <th className="px-4 py-3 text-right text-sm font-medium text-pitch-gray">
                     Qty
                   </th>
@@ -1158,6 +1166,9 @@ export function DatabaseSections({
                     <td className="px-4 py-3 text-sm text-pitch-gray-light">
                       {req.roleCode} – {req.roleName}
                     </td>
+                    <td className="px-4 py-3 text-sm text-pitch-gray-light">
+                      {req.coverageType ?? "FREELANCE"}
+                    </td>
                     <td className="px-4 py-3 text-right text-sm text-pitch-gray-light">
                       {req.quantity}
                     </td>
@@ -1176,7 +1187,9 @@ export function DatabaseSections({
                             standardCologno: req.standardCologno ?? "",
                             site: req.site ?? "STADIO",
                             areaProduzione: req.areaProduzione ?? "",
-                            roleId: req.roleId,
+                            roleCode: req.roleCode ?? "",
+                            roleLocation: req.roleLocation ?? "STADIO",
+                            coverageType: req.coverageType ?? "FREELANCE",
                             quantity: String(req.quantity ?? 1),
                             notes: req.notes ?? "",
                           });
@@ -1323,25 +1336,57 @@ export function DatabaseSections({
                   id="std-role"
                   required
                   value={
-                    stdReqFormValues.roleId === ""
-                      ? ""
-                      : String(stdReqFormValues.roleId)
+                    stdReqFormValues.roleCode && stdReqFormValues.roleLocation
+                      ? `${stdReqFormValues.roleCode}__${stdReqFormValues.roleLocation}`
+                      : ""
                   }
                   onChange={(e) => {
                     const v = e.target.value;
+                    if (!v) {
+                      setStdReqFormValues((prev) => ({
+                        ...prev,
+                        roleCode: "",
+                        roleLocation: "STADIO",
+                      }));
+                      return;
+                    }
+                    const [nextRoleCode, nextRoleLocation] = v.split("__");
                     setStdReqFormValues((prev) => ({
                       ...prev,
-                      roleId: v === "" ? "" : Number(v),
+                      roleCode: nextRoleCode ?? "",
+                      roleLocation: (nextRoleLocation ?? "STADIO").toUpperCase(),
                     }));
                   }}
                   className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
                 >
                   <option value="">Seleziona ruolo…</option>
                   {rolesSortedForSelect.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.code} — {r.name}
+                    <option key={`${r.code}-${r.location}`} value={`${r.code}__${r.location}`}>
+                      {r.code} — {r.name} ({r.location})
                     </option>
                   ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-pitch-gray">
+                  Coverage type
+                </label>
+                <select
+                  value={stdReqFormValues.coverageType}
+                  onChange={(e) =>
+                    setStdReqFormValues((v) => ({
+                      ...v,
+                      coverageType: e.target.value as
+                        | "FREELANCE"
+                        | "PROVIDER"
+                        | "EITHER",
+                    }))
+                  }
+                  className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+                >
+                  <option value="FREELANCE">FREELANCE</option>
+                  <option value="PROVIDER">PROVIDER</option>
+                  <option value="EITHER">EITHER</option>
                 </select>
               </div>
               <div>

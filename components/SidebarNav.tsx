@@ -178,9 +178,10 @@ export default function SidebarNav({ collapsed }: SidebarNavProps) {
           <div
             style={{
               display: "flex",
-              justifyContent: "center",
               alignItems: "center",
-              padding: "16px 0",
+              justifyContent: "center",
+              height: 56,
+              boxSizing: "border-box",
               borderBottom: "1px solid #2a2a2a",
             }}
           >
@@ -214,22 +215,14 @@ export default function SidebarNav({ collapsed }: SidebarNavProps) {
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 10,
-              padding: 16,
+              height: 56,
+              boxSizing: "border-box",
+              paddingLeft: 16,
+              paddingRight: 16,
               borderBottom: "1px solid #2a2a2a",
             }}
           >
             <FootballFieldSvg size={28} />
-            <span
-              style={{
-                fontSize: 11,
-                color: "#868A8C",
-                letterSpacing: "1px",
-                textTransform: "uppercase",
-              }}
-            >
-              Pitch
-            </span>
           </div>
           <div className="flex flex-col gap-1 px-3 py-3">
           {visibleItems.map((item) => {

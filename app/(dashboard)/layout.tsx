@@ -57,6 +57,10 @@ export default function DashboardLayout({
             collapsed ? "w-16" : "w-64"
           }`}
           style={{
+            position: "sticky",
+            top: 0,
+            alignSelf: "flex-start",
+            height: "100vh",
             background: "#000000",
             color: "#FFFFFF",
             borderRight: "1px solid #2a2a2a",

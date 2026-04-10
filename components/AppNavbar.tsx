@@ -48,17 +48,16 @@ export default function AppNavbar({
   }
 
   return (
-    <header
-      className="sticky top-0 z-20"
-      style={{
-        background: "#111",
-        borderBottom: "1px solid #2a2a2a",
-        padding: "0 24px",
-      }}
-    >
+    <header className="sticky top-0 z-20" style={{ background: "#111" }}>
       <div
-        className="flex items-center justify-between gap-4 py-3"
-        style={{ paddingLeft: 0 }}
+        className="flex items-center justify-between gap-4"
+        style={{
+          height: 56,
+          boxSizing: "border-box",
+          borderBottom: "1px solid #2a2a2a",
+          padding: "0 24px",
+          background: "#111",
+        }}
       >
         <div
           className="flex items-center gap-3"

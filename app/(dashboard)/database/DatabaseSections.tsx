@@ -17,7 +17,12 @@ import {
   inviteStaff,
   updateStaff,
 } from "@/lib/api/staff";
-import { type Role, fetchRoles } from "@/lib/api/roles";
+import {
+  type Role,
+  createRole,
+  fetchRoles,
+  updateRole,
+} from "@/lib/api/roles";
 import {
   type ComboRequirementInput,
   type StandardComboWithRequirements,
@@ -32,6 +37,8 @@ const _databaseApiReadRef = {
   fetchStaff,
   fetchRoles,
   fetchStandardCombos,
+  createRole,
+  updateRole,
 };
 void _databaseApiReadRef;
 
@@ -59,12 +66,29 @@ function staffDateToInputValue(raw: string | null | undefined): string {
   return s.length >= 10 ? s.slice(0, 10) : s;
 }
 
+/** Ordine alfabetico per etichette sede / livello (locale neutra, maiuscole). */
+function sortAsc(values: readonly string[]): string[] {
+  return [...values].sort((a, b) =>
+    a.localeCompare(b, "en", { sensitivity: "base" })
+  );
+}
+
+function staffNotesPreview(notes: string | null | undefined): {
+  text: string;
+  title?: string;
+  empty: boolean;
+} {
+  const t = (notes ?? "").trim();
+  if (!t) return { text: "—", empty: true };
+  if (t.length <= 30) return { text: t, empty: false };
+  return { text: `${t.slice(0, 30)}…`, title: t, empty: false };
+}
+
 type RoleFormValues = {
   roleCode: string;
   name: string;
   location: string;
   description: string;
-  active: boolean;
 };
 
 type StaffFormValues = {
@@ -93,6 +117,19 @@ const PRIMARY_BTN_SM =
   "rounded bg-pitch-accent px-3 py-1.5 text-xs font-semibold text-pitch-bg hover:bg-yellow-200 disabled:cursor-not-allowed disabled:opacity-50";
 
 const COMBO_ROLE_LOCATION_OPTIONS = ["STADIO", "COLOGNO", "REMOTE"] as const;
+const COMBO_ROLE_LOCATION_SORTED = sortAsc([...COMBO_ROLE_LOCATION_OPTIONS]);
+
+/** Stile unificato tabelle Database (Staff, Ruoli, pacchetti / requirement). */
+const DB_TH =
+  "px-3 py-3 text-left text-[11px] font-medium uppercase tracking-[1px] text-[#868A8C]";
+const DB_TBODY_TR =
+  "border-b border-[#2a2a2a] transition-colors hover:bg-[#1a1a1a]";
+const DB_TD = "px-3 py-3 text-sm text-white";
+const DB_TD_EMPTY = "px-3 py-3 text-sm text-[#3F4547]";
+const DB_BADGE_ON =
+  "inline-flex rounded-full px-2 py-0.5 text-xs font-medium text-white bg-[#639922]";
+const DB_BADGE_OFF =
+  "inline-flex rounded-full px-2 py-0.5 text-xs font-medium text-white bg-[#E24B4A]";
 
 type ComboHeaderFormValues = {
   standardOnsite: string;
@@ -147,7 +184,6 @@ function emptyRoleForm(): RoleFormValues {
     name: "",
     location: "STADIO",
     description: "",
-    active: true,
   };
 }
 
@@ -157,7 +193,6 @@ function roleToForm(role: Role): RoleFormValues {
     name: role.name ?? "",
     location: role.location,
     description: role.description ?? "",
-    active: role.active,
   };
 }
 
@@ -294,27 +329,14 @@ export function DatabaseSections({
       set.add(editingStaff.default_location);
     if (staffFormValues.defaultLocation)
       set.add(staffFormValues.defaultLocation);
-    return [...set];
+    return sortAsc([...set]);
   }, [editingStaff, staffFormValues.defaultLocation]);
 
   const userLevelSelectOptions = useMemo(() => {
-    const ordered = [...USER_LEVEL_OPTIONS];
-    const canonical = new Set<string>(ordered);
-    const extras: string[] = [];
-    if (
-      editingStaff?.user_level &&
-      !canonical.has(editingStaff.user_level)
-    ) {
-      extras.push(editingStaff.user_level);
-    }
-    if (
-      staffFormValues.userLevel &&
-      !canonical.has(staffFormValues.userLevel)
-    ) {
-      extras.push(staffFormValues.userLevel);
-    }
-    const uniqueExtras = [...new Set(extras)].sort();
-    return [...ordered, ...uniqueExtras];
+    const merged = new Set<string>([...USER_LEVEL_OPTIONS]);
+    if (editingStaff?.user_level) merged.add(editingStaff.user_level);
+    if (staffFormValues.userLevel) merged.add(staffFormValues.userLevel);
+    return sortAsc([...merged]);
   }, [editingStaff, staffFormValues.userLevel]);
 
   useEffect(() => {
@@ -327,7 +349,7 @@ export function DatabaseSections({
   const locationSelectOptions = useMemo(() => {
     const set = new Set<string>([...ROLE_LOCATION_OPTIONS]);
     if (editingRole?.location) set.add(editingRole.location);
-    return [...set];
+    return sortAsc([...set]);
   }, [editingRole]);
 
   const rolesSortedForSelect = useMemo(
@@ -339,22 +361,28 @@ export function DatabaseSections({
   );
 
   const comboHeaderDatalistOptions = useMemo(() => {
-    const onsite = [
-      ...new Set(standardCombos.map((c) => c.standardOnsite)),
-    ].filter((v) => v != null && String(v).trim() !== "");
-    const cologno = [
-      ...new Set(standardCombos.map((c) => c.standardCologno)),
-    ].filter((v) => v != null && String(v).trim() !== "");
-    const facilities = [
-      ...new Set(standardCombos.map((c) => c.facilities).filter(Boolean)),
-    ] as string[];
-    const studio = [
+    const onsite = sortAsc(
+      [
+        ...new Set(standardCombos.map((c) => c.standardOnsite)),
+      ].filter((v) => v != null && String(v).trim() !== "")
+    );
+    const cologno = sortAsc(
+      [
+        ...new Set(standardCombos.map((c) => c.standardCologno)),
+      ].filter((v) => v != null && String(v).trim() !== "")
+    );
+    const facilities = sortAsc(
+      [
+        ...new Set(standardCombos.map((c) => c.facilities).filter(Boolean)),
+      ] as string[]
+    );
+    const studio = sortAsc([
       ...new Set(
         standardCombos
           .map((c) => c.studio)
           .filter((v): v is string => Boolean(v && v !== "-"))
       ),
-    ];
+    ]);
     return { onsite, cologno, facilities, studio };
   }, [standardCombos]);
 
@@ -368,34 +396,23 @@ export function DatabaseSections({
     }
     const nameTrim = roleFormValues.name.trim();
     const descTrim = roleFormValues.description.trim();
+    const payload = {
+      roleCode: code,
+      name: nameTrim || undefined,
+      location: roleFormValues.location,
+      description: descTrim ? descTrim : null,
+    };
     setSavingRole(true);
     try {
-      /* TODO: ripristinare quando createRole / updateRole sono esportati da @/lib/api/roles
       if (editingRole) {
-        const updated = await updateRole(editingRole.id, {
-          roleCode: code,
-          name: nameTrim || undefined,
-          location: roleFormValues.location,
-          description: descTrim ? descTrim : null,
-          active: roleFormValues.active,
-        });
-        setRoles((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+        await updateRole(editingRole.id, payload);
       } else {
-        const created = await createRole({
-          roleCode: code,
-          name: nameTrim || undefined,
-          location: roleFormValues.location,
-          description: descTrim ? descTrim : null,
-          active: roleFormValues.active,
-        });
-        setRoles((prev) => [...prev, created]);
+        await createRole(payload);
       }
+      const refreshed = await fetchRoles();
+      setRoles(refreshed);
       setIsRoleModalOpen(false);
       setEditingRole(null);
-      */
-      setRoleFormError(
-        "Salvataggio ruoli temporaneamente disabilitato (createRole/updateRole non disponibili)."
-      );
     } catch (err) {
       setRoleFormError(
         err instanceof Error ? err.message : "Errore nel salvataggio del ruolo."
@@ -420,11 +437,15 @@ export function DatabaseSections({
       return;
     }
 
-    const feeNum = staffFormValues.fee.trim()
-      ? Number(staffFormValues.fee.trim())
-      : undefined;
-    const feeValue =
-      feeNum != null && Number.isFinite(feeNum) ? feeNum : undefined;
+    const feeTrimmed = staffFormValues.fee.trim();
+    const feeNum = feeTrimmed ? Number(feeTrimmed) : NaN;
+    const feeForEdit =
+      feeTrimmed === ""
+        ? null
+        : Number.isFinite(feeNum)
+          ? feeNum
+          : undefined;
+    const feeForCreate = feeTrimmed === "" ? undefined : feeForEdit;
 
     const extraStaffFields = {
       placeOfBirth: staffFormValues.placeOfBirth.trim() || null,
@@ -452,7 +473,7 @@ export function DatabaseSections({
           active: staffFormValues.active,
           phone: staffFormValues.phone.trim() || undefined,
           company: staffFormValues.company.trim() || undefined,
-          fee: feeValue,
+          fee: feeForEdit,
           plates: staffFormValues.plates.trim() || undefined,
           ...extraStaffFields,
         });
@@ -468,7 +489,7 @@ export function DatabaseSections({
           active: staffFormValues.active,
           phone: staffFormValues.phone.trim() || undefined,
           company: staffFormValues.company.trim() || undefined,
-          fee: feeValue,
+          fee: feeForCreate,
           plates: staffFormValues.plates.trim() || undefined,
           ...extraStaffFields,
         });
@@ -708,98 +729,113 @@ export function DatabaseSections({
               Nessuno staff
             </div>
           ) : (
-            <table className="w-full min-w-[880px] border-collapse">
+            <table className="w-full min-w-[1180px] border-collapse">
               <thead>
-                <tr className="border-b border-pitch-gray-dark">
-                  <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                    Cognome
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                    Nome
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                    Email
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                    Telefono
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                    Azienda
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                    Ruolo
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                    Sede
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                    Fee
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                    Targa(e)
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                    User level
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                    Attivo
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                    Azioni
-                  </th>
+                <tr className="border-b border-[#2a2a2a]">
+                  <th className={DB_TH}>Cognome</th>
+                  <th className={DB_TH}>Nome</th>
+                  <th className={DB_TH}>Email</th>
+                  <th className={DB_TH}>Telefono</th>
+                  <th className={DB_TH}>Azienda</th>
+                  <th className={DB_TH}>Ruolo</th>
+                  <th className={DB_TH}>Sede</th>
+                  <th className={DB_TH}>Fee</th>
+                  <th className={DB_TH}>Targa(e)</th>
+                  <th className={DB_TH}>User level</th>
+                  <th className={DB_TH}>Extra fee</th>
+                  <th className={DB_TH}>Team DAZN</th>
+                  <th className={DB_TH}>Note</th>
+                  <th className={DB_TH}>Attivo</th>
+                  <th className={DB_TH}>Azioni</th>
                 </tr>
               </thead>
               <tbody>
-                {staff.map((s) => (
-                  <tr
-                    key={s.id}
-                    className="border-b border-pitch-gray-dark/50 hover:bg-pitch-gray-dark/30"
-                  >
-                    <td className="px-4 py-3 text-sm text-pitch-white">
-                      {s.surname}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-pitch-gray-light">
-                      {s.name}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-pitch-gray-light">
+                {staff.map((s) => {
+                  const notePrev = staffNotesPreview(s.notes);
+                  const roleLabel = s.default_role_code
+                    ? effectiveRoleMap[s.default_role_code] ??
+                      s.default_role_code
+                    : null;
+                  return (
+                  <tr key={s.id} className={DB_TBODY_TR}>
+                    <td className={DB_TD}>{s.surname}</td>
+                    <td className={DB_TD}>{s.name}</td>
+                    <td
+                      className={
+                        s.email ? DB_TD : DB_TD_EMPTY
+                      }
+                    >
                       {s.email ?? "—"}
                     </td>
-                    <td className="px-4 py-3 text-sm text-pitch-gray-light">
+                    <td
+                      className={s.phone ? DB_TD : DB_TD_EMPTY}
+                    >
                       {s.phone ?? "—"}
                     </td>
-                    <td className="px-4 py-3 text-sm text-pitch-gray-light">
+                    <td
+                      className={s.company ? DB_TD : DB_TD_EMPTY}
+                    >
                       {s.company ?? "—"}
                     </td>
-                    <td className="px-4 py-3 text-sm text-pitch-gray-light">
-                      {s.default_role_code
-                        ? effectiveRoleMap[s.default_role_code] ??
-                          s.default_role_code
-                        : "—"}
+                    <td
+                      className={roleLabel ? DB_TD : DB_TD_EMPTY}
+                    >
+                      {roleLabel ?? "—"}
                     </td>
-                    <td className="px-4 py-3 text-sm text-pitch-gray-light">
+                    <td
+                      className={
+                        s.default_location ? DB_TD : DB_TD_EMPTY
+                      }
+                    >
                       {s.default_location ?? "—"}
                     </td>
-                    <td className="px-4 py-3 text-sm text-pitch-gray-light">
-                      {s.fee ?? "—"}
+                    <td
+                      className={
+                        s.fee != null && String(s.fee) !== ""
+                          ? DB_TD
+                          : DB_TD_EMPTY
+                      }
+                    >
+                      {s.fee != null && String(s.fee) !== ""
+                        ? String(s.fee)
+                        : "—"}
                     </td>
-                    <td className="px-4 py-3 text-sm text-pitch-gray-light">
+                    <td
+                      className={s.plates ? DB_TD : DB_TD_EMPTY}
+                    >
                       {s.plates ?? "—"}
                     </td>
-                    <td className="px-4 py-3 text-sm text-pitch-gray-light">
-                      {s.user_level}
+                    <td className={DB_TD}>{s.user_level}</td>
+                    <td
+                      className={
+                        s.extra_fee ? DB_TD : DB_TD_EMPTY
+                      }
+                    >
+                      {s.extra_fee ?? "—"}
                     </td>
-                    <td className="px-4 py-3">
+                    <td
+                      className={
+                        s.team_dazn ? DB_TD : DB_TD_EMPTY
+                      }
+                    >
+                      {s.team_dazn ?? "—"}
+                    </td>
+                    <td
+                      className={notePrev.empty ? DB_TD_EMPTY : DB_TD}
+                      title={notePrev.title}
+                    >
+                      {notePrev.text}
+                    </td>
+                    <td className="px-3 py-3">
                       <span
-                        className={`rounded-full px-2 py-0.5 text-xs ${
-                          s.active
-                            ? "bg-green-900/50 text-green-300"
-                            : "bg-pitch-gray-dark text-pitch-gray"
-                        }`}
+                        className={
+                          s.active ? DB_BADGE_ON : DB_BADGE_OFF
+                        }
                       >
                         {s.active ? "Sì" : "No"}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-3">
                       {canEditDatabase ? (
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                           <button
@@ -865,11 +901,12 @@ export function DatabaseSections({
                           </button>
                         </div>
                       ) : (
-                        <span className="text-xs text-pitch-gray">—</span>
+                        <span className="text-xs text-[#3F4547]">—</span>
                       )}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           )}
@@ -934,59 +971,30 @@ export function DatabaseSections({
               Nessun ruolo
             </div>
           ) : (
-            <table className="w-full min-w-[680px] border-collapse">
+            <table className="w-full min-w-[640px] border-collapse">
               <thead>
-                <tr className="border-b border-pitch-gray-dark">
-                  <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                    Code
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                    Name
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                    Location
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                    Description
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                    Active
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                    Azioni
-                  </th>
+                <tr className="border-b border-[#2a2a2a]">
+                  <th className={DB_TH}>Code</th>
+                  <th className={DB_TH}>Name</th>
+                  <th className={DB_TH}>Location</th>
+                  <th className={DB_TH}>Description</th>
+                  <th className={DB_TH}>Azioni</th>
                 </tr>
               </thead>
               <tbody>
                 {roles.map((r) => (
-                  <tr
-                    key={r.id}
-                    className="border-b border-pitch-gray-dark/50 hover:bg-pitch-gray-dark/30"
-                  >
-                    <td className="px-4 py-3 text-sm text-pitch-white">
-                      {r.code}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-pitch-gray-light">
-                      {r.name}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-pitch-gray-light">
-                      {r.location}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-pitch-gray-light">
+                  <tr key={r.id} className={DB_TBODY_TR}>
+                    <td className={DB_TD}>{r.code}</td>
+                    <td className={DB_TD}>{r.name}</td>
+                    <td className={DB_TD}>{r.location}</td>
+                    <td
+                      className={
+                        r.description ? DB_TD : DB_TD_EMPTY
+                      }
+                    >
                       {r.description ?? "—"}
                     </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-xs ${
-                          r.active
-                            ? "bg-green-900/50 text-green-300"
-                            : "bg-pitch-gray-dark text-pitch-gray"
-                        }`}
-                      >
-                        {r.active ? "Sì" : "No"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-3">
                       <button
                         type="button"
                         className="text-xs text-pitch-accent underline-offset-2 hover:underline"
@@ -1128,20 +1136,6 @@ export function DatabaseSections({
                   className="w-full resize-y rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
                 />
               </div>
-              <label className="flex cursor-pointer items-center gap-2 text-sm text-pitch-gray-light">
-                <input
-                  type="checkbox"
-                  checked={roleFormValues.active}
-                  onChange={(e) =>
-                    setRoleFormValues((v) => ({
-                      ...v,
-                      active: e.target.checked,
-                    }))
-                  }
-                  className="rounded border-pitch-gray-dark"
-                />
-                Attivo
-              </label>
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
@@ -1299,39 +1293,36 @@ export function DatabaseSections({
                           Righe requirement collegate al pacchetto
                         </div>
                         <div className="overflow-x-auto">
-                          <table className="w-full min-w-[520px] text-sm">
+                          <table className="w-full min-w-[520px] border-collapse text-sm">
                             <thead>
-                              <tr className="border-b border-[#2a2a2a] text-left text-pitch-gray">
-                                <th className="py-2 pr-2">role_code</th>
-                                <th className="py-2 pr-2">site</th>
-                                <th className="py-2 pr-2 text-right">qty</th>
-                                <th className="py-2">coverage_type</th>
+                              <tr className="border-b border-[#2a2a2a]">
+                                <th className={DB_TH}>role_code</th>
+                                <th className={DB_TH}>site</th>
+                                <th className={`${DB_TH} text-right`}>
+                                  qty
+                                </th>
+                                <th className={DB_TH}>coverage_type</th>
                               </tr>
                             </thead>
                             <tbody>
                               {combo.requirements.length === 0 ? (
-                                <tr>
+                                <tr className={DB_TBODY_TR}>
                                   <td
                                     colSpan={4}
-                                    className="py-3 text-pitch-gray"
+                                    className={`${DB_TD_EMPTY} py-3`}
                                   >
                                     Nessun ruolo in questo pacchetto
                                   </td>
                                 </tr>
                               ) : (
                                 combo.requirements.map((r) => (
-                                  <tr
-                                    key={r.id}
-                                    className="border-b border-[#2a2a2a]/50 text-pitch-gray-light"
-                                  >
-                                    <td className="py-2 pr-2 text-pitch-white">
-                                      {r.roleCode}
-                                    </td>
-                                    <td className="py-2 pr-2">{r.site}</td>
-                                    <td className="py-2 pr-2 text-right">
+                                  <tr key={r.id} className={DB_TBODY_TR}>
+                                    <td className={DB_TD}>{r.roleCode}</td>
+                                    <td className={DB_TD}>{r.site}</td>
+                                    <td className={`${DB_TD} text-right`}>
                                       {r.quantity}
                                     </td>
-                                    <td className="py-2">
+                                    <td className={DB_TD}>
                                       {r.coverageType ?? "FREELANCE"}
                                     </td>
                                   </tr>
@@ -1545,30 +1536,23 @@ export function DatabaseSections({
                   className="overflow-x-auto rounded-lg border"
                   style={{ borderColor: "#2a2a2a" }}
                 >
-                  <table className="w-full min-w-[600px] text-left text-xs">
+                  <table className="w-full min-w-[600px] border-collapse text-left text-xs">
                     <thead>
-                      <tr
-                        className="border-b text-pitch-gray"
-                        style={{ borderColor: "#2a2a2a" }}
-                      >
-                        <th className="px-2 py-2">Ruolo</th>
-                        <th className="px-2 py-2">Sede ruolo</th>
-                        <th className="px-2 py-2">Qty</th>
-                        <th className="px-2 py-2">Note</th>
-                        <th className="w-10 px-2 py-2" />
+                      <tr className="border-b border-[#2a2a2a]">
+                        <th className={DB_TH}>Ruolo</th>
+                        <th className={DB_TH}>Sede ruolo</th>
+                        <th className={DB_TH}>Qty</th>
+                        <th className={DB_TH}>Note</th>
+                        <th className={`${DB_TH} w-10`} />
                       </tr>
                     </thead>
                     <tbody>
                       {comboRoleRows.map((row) => (
                         <tr
                           key={row.rowId}
-                          className="border-b align-top"
-                          style={{
-                            borderColor: "#2a2a2a",
-                            background: "#1a1a1a",
-                          }}
+                          className={`${DB_TBODY_TR} align-top bg-[#1a1a1a]`}
                         >
-                          <td className="px-2 py-2">
+                          <td className="px-3 py-3">
                             <select
                               value={
                                 row.roleCode && row.roleLocation
@@ -1620,7 +1604,7 @@ export function DatabaseSections({
                               ))}
                             </select>
                           </td>
-                          <td className="px-2 py-2">
+                          <td className="px-3 py-3">
                             <select
                               value={row.roleLocation}
                               onChange={(e) =>
@@ -1638,14 +1622,14 @@ export function DatabaseSections({
                               className="w-full rounded border bg-[#111] px-1 py-1 text-pitch-white"
                               style={{ borderColor: "#2a2a2a" }}
                             >
-                              {COMBO_ROLE_LOCATION_OPTIONS.map((loc) => (
+                              {COMBO_ROLE_LOCATION_SORTED.map((loc) => (
                                 <option key={loc} value={loc}>
                                   {loc}
                                 </option>
                               ))}
                             </select>
                           </td>
-                          <td className="px-2 py-2">
+                          <td className="px-3 py-3">
                             <input
                               type="number"
                               min={1}
@@ -1663,7 +1647,7 @@ export function DatabaseSections({
                               style={{ borderColor: "#2a2a2a" }}
                             />
                           </td>
-                          <td className="px-2 py-2">
+                          <td className="px-3 py-3">
                             <textarea
                               rows={2}
                               value={row.notes}
@@ -1680,7 +1664,7 @@ export function DatabaseSections({
                               style={{ borderColor: "#2a2a2a" }}
                             />
                           </td>
-                          <td className="px-2 py-2">
+                          <td className="px-3 py-3">
                             <button
                               type="button"
                               className="text-lg leading-none text-red-400 hover:text-red-300 disabled:opacity-40"

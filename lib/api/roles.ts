@@ -6,7 +6,6 @@ export type Role = {
   name: string;
   location: string;
   description: string | null;
-  active: boolean;
 };
 
 export type CreateRolePayload = {
@@ -14,7 +13,6 @@ export type CreateRolePayload = {
   name?: string;
   location: string;
   description?: string | null;
-  active?: boolean;
 };
 
 export type UpdateRolePayload = Partial<CreateRolePayload>;

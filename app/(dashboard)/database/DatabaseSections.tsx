@@ -1087,11 +1087,10 @@ export function DatabaseSections({
               Nessun ruolo
             </div>
           ) : (
-            <table className="w-full min-w-[640px] border-collapse">
+            <table className="w-full min-w-[520px] border-collapse">
               <thead>
                 <tr className="border-b border-[#2a2a2a]">
                   <th className={DB_TH}>Code</th>
-                  <th className={DB_TH}>Name</th>
                   <th className={DB_TH}>Location</th>
                   <th className={DB_TH}>Description</th>
                   <th className={DB_TH}>Azioni</th>
@@ -1101,7 +1100,6 @@ export function DatabaseSections({
                 {roles.map((r) => (
                   <tr key={r.id} className={DB_TBODY_TR}>
                     <td className={DB_TD}>{r.code}</td>
-                    <td className={DB_TD}>{r.name}</td>
                     <td className={DB_TD}>{r.location}</td>
                     <td
                       className={

@@ -14,6 +14,7 @@ export interface StandardRequirementWithRole {
   coverageType: "FREELANCE" | "PROVIDER" | "EITHER";
   facilities?: string | null;
   studio?: string | null;
+  standardComboId?: number | null;
 }
 
 export type CreateStandardRequirementPayload = {
@@ -79,6 +80,12 @@ function mapStandardRequirement(
     ).toUpperCase() as "FREELANCE" | "PROVIDER" | "EITHER"),
     facilities: (raw.facilities as string | null) ?? null,
     studio: (raw.studio as string | null) ?? null,
+    standardComboId:
+      raw.standardComboId != null
+        ? Number(raw.standardComboId)
+        : raw.standard_combo_id != null
+          ? Number(raw.standard_combo_id)
+          : undefined,
   };
 }
 

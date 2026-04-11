@@ -5,7 +5,7 @@ import {
   fetchRoles,
   fetchStaff,
 } from "@/lib/api";
-import { fetchAllStandardRequirements } from "@/lib/api/standardRequirements";
+import { fetchStandardCombos } from "@/lib/api/standardCombos";
 import { DatabaseSections } from "./DatabaseSections";
 
 export const dynamic = "force-dynamic";
@@ -17,25 +17,24 @@ export default async function DatabasePage() {
     .map((c) => `${c.name}=${c.value}`)
     .join("; ");
 
-  const [roles, staffData, standardRequirements] = await Promise.all([
+  const [roles, staffData, standardCombos] = await Promise.all([
     fetchRoles({ cookieHeader }),
     fetchStaff({ limit: 50, offset: 0 }, { cookieHeader }),
-    fetchAllStandardRequirements({ cookieHeader }),
+    fetchStandardCombos({ cookieHeader }),
   ]);
   const staff = staffData.items ?? [];
   const roleMap: Record<string, string> = Object.fromEntries(
     roles.map((r) => [r.code, r.name])
   );
-  const reqs = Array.isArray(standardRequirements) ? standardRequirements : [];
+  const combos = Array.isArray(standardCombos) ? standardCombos : [];
 
   return (
     <>
       <PageHeader title="Database" />
       <p className="mt-3 text-xs leading-relaxed text-pitch-gray">
-        Anagrafiche di sistema (ruoli, staff, standard requirements) usate nei menu e
-        nei flussi delle altre pagine — ad esempio Eventi, Designazioni e accrediti.
-        Ruoli, staff e standard requirements si possono creare o modificare da questa
-        pagina.
+        Anagrafiche di sistema (ruoli, staff, pacchetti standard) usate nei menu e nei
+        flussi delle altre pagine — ad esempio Eventi, Designazioni e accrediti. Ruoli,
+        staff e pacchetti standard si possono creare o modificare da questa pagina.
       </p>
       <div className="mt-4">
         <SearchBar placeholder="Cerca nel database..." />
@@ -46,7 +45,7 @@ export default async function DatabasePage() {
           staff={staff}
           staffTotal={staffData.total ?? 0}
           roles={roles}
-          standardRequirements={reqs}
+          standardCombos={combos}
           roleMap={roleMap}
         />
       </div>

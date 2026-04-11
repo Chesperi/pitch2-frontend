@@ -20,6 +20,10 @@ import {
   type AssignmentWithJoins,
 } from "@/lib/api/assignments";
 import {
+  fetchStandardCombos,
+  type StandardComboWithRequirements,
+} from "@/lib/api/standardCombos";
+import {
   fetchStandardRequirements,
   generateAssignmentsFromStandard,
   type StandardRequirementWithRole,
@@ -194,6 +198,49 @@ function safeStandardQuantity(q: unknown): number {
   const n = Number(q);
   if (!Number.isFinite(n) || n <= 0) return 1;
   return Math.floor(n);
+}
+
+function normStd(s: string | null | undefined): string {
+  return (s ?? "").trim();
+}
+
+/**
+ * Se esiste un pacchetto `standard_combos` allineato all’evento (onsite/cologno,
+ * con match stretto opzionale su facilities/studio), restituisce i requirements
+ * aggregati. Altrimenti `null` → il chiamante usa ancora GET /api/standard-requirements.
+ */
+function requirementsFromCombosForEvent(
+  combos: StandardComboWithRequirements[],
+  ev: EventItem | null
+): StandardRequirementWithRole[] | null {
+  if (!ev) return null;
+  const onsite = normStd(ev.standardOnsite);
+  const cologno = normStd(ev.standardCologno);
+  if (!onsite || !cologno) return null;
+
+  let candidates = combos.filter(
+    (c) =>
+      normStd(c.standardOnsite) === onsite &&
+      normStd(c.standardCologno) === cologno
+  );
+  const ef = normStd(ev.facilities);
+  const es = normStd(ev.studio);
+  if (ef || es) {
+    const tight = candidates.filter(
+      (c) =>
+        (!ef || normStd(c.facilities) === ef) &&
+        (!es || normStd(c.studio) === es)
+    );
+    if (tight.length > 0) candidates = tight;
+  }
+
+  if (candidates.length === 0) return null;
+
+  const merged: StandardRequirementWithRole[] = [];
+  for (const c of candidates) {
+    merged.push(...c.requirements);
+  }
+  return merged;
 }
 
 function assignmentRoleKey(a: AssignmentWithJoins): string {
@@ -423,31 +470,34 @@ export default function DesignazioniEventPage() {
       const ev = await fetchEventById(eventId);
       setEvent(ev);
 
-      const [assignData, rolesData, stdData] = await Promise.all([
+      const [assignData, rolesData, combosData] = await Promise.all([
         fetchAssignmentsByEvent(eventId),
         fetchRoles(),
-        (async (): Promise<StandardRequirementWithRole[]> => {
-          if (
-            !ev?.standardOnsite?.trim() ||
-            !ev?.standardCologno?.trim()
-          ) {
-            return [];
-          }
-          try {
-            return await fetchStandardRequirements({
-              standardOnsite: ev.standardOnsite.trim(),
-              standardCologno: ev.standardCologno.trim(),
-              ...(ev.areaProduzione?.trim()
-                ? { areaProduzione: ev.areaProduzione.trim() }
-                : {}),
-              page: 0,
-              pageSize: 500,
-            });
-          } catch {
-            return [];
-          }
-        })(),
+        fetchStandardCombos().catch(() => [] as StandardComboWithRequirements[]),
       ]);
+
+      let stdData: StandardRequirementWithRole[] = [];
+      const fromCombos = requirementsFromCombosForEvent(combosData, ev);
+      if (fromCombos != null && fromCombos.length > 0) {
+        stdData = fromCombos;
+      } else if (
+        ev?.standardOnsite?.trim() &&
+        ev?.standardCologno?.trim()
+      ) {
+        try {
+          stdData = await fetchStandardRequirements({
+            standardOnsite: ev.standardOnsite.trim(),
+            standardCologno: ev.standardCologno.trim(),
+            ...(ev.areaProduzione?.trim()
+              ? { areaProduzione: ev.areaProduzione.trim() }
+              : {}),
+            page: 0,
+            pageSize: 500,
+          });
+        } catch {
+          stdData = [];
+        }
+      }
 
       setAssignments(assignData);
       setRoles(rolesData);

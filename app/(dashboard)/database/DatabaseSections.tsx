@@ -4,7 +4,7 @@
  * Pagina Database — sezioni espandibili:
  * - Staff: lista + modale create/edit (GET/POST/PATCH /api/staff).
  * - Ruoli: lista + modale create/edit (GET/POST/PATCH /api/roles).
- * - Standard requirements: lista + modale create/edit (GET/POST/PATCH /api/standard-requirements).
+ * - Pacchetti standard: lista combo + CRUD /api/standard-combos.
  */
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
@@ -19,17 +19,19 @@ import {
 } from "@/lib/api/staff";
 import { type Role, fetchRoles } from "@/lib/api/roles";
 import {
-  type StandardRequirementWithRole,
-  createStandardRequirement,
-  fetchStandardRequirements,
-  updateStandardRequirement,
-} from "@/lib/api/standardRequirements";
+  type ComboRequirementInput,
+  type StandardComboWithRequirements,
+  createStandardCombo,
+  deleteStandardCombo,
+  fetchStandardCombos,
+  updateStandardCombo,
+} from "@/lib/api/standardCombos";
 
-/** Usate quando si ripristinano POST/PATCH su staff/ruoli/standard (evita import “unused”). */
+/** Usate quando si ripristinano POST/PATCH su staff/ruoli (evita import “unused”). */
 const _databaseApiReadRef = {
   fetchStaff,
   fetchRoles,
-  fetchStandardRequirements,
+  fetchStandardCombos,
 };
 void _databaseApiReadRef;
 
@@ -90,38 +92,45 @@ type StaffFormValues = {
 const PRIMARY_BTN_SM =
   "rounded bg-pitch-accent px-3 py-1.5 text-xs font-semibold text-pitch-bg hover:bg-yellow-200 disabled:cursor-not-allowed disabled:opacity-50";
 
-const STD_REQ_SITE_OPTIONS = [
-  "STADIO",
-  "COLOGNO",
-  "GALLERY",
-  "VMIX",
-  "OFFTUBE",
-  "LEEDS",
-  "REMOTE",
-] as const;
+const COMBO_ROLE_LOCATION_OPTIONS = ["STADIO", "COLOGNO", "REMOTE"] as const;
 
-type StdReqFormValues = {
+type ComboHeaderFormValues = {
   standardOnsite: string;
   standardCologno: string;
-  site: string;
-  areaProduzione: string;
-  roleCode: string;
-  roleLocation: string;
-  coverageType: "FREELANCE" | "PROVIDER" | "EITHER";
-  quantity: string;
+  facilities: string;
+  studio: string;
   notes: string;
 };
 
-function emptyStdReqForm(): StdReqFormValues {
+type ComboRoleRowForm = {
+  rowId: string;
+  roleCode: string;
+  roleLocation: string;
+  quantity: string;
+  coverageType: "FREELANCE" | "PROVIDER" | "EITHER";
+  notes: string;
+};
+
+function emptyComboHeader(): ComboHeaderFormValues {
   return {
     standardOnsite: "",
     standardCologno: "",
-    site: "STADIO",
-    areaProduzione: "",
+    facilities: "",
+    studio: "",
+    notes: "",
+  };
+}
+
+function newRoleRow(): ComboRoleRowForm {
+  return {
+    rowId:
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `r-${Date.now()}-${Math.random().toString(36).slice(2)}`,
     roleCode: "",
     roleLocation: "STADIO",
-    coverageType: "FREELANCE",
     quantity: "1",
+    coverageType: "FREELANCE",
     notes: "",
   };
 }
@@ -130,7 +139,7 @@ interface DatabaseSectionsProps {
   staff: StaffItem[];
   staffTotal: number;
   roles: Role[];
-  standardRequirements: StandardRequirementWithRole[];
+  standardCombos: StandardComboWithRequirements[];
   roleMap: Record<string, string>;
 }
 
@@ -193,7 +202,7 @@ export function DatabaseSections({
   staff: initialStaff,
   staffTotal: initialStaffTotal,
   roles: initialRoles,
-  standardRequirements: initialStandardRequirements,
+  standardCombos: initialStandardCombos,
   roleMap,
 }: DatabaseSectionsProps) {
   const [staffOpen, setStaffOpen] = useState(true);
@@ -243,17 +252,21 @@ export function DatabaseSections({
     useState<RoleFormValues>(emptyRoleForm);
   const [savingRole, setSavingRole] = useState(false);
 
-  const [standardRequirements, setStandardRequirements] = useState<
-    StandardRequirementWithRole[]
-  >(initialStandardRequirements);
-  const [isStdReqModalOpen, setIsStdReqModalOpen] = useState(false);
-  const [editingStdReq, setEditingStdReq] =
-    useState<StandardRequirementWithRole | null>(null);
-  const [stdReqFormError, setStdReqFormError] = useState<string | null>(null);
-  const [stdReqFormValues, setStdReqFormValues] = useState<StdReqFormValues>(
-    emptyStdReqForm
-  );
-  const [savingStdReq, setSavingStdReq] = useState(false);
+  const [standardCombos, setStandardCombos] = useState<
+    StandardComboWithRequirements[]
+  >(initialStandardCombos);
+  const [expandedComboId, setExpandedComboId] = useState<number | null>(null);
+  const [isComboModalOpen, setIsComboModalOpen] = useState(false);
+  const [editingCombo, setEditingCombo] =
+    useState<StandardComboWithRequirements | null>(null);
+  const [comboHeaderForm, setComboHeaderForm] =
+    useState<ComboHeaderFormValues>(emptyComboHeader);
+  const [comboRoleRows, setComboRoleRows] = useState<ComboRoleRowForm[]>([]);
+  const [comboFormError, setComboFormError] = useState<string | null>(null);
+  const [savingCombo, setSavingCombo] = useState(false);
+  const [deleteComboTarget, setDeleteComboTarget] =
+    useState<StandardComboWithRequirements | null>(null);
+  const [deletingCombo, setDeletingCombo] = useState(false);
 
   useEffect(() => {
     setStaff(initialStaff);
@@ -266,8 +279,8 @@ export function DatabaseSections({
   }, [initialRoles]);
 
   useEffect(() => {
-    setStandardRequirements(initialStandardRequirements);
-  }, [initialStandardRequirements]);
+    setStandardCombos(initialStandardCombos);
+  }, [initialStandardCombos]);
 
   const effectiveRoleMap = useMemo(
     () => ({
@@ -318,13 +331,6 @@ export function DatabaseSections({
     if (editingRole?.location) set.add(editingRole.location);
     return [...set];
   }, [editingRole]);
-
-  const stdReqSiteSelectOptions = useMemo(() => {
-    const set = new Set<string>([...STD_REQ_SITE_OPTIONS]);
-    if (editingStdReq?.site) set.add(editingStdReq.site);
-    if (stdReqFormValues.site) set.add(stdReqFormValues.site);
-    return [...set];
-  }, [editingStdReq, stdReqFormValues.site]);
 
   const rolesSortedForSelect = useMemo(
     () =>
@@ -506,66 +512,134 @@ export function DatabaseSections({
     }
   };
 
-  const handleSubmitStdReq = async (e: FormEvent) => {
+  const openNewComboModal = () => {
+    setEditingCombo(null);
+    setComboFormError(null);
+    setComboHeaderForm(emptyComboHeader());
+    setComboRoleRows([newRoleRow()]);
+    setIsComboModalOpen(true);
+  };
+
+  const openEditComboModal = (c: StandardComboWithRequirements) => {
+    setEditingCombo(c);
+    setComboFormError(null);
+    setComboHeaderForm({
+      standardOnsite: c.standardOnsite ?? "",
+      standardCologno: c.standardCologno ?? "",
+      facilities: c.facilities ?? "",
+      studio: c.studio ?? "",
+      notes: c.notes ?? "",
+    });
+    setComboRoleRows(
+      c.requirements.length
+        ? c.requirements.map((r) => ({
+            rowId:
+              typeof crypto !== "undefined" && "randomUUID" in crypto
+                ? crypto.randomUUID()
+                : `e-${r.id}`,
+            roleCode: r.roleCode ?? "",
+            roleLocation: (r.roleLocation ?? "STADIO").toUpperCase(),
+            quantity: String(r.quantity ?? 1),
+            coverageType: r.coverageType ?? "FREELANCE",
+            notes: r.notes ?? "",
+          }))
+        : [newRoleRow()]
+    );
+    setIsComboModalOpen(true);
+  };
+
+  const handleSubmitCombo = async (e: FormEvent) => {
     e.preventDefault();
-    setStdReqFormError(null);
+    setComboFormError(null);
 
-    const onsite = stdReqFormValues.standardOnsite.trim();
-    const cologno = stdReqFormValues.standardCologno.trim();
+    const onsite = comboHeaderForm.standardOnsite.trim();
+    const cologno = comboHeaderForm.standardCologno.trim();
     if (!onsite || !cologno) {
-      setStdReqFormError("Standard onsite e cologno sono obbligatori.");
+      setComboFormError("Standard onsite e Cologno sono obbligatori.");
       return;
     }
-    const roleCode = stdReqFormValues.roleCode.trim();
-    const roleLocation = stdReqFormValues.roleLocation.trim().toUpperCase();
-    if (!roleCode || !roleLocation) {
-      setStdReqFormError("Devi selezionare ruolo e sede validi.");
-      return;
-    }
-    const qtyNum = parseInt(stdReqFormValues.quantity, 10);
-    const safeQty = Number.isFinite(qtyNum) && qtyNum >= 1 ? qtyNum : 1;
 
-    setSavingStdReq(true);
+    const requirementsPayload: ComboRequirementInput[] = [];
+    for (const row of comboRoleRows) {
+      const rc = row.roleCode.trim();
+      const rl = row.roleLocation.trim().toUpperCase();
+      if (!rc || !rl) {
+        setComboFormError("Ogni riga ruolo deve avere codice e sede.");
+        return;
+      }
+      const q = parseInt(row.quantity, 10);
+      const safeQ = Number.isFinite(q) && q >= 1 ? q : 1;
+      requirementsPayload.push({
+        roleCode: rc,
+        roleLocation: rl,
+        quantity: safeQ,
+        coverageType: row.coverageType,
+        notes: row.notes.trim() || undefined,
+      });
+    }
+
+    setSavingCombo(true);
     try {
-      if (editingStdReq) {
-        const updated = await updateStandardRequirement(editingStdReq.id, {
+      const facilities =
+        comboHeaderForm.facilities.trim() || null;
+      const studio = comboHeaderForm.studio.trim() || null;
+      const notes = comboHeaderForm.notes.trim() || null;
+
+      if (editingCombo) {
+        const updated = await updateStandardCombo(editingCombo.id, {
           standardOnsite: onsite,
           standardCologno: cologno,
-          site: stdReqFormValues.site,
-          areaProduzione: stdReqFormValues.areaProduzione || undefined,
-          roleCode,
-          roleLocation,
-          coverageType: stdReqFormValues.coverageType,
-          quantity: safeQty,
-          notes: stdReqFormValues.notes.trim() || undefined,
+          facilities,
+          studio,
+          notes,
+          requirements: requirementsPayload,
         });
-        setStandardRequirements((prev) =>
-          prev.map((r) => (r.id === updated.id ? updated : r))
+        setStandardCombos((prev) =>
+          prev.map((x) => (x.id === updated.id ? updated : x))
         );
       } else {
-        const created = await createStandardRequirement({
+        const created = await createStandardCombo({
           standardOnsite: onsite,
           standardCologno: cologno,
-          site: stdReqFormValues.site,
-          areaProduzione: stdReqFormValues.areaProduzione || undefined,
-          roleCode,
-          roleLocation,
-          coverageType: stdReqFormValues.coverageType,
-          quantity: safeQty,
-          notes: stdReqFormValues.notes.trim() || undefined,
+          facilities,
+          studio,
+          notes,
+          requirements: requirementsPayload,
         });
-        setStandardRequirements((prev) => [...prev, created]);
+        setStandardCombos((prev) => [...prev, created].sort((a, b) => {
+          const o = a.standardOnsite.localeCompare(b.standardOnsite, "it");
+          if (o !== 0) return o;
+          return a.standardCologno.localeCompare(b.standardCologno, "it");
+        }));
       }
-      setIsStdReqModalOpen(false);
-      setEditingStdReq(null);
+      setIsComboModalOpen(false);
+      setEditingCombo(null);
     } catch (err) {
-      setStdReqFormError(
+      setComboFormError(
         err instanceof Error
           ? err.message
-          : "Errore nel salvataggio dello standard."
+          : "Errore nel salvataggio del pacchetto."
       );
     } finally {
-      setSavingStdReq(false);
+      setSavingCombo(false);
+    }
+  };
+
+  const handleConfirmDeleteCombo = async () => {
+    if (!deleteComboTarget) return;
+    const id = deleteComboTarget.id;
+    setDeletingCombo(true);
+    try {
+      await deleteStandardCombo(id);
+      setStandardCombos((prev) => prev.filter((c) => c.id !== id));
+      setDeleteComboTarget(null);
+      if (expandedComboId === id) setExpandedComboId(null);
+    } catch (err) {
+      alert(
+        err instanceof Error ? err.message : "Errore durante l'eliminazione."
+      );
+    } finally {
+      setDeletingCombo(false);
     }
   };
 
@@ -1078,367 +1152,526 @@ export function DatabaseSections({
       ) : null}
 
       <CollapsibleSection
-        title="Standard requirements"
-        description="Template di crew per coppie standard onsite/Cologno (e sede/area); il backend li usa per generare gli slot di designazione sugli eventi."
+        title="Pacchetti standard"
+        description="Ogni pacchetto raggruppa onsite, Cologno, facilities e studio con l’elenco ruoli (quantity e coverage). Usato in Designazioni per costruire i fabbisogni."
         open={standardOpen}
         onToggle={() => setStandardOpen(!standardOpen)}
       >
-        <div className="mb-3 flex justify-end">
-          <button
-            type="button"
-            className={PRIMARY_BTN_SM}
-            onClick={() => {
-              setEditingStdReq(null);
-              setStdReqFormError(null);
-              setStdReqFormValues({
-                standardOnsite: "",
-                standardCologno: "",
-                site: "STADIO",
-                areaProduzione: "",
-                roleCode: "",
-                roleLocation: "STADIO",
-                coverageType: "FREELANCE",
-                quantity: "1",
-                notes: "",
-              });
-              setIsStdReqModalOpen(true);
-            }}
-          >
-            Nuovo standard
-          </button>
-        </div>
-        <div className="overflow-x-auto">
-          {standardRequirements.length === 0 ? (
-            <div className="rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-6 text-pitch-gray">
-              Nessun standard requirement
+        <div
+          className="rounded-lg border border-[#2a2a2a] p-4"
+          style={{ background: "#111" }}
+        >
+          <div className="mb-4 flex justify-end">
+            {canEditDatabase ? (
+              <button
+                type="button"
+                className={PRIMARY_BTN_SM}
+                onClick={openNewComboModal}
+              >
+                Nuovo standard
+              </button>
+            ) : null}
+          </div>
+          {standardCombos.length === 0 ? (
+            <div
+              className="rounded-lg border border-[#2a2a2a] p-6 text-sm text-pitch-gray"
+              style={{ background: "#1a1a1a" }}
+            >
+              Nessun pacchetto standard
             </div>
           ) : (
-            <table className="w-full min-w-[780px] border-collapse">
-              <thead>
-                <tr className="border-b border-pitch-gray-dark">
-                  <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                    Standard onsite
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                    Standard Cologno
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                    Sede
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                    Area produzione
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                    Ruolo
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                    Coverage
-                  </th>
-                  <th className="px-4 py-3 text-right text-sm font-medium text-pitch-gray">
-                    Qty
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                    Notes
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                    Azioni
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {standardRequirements.map((req) => (
-                  <tr
-                    key={req.id}
-                    className="border-b border-pitch-gray-dark/50 hover:bg-pitch-gray-dark/30"
+            <ul className="space-y-2">
+              {standardCombos.map((combo) => {
+                const expanded = expandedComboId === combo.id;
+                return (
+                  <li
+                    key={combo.id}
+                    className="overflow-hidden rounded-lg border border-[#2a2a2a]"
+                    style={{ background: "#1a1a1a" }}
                   >
-                    <td className="px-4 py-3 text-sm text-pitch-white">
-                      {req.standardOnsite}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-pitch-gray-light">
-                      {req.standardCologno}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-pitch-gray-light">
-                      {req.site}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-pitch-gray-light">
-                      {req.areaProduzione}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-pitch-gray-light">
-                      {req.roleCode} – {req.roleName}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-pitch-gray-light">
-                      {req.coverageType ?? "FREELANCE"}
-                    </td>
-                    <td className="px-4 py-3 text-right text-sm text-pitch-gray-light">
-                      {req.quantity}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-pitch-gray">
-                      {req.notes ?? "—"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <button
-                        type="button"
-                        className="text-xs text-pitch-accent underline-offset-2 hover:underline"
-                        onClick={() => {
-                          setEditingStdReq(req);
-                          setStdReqFormError(null);
-                          setStdReqFormValues({
-                            standardOnsite: req.standardOnsite ?? "",
-                            standardCologno: req.standardCologno ?? "",
-                            site: req.site ?? "STADIO",
-                            areaProduzione: req.areaProduzione ?? "",
-                            roleCode: req.roleCode ?? "",
-                            roleLocation: req.roleLocation ?? "STADIO",
-                            coverageType: req.coverageType ?? "FREELANCE",
-                            quantity: String(req.quantity ?? 1),
-                            notes: req.notes ?? "",
-                          });
-                          setIsStdReqModalOpen(true);
-                        }}
+                    <button
+                      type="button"
+                      className="flex w-full flex-wrap items-center gap-2 px-4 py-3 text-left transition hover:bg-black/30"
+                      onClick={() =>
+                        setExpandedComboId(expanded ? null : combo.id)
+                      }
+                    >
+                      <span
+                        className="rounded px-2 py-0.5 text-xs font-semibold text-pitch-bg"
+                        style={{ background: "#FFFA00" }}
                       >
-                        Modifica
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                        {combo.standardOnsite}
+                      </span>
+                      <span className="rounded border border-[#2a2a2a] px-2 py-0.5 text-xs text-pitch-gray-light">
+                        {combo.standardCologno}
+                      </span>
+                      <span className="text-xs text-pitch-gray">
+                        {combo.facilities?.trim()
+                          ? `Facilities: ${combo.facilities}`
+                          : "Facilities: —"}
+                      </span>
+                      <span className="text-xs text-pitch-gray">
+                        {combo.studio?.trim()
+                          ? `Studio: ${combo.studio}`
+                          : "Studio: —"}
+                      </span>
+                      <span className="ml-auto text-xs text-pitch-accent">
+                        {combo.requirements.length} ruol
+                        {combo.requirements.length === 1 ? "o" : "i"}
+                      </span>
+                      <span className="text-pitch-gray">{expanded ? "▼" : "▶"}</span>
+                    </button>
+                    {canEditDatabase ? (
+                      <div className="flex flex-wrap gap-2 border-t border-[#2a2a2a] px-4 py-2">
+                        <button
+                          type="button"
+                          className="text-xs text-pitch-accent underline-offset-2 hover:underline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEditComboModal(combo);
+                          }}
+                        >
+                          Modifica
+                        </button>
+                        <button
+                          type="button"
+                          className="text-xs text-red-400 underline-offset-2 hover:underline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteComboTarget(combo);
+                          }}
+                        >
+                          Elimina
+                        </button>
+                      </div>
+                    ) : null}
+                    {expanded ? (
+                      <div className="border-t border-[#2a2a2a] px-4 py-3">
+                        <div className="mb-2 text-xs text-pitch-gray">
+                          Righe requirement collegate al pacchetto
+                        </div>
+                        <div className="overflow-x-auto">
+                          <table className="w-full min-w-[520px] text-sm">
+                            <thead>
+                              <tr className="border-b border-[#2a2a2a] text-left text-pitch-gray">
+                                <th className="py-2 pr-2">role_code</th>
+                                <th className="py-2 pr-2">site</th>
+                                <th className="py-2 pr-2 text-right">qty</th>
+                                <th className="py-2">coverage_type</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {combo.requirements.length === 0 ? (
+                                <tr>
+                                  <td
+                                    colSpan={4}
+                                    className="py-3 text-pitch-gray"
+                                  >
+                                    Nessun ruolo in questo pacchetto
+                                  </td>
+                                </tr>
+                              ) : (
+                                combo.requirements.map((r) => (
+                                  <tr
+                                    key={r.id}
+                                    className="border-b border-[#2a2a2a]/50 text-pitch-gray-light"
+                                  >
+                                    <td className="py-2 pr-2 text-pitch-white">
+                                      {r.roleCode}
+                                    </td>
+                                    <td className="py-2 pr-2">{r.site}</td>
+                                    <td className="py-2 pr-2 text-right">
+                                      {r.quantity}
+                                    </td>
+                                    <td className="py-2">
+                                      {r.coverageType ?? "FREELANCE"}
+                                    </td>
+                                  </tr>
+                                ))
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
           )}
         </div>
       </CollapsibleSection>
 
-      {isStdReqModalOpen ? (
+      {isComboModalOpen ? (
         <div
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
           role="presentation"
           onClick={() => {
-            if (!savingStdReq) {
-              setIsStdReqModalOpen(false);
-              setEditingStdReq(null);
-              setStdReqFormError(null);
+            if (!savingCombo) {
+              setIsComboModalOpen(false);
+              setEditingCombo(null);
+              setComboFormError(null);
             }
           }}
         >
           <div
             role="dialog"
             aria-modal="true"
-            aria-labelledby="std-req-modal-title"
-            className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg border border-pitch-gray-dark bg-pitch-bg p-5 shadow-xl"
+            aria-labelledby="combo-modal-title"
+            className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-lg border p-5 shadow-xl"
+            style={{
+              background: "#111",
+              borderColor: "#2a2a2a",
+            }}
             onClick={(e) => e.stopPropagation()}
           >
             <h2
-              id="std-req-modal-title"
+              id="combo-modal-title"
               className="text-lg font-semibold text-pitch-white"
             >
-              {editingStdReq ? "Modifica standard" : "Nuovo standard"}
+              {editingCombo ? "Modifica standard" : "Nuovo standard"}
             </h2>
-            {stdReqFormError ? (
+            {comboFormError ? (
               <p className="mt-3 rounded border border-red-900/50 bg-red-950/40 px-3 py-2 text-xs text-red-200">
-                {stdReqFormError}
+                {comboFormError}
               </p>
             ) : null}
-            <form className="mt-4 space-y-3" onSubmit={handleSubmitStdReq}>
+            <form className="mt-4 space-y-4" onSubmit={handleSubmitCombo}>
               <div>
-                <label
-                  htmlFor="std-onsite"
-                  className="mb-1 block text-xs text-pitch-gray"
-                >
-                  Standard onsite <span className="text-red-400">*</span>
-                </label>
-                <input
-                  id="std-onsite"
-                  type="text"
-                  required
-                  value={stdReqFormValues.standardOnsite}
-                  onChange={(e) =>
-                    setStdReqFormValues((v) => ({
-                      ...v,
-                      standardOnsite: e.target.value,
-                    }))
-                  }
-                  className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
-                />
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-pitch-accent">
+                  Step 1 — Header pacchetto
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label
+                      htmlFor="combo-onsite"
+                      className="mb-1 block text-xs text-pitch-gray"
+                    >
+                      Standard onsite <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      id="combo-onsite"
+                      type="text"
+                      required
+                      value={comboHeaderForm.standardOnsite}
+                      onChange={(e) =>
+                        setComboHeaderForm((v) => ({
+                          ...v,
+                          standardOnsite: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded border bg-[#1a1a1a] px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+                      style={{ borderColor: "#2a2a2a" }}
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="combo-cologno"
+                      className="mb-1 block text-xs text-pitch-gray"
+                    >
+                      Standard Cologno <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      id="combo-cologno"
+                      type="text"
+                      required
+                      value={comboHeaderForm.standardCologno}
+                      onChange={(e) =>
+                        setComboHeaderForm((v) => ({
+                          ...v,
+                          standardCologno: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded border bg-[#1a1a1a] px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+                      style={{ borderColor: "#2a2a2a" }}
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="combo-facilities"
+                      className="mb-1 block text-xs text-pitch-gray"
+                    >
+                      Facilities
+                    </label>
+                    <input
+                      id="combo-facilities"
+                      type="text"
+                      value={comboHeaderForm.facilities}
+                      onChange={(e) =>
+                        setComboHeaderForm((v) => ({
+                          ...v,
+                          facilities: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded border bg-[#1a1a1a] px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+                      style={{ borderColor: "#2a2a2a" }}
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="combo-studio"
+                      className="mb-1 block text-xs text-pitch-gray"
+                    >
+                      Studio
+                    </label>
+                    <input
+                      id="combo-studio"
+                      type="text"
+                      value={comboHeaderForm.studio}
+                      onChange={(e) =>
+                        setComboHeaderForm((v) => ({
+                          ...v,
+                          studio: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded border bg-[#1a1a1a] px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+                      style={{ borderColor: "#2a2a2a" }}
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label
+                      htmlFor="combo-notes-h"
+                      className="mb-1 block text-xs text-pitch-gray"
+                    >
+                      Note pacchetto
+                    </label>
+                    <textarea
+                      id="combo-notes-h"
+                      rows={2}
+                      value={comboHeaderForm.notes}
+                      onChange={(e) =>
+                        setComboHeaderForm((v) => ({
+                          ...v,
+                          notes: e.target.value,
+                        }))
+                      }
+                      className="w-full resize-y rounded border bg-[#1a1a1a] px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+                      style={{ borderColor: "#2a2a2a" }}
+                    />
+                  </div>
+                </div>
               </div>
+
               <div>
-                <label
-                  htmlFor="std-cologno"
-                  className="mb-1 block text-xs text-pitch-gray"
-                >
-                  Standard Cologno <span className="text-red-400">*</span>
-                </label>
-                <input
-                  id="std-cologno"
-                  type="text"
-                  required
-                  value={stdReqFormValues.standardCologno}
-                  onChange={(e) =>
-                    setStdReqFormValues((v) => ({
-                      ...v,
-                      standardCologno: e.target.value,
-                    }))
-                  }
-                  className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="std-site"
-                  className="mb-1 block text-xs text-pitch-gray"
-                >
-                  Sede
-                </label>
-                <select
-                  id="std-site"
-                  value={stdReqFormValues.site}
-                  onChange={(e) =>
-                    setStdReqFormValues((v) => ({
-                      ...v,
-                      site: e.target.value,
-                    }))
-                  }
-                  className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
-                >
-                  {stdReqSiteSelectOptions.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label
-                  htmlFor="std-area"
-                  className="mb-1 block text-xs text-pitch-gray"
-                >
-                  Area produzione
-                </label>
-                <input
-                  id="std-area"
-                  type="text"
-                  value={stdReqFormValues.areaProduzione}
-                  onChange={(e) =>
-                    setStdReqFormValues((v) => ({
-                      ...v,
-                      areaProduzione: e.target.value,
-                    }))
-                  }
-                  className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="std-role"
-                  className="mb-1 block text-xs text-pitch-gray"
-                >
-                  Ruolo <span className="text-red-400">*</span>
-                </label>
-                <select
-                  id="std-role"
-                  required
-                  value={
-                    stdReqFormValues.roleCode && stdReqFormValues.roleLocation
-                      ? `${stdReqFormValues.roleCode}__${stdReqFormValues.roleLocation}`
-                      : ""
-                  }
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    if (!v) {
-                      setStdReqFormValues((prev) => ({
-                        ...prev,
-                        roleCode: "",
-                        roleLocation: "STADIO",
-                      }));
-                      return;
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-pitch-accent">
+                    Step 2 — Ruoli
+                  </p>
+                  <button
+                    type="button"
+                    className="rounded border px-2 py-1 text-xs text-pitch-gray-light hover:bg-[#1a1a1a] disabled:opacity-50"
+                    style={{ borderColor: "#2a2a2a" }}
+                    disabled={savingCombo}
+                    onClick={() =>
+                      setComboRoleRows((rows) => [...rows, newRoleRow()])
                     }
-                    const [nextRoleCode, nextRoleLocation] = v.split("__");
-                    setStdReqFormValues((prev) => ({
-                      ...prev,
-                      roleCode: nextRoleCode ?? "",
-                      roleLocation: (nextRoleLocation ?? "STADIO").toUpperCase(),
-                    }));
-                  }}
-                  className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+                  >
+                    Aggiungi ruolo
+                  </button>
+                </div>
+                <div
+                  className="overflow-x-auto rounded-lg border"
+                  style={{ borderColor: "#2a2a2a" }}
                 >
-                  <option value="">Seleziona ruolo…</option>
-                  {rolesSortedForSelect.map((r) => (
-                    <option key={`${r.code}-${r.location}`} value={`${r.code}__${r.location}`}>
-                      {r.code} — {r.name} ({r.location})
-                    </option>
-                  ))}
-                </select>
+                  <table className="w-full min-w-[720px] text-left text-xs">
+                    <thead>
+                      <tr
+                        className="border-b text-pitch-gray"
+                        style={{ borderColor: "#2a2a2a" }}
+                      >
+                        <th className="px-2 py-2">Ruolo</th>
+                        <th className="px-2 py-2">Sede ruolo</th>
+                        <th className="px-2 py-2">Qty</th>
+                        <th className="px-2 py-2">Coverage</th>
+                        <th className="px-2 py-2">Note</th>
+                        <th className="w-10 px-2 py-2" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {comboRoleRows.map((row) => (
+                        <tr
+                          key={row.rowId}
+                          className="border-b align-top"
+                          style={{
+                            borderColor: "#2a2a2a",
+                            background: "#1a1a1a",
+                          }}
+                        >
+                          <td className="px-2 py-2">
+                            <select
+                              value={
+                                row.roleCode && row.roleLocation
+                                  ? `${row.roleCode}__${row.roleLocation}`
+                                  : ""
+                              }
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                if (!v) {
+                                  setComboRoleRows((prev) =>
+                                    prev.map((r) =>
+                                      r.rowId === row.rowId
+                                        ? {
+                                            ...r,
+                                            roleCode: "",
+                                            roleLocation: "STADIO",
+                                          }
+                                        : r
+                                    )
+                                  );
+                                  return;
+                                }
+                                const [code, loc] = v.split("__");
+                                setComboRoleRows((prev) =>
+                                  prev.map((r) =>
+                                    r.rowId === row.rowId
+                                      ? {
+                                          ...r,
+                                          roleCode: code ?? "",
+                                          roleLocation: (
+                                            loc ?? "STADIO"
+                                          ).toUpperCase(),
+                                        }
+                                      : r
+                                  )
+                                );
+                              }}
+                              className="w-full max-w-[220px] rounded border bg-[#111] px-1 py-1 text-pitch-white"
+                              style={{ borderColor: "#2a2a2a" }}
+                            >
+                              <option value="">Seleziona…</option>
+                              {rolesSortedForSelect.map((r) => (
+                                <option
+                                  key={`${r.code}-${r.location}-${row.rowId}`}
+                                  value={`${r.code}__${r.location}`}
+                                >
+                                  {r.code} — {r.name} ({r.location})
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="px-2 py-2">
+                            <select
+                              value={row.roleLocation}
+                              onChange={(e) =>
+                                setComboRoleRows((prev) =>
+                                  prev.map((r) =>
+                                    r.rowId === row.rowId
+                                      ? {
+                                          ...r,
+                                          roleLocation: e.target.value,
+                                        }
+                                      : r
+                                  )
+                                )
+                              }
+                              className="w-full rounded border bg-[#111] px-1 py-1 text-pitch-white"
+                              style={{ borderColor: "#2a2a2a" }}
+                            >
+                              {COMBO_ROLE_LOCATION_OPTIONS.map((loc) => (
+                                <option key={loc} value={loc}>
+                                  {loc}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="px-2 py-2">
+                            <input
+                              type="number"
+                              min={1}
+                              value={row.quantity}
+                              onChange={(e) =>
+                                setComboRoleRows((prev) =>
+                                  prev.map((r) =>
+                                    r.rowId === row.rowId
+                                      ? { ...r, quantity: e.target.value }
+                                      : r
+                                  )
+                                )
+                              }
+                              className="w-16 rounded border bg-[#111] px-1 py-1 text-pitch-white"
+                              style={{ borderColor: "#2a2a2a" }}
+                            />
+                          </td>
+                          <td className="px-2 py-2">
+                            <select
+                              value={row.coverageType}
+                              onChange={(e) =>
+                                setComboRoleRows((prev) =>
+                                  prev.map((r) =>
+                                    r.rowId === row.rowId
+                                      ? {
+                                          ...r,
+                                          coverageType: e.target.value as
+                                            | "FREELANCE"
+                                            | "PROVIDER"
+                                            | "EITHER",
+                                        }
+                                      : r
+                                  )
+                                )
+                              }
+                              className="w-full max-w-[120px] rounded border bg-[#111] px-1 py-1 text-pitch-white"
+                              style={{ borderColor: "#2a2a2a" }}
+                            >
+                              <option value="FREELANCE">FREELANCE</option>
+                              <option value="PROVIDER">PROVIDER</option>
+                              <option value="EITHER">EITHER</option>
+                            </select>
+                          </td>
+                          <td className="px-2 py-2">
+                            <textarea
+                              rows={2}
+                              value={row.notes}
+                              onChange={(e) =>
+                                setComboRoleRows((prev) =>
+                                  prev.map((r) =>
+                                    r.rowId === row.rowId
+                                      ? { ...r, notes: e.target.value }
+                                      : r
+                                  )
+                                )
+                              }
+                              className="w-full min-w-[100px] rounded border bg-[#111] px-1 py-1 text-pitch-white"
+                              style={{ borderColor: "#2a2a2a" }}
+                            />
+                          </td>
+                          <td className="px-2 py-2">
+                            <button
+                              type="button"
+                              className="text-lg leading-none text-red-400 hover:text-red-300 disabled:opacity-40"
+                              disabled={
+                                savingCombo || comboRoleRows.length <= 1
+                              }
+                              title="Rimuovi riga"
+                              aria-label="Rimuovi riga"
+                              onClick={() =>
+                                setComboRoleRows((prev) =>
+                                  prev.length <= 1
+                                    ? prev
+                                    : prev.filter((r) => r.rowId !== row.rowId)
+                                )
+                              }
+                            >
+                              ×
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-              <div>
-                <label className="mb-1 block text-xs text-pitch-gray">
-                  Coverage type
-                </label>
-                <select
-                  value={stdReqFormValues.coverageType}
-                  onChange={(e) =>
-                    setStdReqFormValues((v) => ({
-                      ...v,
-                      coverageType: e.target.value as
-                        | "FREELANCE"
-                        | "PROVIDER"
-                        | "EITHER",
-                    }))
-                  }
-                  className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
-                >
-                  <option value="FREELANCE">FREELANCE</option>
-                  <option value="PROVIDER">PROVIDER</option>
-                  <option value="EITHER">EITHER</option>
-                </select>
-              </div>
-              <div>
-                <label
-                  htmlFor="std-qty"
-                  className="mb-1 block text-xs text-pitch-gray"
-                >
-                  Quantità
-                </label>
-                <input
-                  id="std-qty"
-                  type="number"
-                  min={1}
-                  value={stdReqFormValues.quantity}
-                  onChange={(e) =>
-                    setStdReqFormValues((v) => ({
-                      ...v,
-                      quantity: e.target.value,
-                    }))
-                  }
-                  className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="std-notes"
-                  className="mb-1 block text-xs text-pitch-gray"
-                >
-                  Note
-                </label>
-                <textarea
-                  id="std-notes"
-                  rows={3}
-                  value={stdReqFormValues.notes}
-                  onChange={(e) =>
-                    setStdReqFormValues((v) => ({
-                      ...v,
-                      notes: e.target.value,
-                    }))
-                  }
-                  className="w-full resize-y rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
-                />
-              </div>
+
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
-                  className="rounded border border-pitch-gray px-3 py-1.5 text-xs text-pitch-gray-light hover:bg-pitch-gray-dark disabled:opacity-50"
-                  disabled={savingStdReq}
+                  className="rounded border px-3 py-1.5 text-xs text-pitch-gray-light hover:bg-[#1a1a1a] disabled:opacity-50"
+                  style={{ borderColor: "#2a2a2a" }}
+                  disabled={savingCombo}
                   onClick={() => {
-                    setIsStdReqModalOpen(false);
-                    setEditingStdReq(null);
-                    setStdReqFormError(null);
+                    setIsComboModalOpen(false);
+                    setEditingCombo(null);
+                    setComboFormError(null);
                   }}
                 >
                   Annulla
@@ -1446,12 +1679,65 @@ export function DatabaseSections({
                 <button
                   type="submit"
                   className={PRIMARY_BTN_SM}
-                  disabled={savingStdReq}
+                  disabled={savingCombo}
                 >
-                  {savingStdReq ? "Salvataggio…" : "Salva"}
+                  {savingCombo ? "Salvataggio…" : "Salva"}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      ) : null}
+
+      {deleteComboTarget ? (
+        <div
+          className="fixed inset-0 z-[65] flex items-center justify-center bg-black/70 p-4"
+          role="presentation"
+          onClick={() => {
+            if (!deletingCombo) setDeleteComboTarget(null);
+          }}
+        >
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="del-combo-title"
+            className="w-full max-w-md rounded-lg border p-5 shadow-xl"
+            style={{
+              background: "#111",
+              borderColor: "#2a2a2a",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2
+              id="del-combo-title"
+              className="text-base font-semibold text-pitch-white"
+            >
+              Elimina pacchetto
+            </h2>
+            <p className="mt-3 text-sm text-pitch-gray-light">
+              Sei sicuro di voler eliminare questo standard? Verranno eliminate
+              anche tutte le {deleteComboTarget.requirements.length} righe di
+              requirements.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                className="rounded border px-3 py-1.5 text-xs text-pitch-gray-light hover:bg-[#1a1a1a] disabled:opacity-50"
+                style={{ borderColor: "#2a2a2a" }}
+                disabled={deletingCombo}
+                onClick={() => setDeleteComboTarget(null)}
+              >
+                Annulla
+              </button>
+              <button
+                type="button"
+                className="rounded bg-red-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-600 disabled:opacity-50"
+                disabled={deletingCombo}
+                onClick={() => void handleConfirmDeleteCombo()}
+              >
+                {deletingCombo ? "Eliminazione…" : "Elimina"}
+              </button>
+            </div>
           </div>
         </div>
       ) : null}

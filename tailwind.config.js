@@ -7,7 +7,12 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        oscine: ["var(--font-oscine)", "system-ui", "sans-serif"],
+        sans: [
+          "DAZNOscine",
+          '"Arial Black"',
+          "Arial",
+          "sans-serif",
+        ],
       },
       colors: {
         "pitch-bg": "#000000",

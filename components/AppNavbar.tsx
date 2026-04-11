@@ -67,8 +67,8 @@ export default function AppNavbar({
             className="flex items-center"
             style={{
               marginLeft: 0,
-              fontFamily: "'Arial Black', Arial, sans-serif",
-              fontWeight: 900,
+              fontFamily: "'DAZNOscine', 'Arial Black', Arial, sans-serif",
+              fontWeight: 800,
               fontSize: 20,
               color: "#fff",
               lineHeight: 1,

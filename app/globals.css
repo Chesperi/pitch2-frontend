@@ -1,7 +1,72 @@
 @import "tailwindcss";
 @config "../tailwind.config.js";
 
+@font-face {
+  font-family: "DAZNOscine";
+  src: url("/fonts/DAZN_Oscine_Lt.ttf") format("truetype");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "DAZNOscine";
+  src: url("/fonts/DAZN_Oscine_LtIt.ttf") format("truetype");
+  font-weight: 300;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "DAZNOscine";
+  src: url("/fonts/DAZN_Oscine_Rg.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "DAZNOscine";
+  src: url("/fonts/DAZN_Oscine_It.ttf") format("truetype");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "DAZNOscine";
+  src: url("/fonts/DAZN_Oscine_Bd.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "DAZNOscine";
+  src: url("/fonts/DAZN_Oscine_BdIt.ttf") format("truetype");
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "DAZNOscine";
+  src: url("/fonts/DAZN_Oscine_XBd.ttf") format("truetype");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "DAZNOscine";
+  src: url("/fonts/DAZN_Oscine_XBdIt.ttf") format("truetype");
+  font-weight: 800;
+  font-style: italic;
+  font-display: swap;
+}
+
 @theme inline {
+  --font-sans: "DAZNOscine", "Arial Black", Arial, sans-serif;
   /* PITCH_2 palette (kept for Tailwind v4 @theme compatibility) */
   --color-pitch-bg: #000000;
   --color-pitch-accent: #FFFA00;
@@ -9,6 +74,11 @@
   --color-pitch-gray-light: #F4F4F6;
   --color-pitch-gray: #868A8C;
   --color-pitch-gray-dark: #3F4547;
+}
+
+html,
+body {
+  font-family: "DAZNOscine", "Arial Black", Arial, sans-serif;
 }
 
 body {

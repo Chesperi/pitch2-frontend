@@ -84,6 +84,49 @@ function staffNotesPreview(notes: string | null | undefined): {
   return { text: `${t.slice(0, 30)}…`, title: t, empty: false };
 }
 
+/** Data di nascita in tabella: YYYY-MM-DD → DD/MM/YYYY. */
+function formatBirthDateDisplay(raw: string | null | undefined): string {
+  if (raw == null || String(raw).trim() === "") return "—";
+  const s = String(raw).trim();
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+  return s;
+}
+
+function splitPlatesToThree(raw: string | null | undefined): [
+  string,
+  string,
+  string,
+] {
+  const parts = (raw ?? "")
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+  return [parts[0] ?? "", parts[1] ?? "", parts[2] ?? ""];
+}
+
+function joinPlatesFromThree(
+  a: string,
+  b: string,
+  c: string
+): string | undefined {
+  const parts = [a, b, c].map((x) => x.trim()).filter(Boolean);
+  if (parts.length === 0) return undefined;
+  return parts.join(", ");
+}
+
+function platesTableDisplay(raw: string | null | undefined): {
+  text: string;
+  empty: boolean;
+} {
+  const parts = (raw ?? "")
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+  if (parts.length === 0) return { text: "—", empty: true };
+  return { text: parts.join(" · "), empty: false };
+}
+
 type RoleFormValues = {
   roleCode: string;
   name: string;
@@ -101,7 +144,9 @@ type StaffFormValues = {
   defaultLocation: string;
   userLevel: string;
   fee: string;
-  plates: string;
+  plate1: string;
+  plate2: string;
+  plate3: string;
   active: boolean;
   placeOfBirth: string;
   dateOfBirth: string;
@@ -256,7 +301,9 @@ export function DatabaseSections({
     defaultLocation: "STADIO",
     userLevel: "FREELANCE",
     fee: "",
-    plates: "",
+    plate1: "",
+    plate2: "",
+    plate3: "",
     active: true,
     placeOfBirth: "",
     dateOfBirth: "",
@@ -360,6 +407,26 @@ export function DatabaseSections({
     [roles]
   );
 
+  const staffRolePairInCatalog = useMemo(() => {
+    const code = staffFormValues.defaultRoleCode.trim();
+    const loc = staffFormValues.defaultLocation.trim();
+    if (!code || !loc) return true;
+    const composite = `${code}__${loc}`;
+    return rolesSortedForSelect.some(
+      (r) => `${r.code}__${r.location}` === composite
+    );
+  }, [
+    rolesSortedForSelect,
+    staffFormValues.defaultRoleCode,
+    staffFormValues.defaultLocation,
+  ]);
+
+  const staffDefaultRoleSelectValue =
+    staffFormValues.defaultRoleCode.trim() &&
+    staffFormValues.defaultLocation.trim()
+      ? `${staffFormValues.defaultRoleCode.trim()}__${staffFormValues.defaultLocation.trim()}`
+      : "";
+
   const comboHeaderDatalistOptions = useMemo(() => {
     const onsite = sortAsc(
       [
@@ -460,6 +527,12 @@ export function DatabaseSections({
         : ("HIDDEN" as const),
     };
 
+    const platesJoined = joinPlatesFromThree(
+      staffFormValues.plate1,
+      staffFormValues.plate2,
+      staffFormValues.plate3
+    );
+
     setSavingStaff(true);
     try {
       if (editingStaff) {
@@ -474,7 +547,7 @@ export function DatabaseSections({
           phone: staffFormValues.phone.trim() || undefined,
           company: staffFormValues.company.trim() || undefined,
           fee: feeForEdit,
-          plates: staffFormValues.plates.trim() || undefined,
+          plates: platesJoined ?? null,
           ...extraStaffFields,
         });
         setStaff((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
@@ -490,7 +563,7 @@ export function DatabaseSections({
           phone: staffFormValues.phone.trim() || undefined,
           company: staffFormValues.company.trim() || undefined,
           fee: feeForCreate,
-          plates: staffFormValues.plates.trim() || undefined,
+          plates: platesJoined,
           ...extraStaffFields,
         });
         setStaff((prev) => [...prev, created]);
@@ -706,7 +779,9 @@ export function DatabaseSections({
                 defaultLocation: "STADIO",
                 userLevel: "FREELANCE",
                 fee: "",
-                plates: "",
+                plate1: "",
+                plate2: "",
+                plate3: "",
                 active: true,
                 placeOfBirth: "",
                 dateOfBirth: "",
@@ -729,7 +804,7 @@ export function DatabaseSections({
               Nessuno staff
             </div>
           ) : (
-            <table className="w-full min-w-[1180px] border-collapse">
+            <table className="w-full min-w-[1680px] border-collapse">
               <thead>
                 <tr className="border-b border-[#2a2a2a]">
                   <th className={DB_TH}>Cognome</th>
@@ -745,6 +820,10 @@ export function DatabaseSections({
                   <th className={DB_TH}>Extra fee</th>
                   <th className={DB_TH}>Team DAZN</th>
                   <th className={DB_TH}>Note</th>
+                  <th className={DB_TH}>Luogo nascita</th>
+                  <th className={DB_TH}>Data nascita</th>
+                  <th className={DB_TH}>Indirizzo</th>
+                  <th className={DB_TH}>Documento</th>
                   <th className={DB_TH}>Attivo</th>
                   <th className={DB_TH}>Azioni</th>
                 </tr>
@@ -752,6 +831,8 @@ export function DatabaseSections({
               <tbody>
                 {staff.map((s) => {
                   const notePrev = staffNotesPreview(s.notes);
+                  const platesDisp = platesTableDisplay(s.plates);
+                  const dobStr = formatBirthDateDisplay(s.date_of_birth);
                   const roleLabel = s.default_role_code
                     ? effectiveRoleMap[s.default_role_code] ??
                       s.default_role_code
@@ -801,9 +882,9 @@ export function DatabaseSections({
                         : "—"}
                     </td>
                     <td
-                      className={s.plates ? DB_TD : DB_TD_EMPTY}
+                      className={platesDisp.empty ? DB_TD_EMPTY : DB_TD}
                     >
-                      {s.plates ?? "—"}
+                      {platesDisp.text}
                     </td>
                     <td className={DB_TD}>{s.user_level}</td>
                     <td
@@ -825,6 +906,32 @@ export function DatabaseSections({
                       title={notePrev.title}
                     >
                       {notePrev.text}
+                    </td>
+                    <td
+                      className={
+                        s.place_of_birth ? DB_TD : DB_TD_EMPTY
+                      }
+                    >
+                      {s.place_of_birth ?? "—"}
+                    </td>
+                    <td
+                      className={
+                        dobStr === "—" ? DB_TD_EMPTY : DB_TD
+                      }
+                    >
+                      {dobStr}
+                    </td>
+                    <td
+                      className={
+                        s.residential_address ? DB_TD : DB_TD_EMPTY
+                      }
+                    >
+                      {s.residential_address ?? "—"}
+                    </td>
+                    <td
+                      className={s.id_number ? DB_TD : DB_TD_EMPTY}
+                    >
+                      {s.id_number ?? "—"}
                     </td>
                     <td className="px-3 py-3">
                       <span
@@ -855,7 +962,16 @@ export function DatabaseSections({
                                 defaultLocation: s.default_location ?? "STADIO",
                                 userLevel: s.user_level ?? "FREELANCE",
                                 fee: s.fee != null ? String(s.fee) : "",
-                                plates: s.plates ?? "",
+                                ...(() => {
+                                  const [p1, p2, p3] = splitPlatesToThree(
+                                    s.plates
+                                  );
+                                  return {
+                                    plate1: p1,
+                                    plate2: p2,
+                                    plate3: p3,
+                                  };
+                                })(),
                                 active: s.active ?? true,
                                 placeOfBirth: s.place_of_birth ?? "",
                                 dateOfBirth: staffDateToInputValue(
@@ -2091,19 +2207,44 @@ export function DatabaseSections({
                 <select
                   id="staff-default-role"
                   required
-                  value={staffFormValues.defaultRoleCode}
-                  onChange={(e) =>
-                    setStaffFormValues((v) => ({
-                      ...v,
-                      defaultRoleCode: e.target.value,
-                    }))
-                  }
+                  value={staffDefaultRoleSelectValue}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setStaffFormValues((prev) => {
+                      if (!v) {
+                        return { ...prev, defaultRoleCode: "" };
+                      }
+                      const idx = v.indexOf("__");
+                      const code = idx >= 0 ? v.slice(0, idx) : v;
+                      const loc =
+                        idx >= 0
+                          ? v.slice(idx + 2).toUpperCase()
+                          : prev.defaultLocation;
+                      return {
+                        ...prev,
+                        defaultRoleCode: code,
+                        defaultLocation:
+                          idx >= 0 ? loc : prev.defaultLocation,
+                      };
+                    });
+                  }}
                   className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
                 >
                   <option value="">Seleziona ruolo…</option>
+                  {!staffRolePairInCatalog && staffDefaultRoleSelectValue ? (
+                    <option value={staffDefaultRoleSelectValue}>
+                      {`${
+                        effectiveRoleMap[staffFormValues.defaultRoleCode] ??
+                        staffFormValues.defaultRoleCode
+                      } (${staffFormValues.defaultLocation})`}
+                    </option>
+                  ) : null}
                   {rolesSortedForSelect.map((r) => (
-                    <option key={r.id} value={r.code}>
-                      {r.code} — {r.name}
+                    <option
+                      key={r.id}
+                      value={`${r.code}__${r.location}`}
+                    >
+                      {r.name || r.code} ({r.location})
                     </option>
                   ))}
                 </select>
@@ -2176,25 +2317,70 @@ export function DatabaseSections({
                   className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
                 />
               </div>
-              <div>
-                <label
-                  htmlFor="staff-plates"
-                  className="mb-1 block text-xs text-pitch-gray"
-                >
-                  Targhe
-                </label>
-                <input
-                  id="staff-plates"
-                  type="text"
-                  value={staffFormValues.plates}
-                  onChange={(e) =>
-                    setStaffFormValues((v) => ({
-                      ...v,
-                      plates: e.target.value,
-                    }))
-                  }
-                  className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
-                />
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div>
+                  <label
+                    htmlFor="staff-plate-1"
+                    className="mb-1 block text-xs text-pitch-gray"
+                  >
+                    Targa 1
+                  </label>
+                  <input
+                    id="staff-plate-1"
+                    type="text"
+                    placeholder="AA000BB"
+                    value={staffFormValues.plate1}
+                    onChange={(e) =>
+                      setStaffFormValues((v) => ({
+                        ...v,
+                        plate1: e.target.value,
+                      }))
+                    }
+                    className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="staff-plate-2"
+                    className="mb-1 block text-xs text-pitch-gray"
+                  >
+                    Targa 2
+                  </label>
+                  <input
+                    id="staff-plate-2"
+                    type="text"
+                    placeholder="AA000BB"
+                    value={staffFormValues.plate2}
+                    onChange={(e) =>
+                      setStaffFormValues((v) => ({
+                        ...v,
+                        plate2: e.target.value,
+                      }))
+                    }
+                    className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="staff-plate-3"
+                    className="mb-1 block text-xs text-pitch-gray"
+                  >
+                    Targa 3
+                  </label>
+                  <input
+                    id="staff-plate-3"
+                    type="text"
+                    placeholder="AA000BB"
+                    value={staffFormValues.plate3}
+                    onChange={(e) =>
+                      setStaffFormValues((v) => ({
+                        ...v,
+                        plate3: e.target.value,
+                      }))
+                    }
+                    className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+                  />
+                </div>
               </div>
               <label className="flex cursor-pointer items-center gap-2 text-sm text-pitch-gray-light">
                 <input

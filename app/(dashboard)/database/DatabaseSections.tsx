@@ -107,7 +107,6 @@ type ComboRoleRowForm = {
   roleCode: string;
   roleLocation: string;
   quantity: string;
-  coverageType: "FREELANCE" | "PROVIDER" | "EITHER";
   notes: string;
 };
 
@@ -130,7 +129,6 @@ function newRoleRow(): ComboRoleRowForm {
     roleCode: "",
     roleLocation: "STADIO",
     quantity: "1",
-    coverageType: "FREELANCE",
     notes: "",
   };
 }
@@ -340,6 +338,26 @@ export function DatabaseSections({
     [roles]
   );
 
+  const comboHeaderDatalistOptions = useMemo(() => {
+    const onsite = [
+      ...new Set(standardCombos.map((c) => c.standardOnsite)),
+    ].filter((v) => v != null && String(v).trim() !== "");
+    const cologno = [
+      ...new Set(standardCombos.map((c) => c.standardCologno)),
+    ].filter((v) => v != null && String(v).trim() !== "");
+    const facilities = [
+      ...new Set(standardCombos.map((c) => c.facilities).filter(Boolean)),
+    ] as string[];
+    const studio = [
+      ...new Set(
+        standardCombos
+          .map((c) => c.studio)
+          .filter((v): v is string => Boolean(v && v !== "-"))
+      ),
+    ];
+    return { onsite, cologno, facilities, studio };
+  }, [standardCombos]);
+
   const handleSubmitRole = async (e: FormEvent) => {
     e.preventDefault();
     setRoleFormError(null);
@@ -540,7 +558,6 @@ export function DatabaseSections({
             roleCode: r.roleCode ?? "",
             roleLocation: (r.roleLocation ?? "STADIO").toUpperCase(),
             quantity: String(r.quantity ?? 1),
-            coverageType: r.coverageType ?? "FREELANCE",
             notes: r.notes ?? "",
           }))
         : [newRoleRow()]
@@ -573,7 +590,7 @@ export function DatabaseSections({
         roleCode: rc,
         roleLocation: rl,
         quantity: safeQ,
-        coverageType: row.coverageType,
+        coverageType: "FREELANCE",
         notes: row.notes.trim() || undefined,
       });
     }
@@ -1183,6 +1200,12 @@ export function DatabaseSections({
             <ul className="space-y-2">
               {standardCombos.map((combo) => {
                 const expanded = expandedComboId === combo.id;
+                const facRaw = combo.facilities?.trim() ?? "";
+                const showFacilitiesBadge =
+                  Boolean(facRaw) && facRaw !== "-";
+                const studioRaw = combo.studio?.trim() ?? "";
+                const showStudioBadge =
+                  Boolean(studioRaw) && studioRaw !== "-";
                 return (
                   <li
                     key={combo.id}
@@ -1197,24 +1220,49 @@ export function DatabaseSections({
                       }
                     >
                       <span
-                        className="rounded px-2 py-0.5 text-xs font-semibold text-pitch-bg"
-                        style={{ background: "#FFFA00" }}
+                        className="rounded px-2 py-0.5 text-xs"
+                        style={{
+                          background: "#FFFA00",
+                          color: "#000",
+                          fontWeight: 700,
+                        }}
                       >
                         {combo.standardOnsite}
                       </span>
-                      <span className="rounded border border-[#2a2a2a] px-2 py-0.5 text-xs text-pitch-gray-light">
+                      <span
+                        className="rounded px-2 py-0.5 text-xs"
+                        style={{
+                          background: "#3F4547",
+                          color: "#fff",
+                          fontWeight: 700,
+                        }}
+                      >
                         {combo.standardCologno}
                       </span>
-                      <span className="text-xs text-pitch-gray">
-                        {combo.facilities?.trim()
-                          ? `Facilities: ${combo.facilities}`
-                          : "Facilities: —"}
-                      </span>
-                      <span className="text-xs text-pitch-gray">
-                        {combo.studio?.trim()
-                          ? `Studio: ${combo.studio}`
-                          : "Studio: —"}
-                      </span>
+                      {showFacilitiesBadge ? (
+                        <span
+                          className="rounded px-2 py-0.5 text-xs"
+                          style={{
+                            background: "#2a2a2a",
+                            color: "#868A8C",
+                            border: "1px solid #3F4547",
+                          }}
+                        >
+                          {combo.facilities}
+                        </span>
+                      ) : null}
+                      {showStudioBadge ? (
+                        <span
+                          className="rounded px-2 py-0.5 text-xs"
+                          style={{
+                            background: "#2a2a2a",
+                            color: "#868A8C",
+                            border: "1px solid #3F4547",
+                          }}
+                        >
+                          {combo.studio}
+                        </span>
+                      ) : null}
                       <span className="ml-auto text-xs text-pitch-accent">
                         {combo.requirements.length} ruol
                         {combo.requirements.length === 1 ? "o" : "i"}
@@ -1352,6 +1400,7 @@ export function DatabaseSections({
                     <input
                       id="combo-onsite"
                       type="text"
+                      list="combo-onsite-datalist"
                       required
                       value={comboHeaderForm.standardOnsite}
                       onChange={(e) =>
@@ -1363,6 +1412,11 @@ export function DatabaseSections({
                       className="w-full rounded border bg-[#1a1a1a] px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
                       style={{ borderColor: "#2a2a2a" }}
                     />
+                    <datalist id="combo-onsite-datalist">
+                      {comboHeaderDatalistOptions.onsite.map((v) => (
+                        <option key={v} value={v} />
+                      ))}
+                    </datalist>
                   </div>
                   <div>
                     <label
@@ -1374,6 +1428,7 @@ export function DatabaseSections({
                     <input
                       id="combo-cologno"
                       type="text"
+                      list="combo-cologno-datalist"
                       required
                       value={comboHeaderForm.standardCologno}
                       onChange={(e) =>
@@ -1385,6 +1440,11 @@ export function DatabaseSections({
                       className="w-full rounded border bg-[#1a1a1a] px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
                       style={{ borderColor: "#2a2a2a" }}
                     />
+                    <datalist id="combo-cologno-datalist">
+                      {comboHeaderDatalistOptions.cologno.map((v) => (
+                        <option key={v} value={v} />
+                      ))}
+                    </datalist>
                   </div>
                   <div>
                     <label
@@ -1396,6 +1456,7 @@ export function DatabaseSections({
                     <input
                       id="combo-facilities"
                       type="text"
+                      list="combo-facilities-datalist"
                       value={comboHeaderForm.facilities}
                       onChange={(e) =>
                         setComboHeaderForm((v) => ({
@@ -1406,6 +1467,11 @@ export function DatabaseSections({
                       className="w-full rounded border bg-[#1a1a1a] px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
                       style={{ borderColor: "#2a2a2a" }}
                     />
+                    <datalist id="combo-facilities-datalist">
+                      {comboHeaderDatalistOptions.facilities.map((v) => (
+                        <option key={v} value={v} />
+                      ))}
+                    </datalist>
                   </div>
                   <div>
                     <label
@@ -1417,6 +1483,7 @@ export function DatabaseSections({
                     <input
                       id="combo-studio"
                       type="text"
+                      list="combo-studio-datalist"
                       value={comboHeaderForm.studio}
                       onChange={(e) =>
                         setComboHeaderForm((v) => ({
@@ -1427,6 +1494,11 @@ export function DatabaseSections({
                       className="w-full rounded border bg-[#1a1a1a] px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
                       style={{ borderColor: "#2a2a2a" }}
                     />
+                    <datalist id="combo-studio-datalist">
+                      {comboHeaderDatalistOptions.studio.map((v) => (
+                        <option key={v} value={v} />
+                      ))}
+                    </datalist>
                   </div>
                   <div className="sm:col-span-2">
                     <label
@@ -1473,7 +1545,7 @@ export function DatabaseSections({
                   className="overflow-x-auto rounded-lg border"
                   style={{ borderColor: "#2a2a2a" }}
                 >
-                  <table className="w-full min-w-[720px] text-left text-xs">
+                  <table className="w-full min-w-[600px] text-left text-xs">
                     <thead>
                       <tr
                         className="border-b text-pitch-gray"
@@ -1482,7 +1554,6 @@ export function DatabaseSections({
                         <th className="px-2 py-2">Ruolo</th>
                         <th className="px-2 py-2">Sede ruolo</th>
                         <th className="px-2 py-2">Qty</th>
-                        <th className="px-2 py-2">Coverage</th>
                         <th className="px-2 py-2">Note</th>
                         <th className="w-10 px-2 py-2" />
                       </tr>
@@ -1544,7 +1615,7 @@ export function DatabaseSections({
                                   key={`${r.code}-${r.location}-${row.rowId}`}
                                   value={`${r.code}__${r.location}`}
                                 >
-                                  {r.code} — {r.name} ({r.location})
+                                  {r.name || r.code} ({r.location})
                                 </option>
                               ))}
                             </select>
@@ -1591,32 +1662,6 @@ export function DatabaseSections({
                               className="w-16 rounded border bg-[#111] px-1 py-1 text-pitch-white"
                               style={{ borderColor: "#2a2a2a" }}
                             />
-                          </td>
-                          <td className="px-2 py-2">
-                            <select
-                              value={row.coverageType}
-                              onChange={(e) =>
-                                setComboRoleRows((prev) =>
-                                  prev.map((r) =>
-                                    r.rowId === row.rowId
-                                      ? {
-                                          ...r,
-                                          coverageType: e.target.value as
-                                            | "FREELANCE"
-                                            | "PROVIDER"
-                                            | "EITHER",
-                                        }
-                                      : r
-                                  )
-                                )
-                              }
-                              className="w-full max-w-[120px] rounded border bg-[#111] px-1 py-1 text-pitch-white"
-                              style={{ borderColor: "#2a2a2a" }}
-                            >
-                              <option value="FREELANCE">FREELANCE</option>
-                              <option value="PROVIDER">PROVIDER</option>
-                              <option value="EITHER">EITHER</option>
-                            </select>
                           </td>
                           <td className="px-2 py-2">
                             <textarea

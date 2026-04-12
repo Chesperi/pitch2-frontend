@@ -918,7 +918,7 @@ export default function EventiPage() {
                     </td>
                     <td
                       className={`max-w-[7rem] truncate px-4 py-3 text-sm ${
-                        rightsTrimmed === "DAZN/SKY"
+                        rightsTrimmed === "SKY/DAZN"
                           ? "text-red-400"
                           : "text-pitch-gray-light"
                       }`}

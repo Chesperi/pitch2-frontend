@@ -19,16 +19,8 @@ import {
 const PRIMARY_BTN_SM =
   "rounded bg-pitch-accent px-3 py-1.5 text-xs font-semibold text-pitch-bg hover:bg-yellow-200 disabled:cursor-not-allowed disabled:opacity-50";
 
-const LOOKUP_CATEGORY_ORDER = [
-  { key: "standard_onsite", label: "Standard Onsite" },
-  { key: "standard_cologno", label: "Standard Cologno" },
-  { key: "facilities", label: "Facilities" },
-  { key: "studio", label: "Studio" },
-  { key: "show", label: "Show" },
-  { key: "rights_holder", label: "Rights holder" },
-] as const;
-
-type CategoryKey = (typeof LOOKUP_CATEGORY_ORDER)[number]["key"];
+/** Placeholder row so a new category appears in the list before real values are added. */
+const PLACEHOLDER_LOOKUP_VALUE = "(empty)";
 
 const inputClass =
   "w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none";
@@ -68,18 +60,18 @@ export function LookupValuesSection() {
   const [items, setItems] = useState<LookupValue[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [openByCat, setOpenByCat] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(
-      LOOKUP_CATEGORY_ORDER.map((c, i) => [c.key, i === 0])
-    ) as Record<string, boolean>
-  );
+  const [openByCat, setOpenByCat] = useState<Record<string, boolean>>({});
 
   const [modalOpen, setModalOpen] = useState(false);
-  const [modalCategory, setModalCategory] = useState<CategoryKey | null>(null);
+  const [modalCategory, setModalCategory] = useState<string | null>(null);
   const [editing, setEditing] = useState<LookupValue | null>(null);
   const [formValue, setFormValue] = useState("");
   const [formOrder, setFormOrder] = useState(0);
   const [saving, setSaving] = useState(false);
+
+  const [newCategoryModalOpen, setNewCategoryModalOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [savingNewCategory, setSavingNewCategory] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -101,26 +93,52 @@ export function LookupValuesSection() {
     void load();
   }, [load]);
 
+  const categoryKeys = useMemo(() => {
+    const set = new Set<string>();
+    for (const row of items) {
+      if (row.category) set.add(row.category);
+    }
+    return Array.from(set).sort((a, b) =>
+      a.localeCompare(b, undefined, { sensitivity: "base" })
+    );
+  }, [items]);
+
+  useEffect(() => {
+    setOpenByCat((prev) => {
+      const next: Record<string, boolean> = {};
+      let hadAnyPrevKey = false;
+      for (const k of categoryKeys) {
+        if (k in prev) hadAnyPrevKey = true;
+        next[k] = prev[k] ?? false;
+      }
+      if (categoryKeys.length > 0 && !hadAnyPrevKey) {
+        next[categoryKeys[0]] = true;
+      }
+      return next;
+    });
+  }, [categoryKeys]);
+
   const byCategory = useMemo(() => {
     const m = new Map<string, LookupValue[]>();
-    for (const c of LOOKUP_CATEGORY_ORDER) {
-      m.set(c.key, []);
+    for (const k of categoryKeys) {
+      m.set(k, []);
     }
     for (const row of items) {
       const list = m.get(row.category);
       if (list) list.push(row);
     }
-    for (const c of LOOKUP_CATEGORY_ORDER) {
-      const list = m.get(c.key)!;
+    for (const k of categoryKeys) {
+      const list = m.get(k)!;
       list.sort(
         (a, b) =>
-          a.sort_order - b.sort_order || a.value.localeCompare(b.value, "it")
+          a.sort_order - b.sort_order ||
+          a.value.localeCompare(b.value, undefined, { sensitivity: "base" })
       );
     }
     return m;
-  }, [items]);
+  }, [items, categoryKeys]);
 
-  const openAdd = (cat: CategoryKey) => {
+  const openAdd = (cat: string) => {
     setEditing(null);
     setModalCategory(cat);
     setFormValue("");
@@ -130,7 +148,7 @@ export function LookupValuesSection() {
 
   const openEdit = (row: LookupValue) => {
     setEditing(row);
-    setModalCategory(row.category as CategoryKey);
+    setModalCategory(row.category);
     setFormValue(row.value);
     setFormOrder(row.sort_order);
     setModalOpen(true);
@@ -142,12 +160,17 @@ export function LookupValuesSection() {
     setModalCategory(null);
   };
 
+  const closeNewCategoryModal = () => {
+    setNewCategoryModalOpen(false);
+    setNewCategoryName("");
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!modalCategory) return;
     const v = formValue.trim();
     if (!v) {
-      alert("Inserisci un valore.");
+      alert("Enter a value.");
       return;
     }
     setSaving(true);
@@ -173,6 +196,30 @@ export function LookupValuesSection() {
     }
   };
 
+  const handleNewCategorySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const name = newCategoryName.trim();
+    if (!name) {
+      alert("Enter a category name.");
+      return;
+    }
+    setSavingNewCategory(true);
+    try {
+      await createLookupValue({
+        category: name,
+        value: PLACEHOLDER_LOOKUP_VALUE,
+        sort_order: 0,
+      });
+      closeNewCategoryModal();
+      await load();
+      setOpenByCat((prev) => ({ ...prev, [name]: true }));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Save error");
+    } finally {
+      setSavingNewCategory(false);
+    }
+  };
+
   const handleDelete = async (row: LookupValue) => {
     if (!confirm(`Remove "${row.value}" from ${row.category}?`)) return;
     try {
@@ -190,8 +237,9 @@ export function LookupValuesSection() {
     <section className="mt-6">
       <h2 className="text-lg font-semibold text-pitch-white">Vocabulary</h2>
       <p className="mt-1 text-xs text-pitch-gray">
-        Controlled values for standard onsite, Cologno, facilities, studio, show and
-        rights holder (used in event forms and automatic rules).
+        Controlled lookup values for forms and rules. Categories are created from data;
+        use &quot;New category&quot; to add one, then add values (you can remove the
+        &quot;{PLACEHOLDER_LOOKUP_VALUE}&quot; placeholder row).
       </p>
 
       {error ? (
@@ -204,22 +252,36 @@ export function LookupValuesSection() {
         <p className="mt-4 text-sm text-pitch-gray">Loading…</p>
       ) : (
         <div className="mt-4">
-          {LOOKUP_CATEGORY_ORDER.map((cat) => {
-            const rows = byCategory.get(cat.key) ?? [];
-            const open = openByCat[cat.key] ?? false;
+          {canEditDatabase ? (
+            <div className="mb-2 flex justify-end">
+              <button
+                type="button"
+                className={PRIMARY_BTN_SM}
+                onClick={() => {
+                  setNewCategoryName("");
+                  setNewCategoryModalOpen(true);
+                }}
+              >
+                New category
+              </button>
+            </div>
+          ) : null}
+          {categoryKeys.map((catKey) => {
+            const rows = byCategory.get(catKey) ?? [];
+            const open = openByCat[catKey] ?? false;
             return (
               <CategoryCollapsible
-                key={cat.key}
-                title={cat.label}
+                key={catKey}
+                title={catKey}
                 open={open}
-                onToggle={() => toggleCat(cat.key)}
+                onToggle={() => toggleCat(catKey)}
               >
                 <div className="mb-3 flex justify-end">
                   {canEditDatabase ? (
                     <button
                       type="button"
                       className={PRIMARY_BTN_SM}
-                      onClick={() => openAdd(cat.key)}
+                      onClick={() => openAdd(catKey)}
                     >
                       Add value
                     </button>
@@ -280,6 +342,12 @@ export function LookupValuesSection() {
               </CategoryCollapsible>
             );
           })}
+          {categoryKeys.length === 0 ? (
+            <p className="mt-2 text-sm text-pitch-gray">
+              No categories yet.{" "}
+              {canEditDatabase ? 'Use "New category" to create one.' : ""}
+            </p>
+          ) : null}
         </div>
       )}
 
@@ -287,11 +355,7 @@ export function LookupValuesSection() {
         <div className="fixed inset-0 z-[72] flex items-center justify-center bg-black/70 p-4">
           <div className="w-full max-w-md rounded-lg border border-pitch-gray-dark bg-pitch-bg p-6">
             <h3 className="mb-4 text-base font-semibold text-pitch-white">
-              {editing ? "Edit value" : "New value"} —{" "}
-              {
-                LOOKUP_CATEGORY_ORDER.find((c) => c.key === modalCategory)
-                  ?.label
-              }
+              {editing ? "Edit value" : "New value"} — {modalCategory}
             </h3>
             <form onSubmit={(e) => void handleSubmit(e)} className="space-y-3">
               <div>
@@ -332,6 +396,56 @@ export function LookupValuesSection() {
                   className={PRIMARY_BTN_SM}
                 >
                   {saving ? "Saving…" : "Save"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {newCategoryModalOpen ? (
+        <div className="fixed inset-0 z-[72] flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-md rounded-lg border border-pitch-gray-dark bg-pitch-bg p-6">
+            <h3 className="mb-4 text-base font-semibold text-pitch-white">
+              New category
+            </h3>
+            <form
+              onSubmit={(e) => void handleNewCategorySubmit(e)}
+              className="space-y-3"
+            >
+              <div>
+                <label className="mb-1 block text-xs text-pitch-gray">
+                  Category name
+                </label>
+                <input
+                  type="text"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  className={inputClass}
+                  placeholder="e.g. my_category"
+                  autoFocus
+                />
+              </div>
+              <p className="text-[11px] text-pitch-gray">
+                A placeholder value &quot;{PLACEHOLDER_LOOKUP_VALUE}&quot; (order 0) will be
+                created so the category appears; delete it after adding real values if
+                you like.
+              </p>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={closeNewCategoryModal}
+                  disabled={savingNewCategory}
+                  className="rounded border border-pitch-gray-dark px-4 py-2 text-sm text-pitch-white hover:bg-pitch-gray-dark/40 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingNewCategory}
+                  className={PRIMARY_BTN_SM}
+                >
+                  {savingNewCategory ? "Saving…" : "Create"}
                 </button>
               </div>
             </form>

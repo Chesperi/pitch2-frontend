@@ -37,20 +37,20 @@ export type NavItem = {
 const NAV_ITEMS: NavItem[] = [
   {
     href: "/le-mie-assegnazioni",
-    label: "Le mie assegnazioni",
+    label: "My assignments",
     icon: CalendarCheck,
     pageKey: "le_mie_assegnazioni",
   },
-  { href: "/eventi", label: "Eventi", icon: Zap, pageKey: "eventi" },
+  { href: "/eventi", label: "Events", icon: Zap, pageKey: "eventi" },
   {
     href: "/designazioni",
-    label: "Designazioni",
+    label: "Assignments",
     icon: Users,
     pageKey: "designazioni",
   },
   {
     href: "/accrediti",
-    label: "Accrediti",
+    label: "Accreditations",
     icon: BadgeCheck,
     pageKey: "accrediti",
   },
@@ -69,13 +69,13 @@ const NAV_ITEMS: NavItem[] = [
   },
   {
     href: "/consuntivo",
-    label: "Consuntivo",
+    label: "Summary",
     icon: BarChart2,
     pageKey: "consuntivo",
   },
   {
     href: "/cronologia",
-    label: "Cronologia",
+    label: "History",
     icon: Clock,
     pageKey: "cronologia",
   },

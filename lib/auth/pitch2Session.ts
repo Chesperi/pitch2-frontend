@@ -32,7 +32,7 @@ export async function loginAndSync(
 
   const accessToken = data.session?.access_token;
   if (!accessToken) {
-    return { ok: false, error: "Sessione non disponibile dopo il login." };
+    return { ok: false, error: "Session not available after login." };
   }
 
   const sessionRes = await postSupabaseSessionToBackend(accessToken, {
@@ -45,7 +45,7 @@ export async function loginAndSync(
 
   const me = await fetchPitch2MeFromBrowser();
   if (!me.ok || !me.data) {
-    return { ok: false, error: "Impossibile recuperare il profilo. Riprova." };
+    return { ok: false, error: "Unable to retrieve profile. Please try again." };
   }
 
   return { ok: true, userLevel: pickUserLevel(me.data) };

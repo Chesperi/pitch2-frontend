@@ -25,15 +25,15 @@ type StaffPagePermissionsResponse = {
 type FinanceSelectValue = "default" | "allow" | "deny";
 
 const PAGE_LABELS: Record<string, string> = {
-  le_mie_assegnazioni: "Le mie assegnazioni",
-  eventi: "Eventi",
-  designazioni: "Designazioni",
-  accrediti: "Accrediti",
+  le_mie_assegnazioni: "My assignments",
+  eventi: "Events",
+  designazioni: "Assignments",
+  accrediti: "Accreditations",
   call_sheet: "Call sheet",
   database: "Database",
   cookies_jar: "Cookies jar",
-  consuntivo: "Consuntivo",
-  cronologia: "Cronologia",
+  consuntivo: "Summary",
+  cronologia: "History",
   master: "Master",
 };
 
@@ -42,7 +42,7 @@ function pageColumnLabel(pageKey: string): string {
 }
 
 const ACCESS_OPTIONS: { value: AccessLevel; label: string }[] = [
-  { value: "none", label: "Nessuno" },
+  { value: "none", label: "None" },
   { value: "view", label: "View" },
   { value: "edit", label: "Edit" },
 ];
@@ -56,9 +56,9 @@ const FINANCE_SELECT_CLASS =
 async function readErrorMessage(res: Response): Promise<string> {
   try {
     const data = (await res.json()) as { error?: string };
-    return data.error ?? `Errore ${res.status}`;
+    return data.error ?? `Error ${res.status}`;
   } catch {
-    return `Errore ${res.status}`;
+    return `Error ${res.status}`;
   }
 }
 
@@ -95,7 +95,7 @@ export default function MasterPage() {
       setItems(Array.isArray(data.items) ? data.items : []);
     } catch (e) {
       setLoadError(
-        e instanceof Error ? e.message : "Impossibile caricare i permessi."
+        e instanceof Error ? e.message : "Unable to load permissions."
       );
       setItems([]);
     } finally {
@@ -158,7 +158,7 @@ export default function MasterPage() {
       setActionError(
         e instanceof Error
           ? e.message
-          : "Errore durante il salvataggio dei permessi."
+          : "Error saving permissions."
       );
     } finally {
       setSaving(savingKey, false);
@@ -195,7 +195,7 @@ export default function MasterPage() {
       setActionError(
         e instanceof Error
           ? e.message
-          : "Errore durante il salvataggio dell'accesso economico."
+          : "Error saving financial access."
       );
     } finally {
       setSaving(savingKey, false);
@@ -204,7 +204,7 @@ export default function MasterPage() {
 
   return (
     <>
-      <PageHeader title="Master permessi" />
+      <PageHeader title="Master permissions" />
 
       {loadError ? (
         <p className="mt-4 rounded border border-red-900/50 bg-red-950/40 px-3 py-2 text-sm text-red-200">
@@ -213,12 +213,12 @@ export default function MasterPage() {
       ) : null}
 
       {loading ? (
-        <p className="mt-6 text-sm text-pitch-gray">Caricamento…</p>
+        <p className="mt-6 text-sm text-pitch-gray">Loading…</p>
       ) : null}
 
       {!loading && !loadError && items.length === 0 ? (
         <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-6 text-center text-sm text-pitch-gray">
-          Nessuno staff attivo da configurare.
+          No active staff to configure.
         </div>
       ) : null}
 
@@ -232,10 +232,10 @@ export default function MasterPage() {
             <thead>
               <tr className="border-b border-pitch-gray-dark bg-pitch-gray-dark/30">
                 <th className="sticky left-0 z-10 min-w-[200px] bg-pitch-gray-dark/40 px-3 py-2 text-left font-medium text-pitch-gray">
-                  Utente
+                  User
                 </th>
                 <th className="min-w-[140px] px-3 py-2 text-left font-medium text-pitch-gray">
-                  Parte economica
+                  Financial access
                 </th>
                 {pageKeysOrdered.map((pk) => (
                   <th
@@ -274,8 +274,8 @@ export default function MasterPage() {
                       disabled={savingKeys.has(`finance:${row.staffId}`)}
                     >
                       <option value="default">Default</option>
-                      <option value="allow">Consenti</option>
-                      <option value="deny">Nega</option>
+                      <option value="allow">Allow</option>
+                      <option value="deny">Deny</option>
                     </select>
                   </td>
                   {row.permissions.map((perm) => (

@@ -40,19 +40,19 @@ function renderAssignmentsStatusBadge(
     case "DRAFT":
       return (
         <span className="rounded-full bg-pitch-gray-dark px-2 py-0.5 text-xs text-pitch-gray-light">
-          Bozza
+          Draft
         </span>
       );
     case "READY_TO_SEND":
       return (
         <span className="rounded-full bg-yellow-900/50 px-2 py-0.5 text-xs text-yellow-300">
-          Pronto invio
+          Ready
         </span>
       );
     case "SENT":
       return (
         <span className="rounded-full bg-green-900/50 px-2 py-0.5 text-xs text-green-300">
-          Inviato
+          Sent
         </span>
       );
     default:
@@ -67,15 +67,15 @@ function renderAssignmentsStatusBadge(
 function getAssignmentStatusLabel(status: string): string {
   switch (status) {
     case "DRAFT":
-      return "Bozza";
+      return "Draft";
     case "READY":
-      return "Pronto";
+      return "Ready";
     case "SENT":
-      return "Inviato";
+      return "Sent";
     case "CONFIRMED":
-      return "Confermato";
+      return "Confirmed";
     case "REJECTED":
-      return "Rifiutato";
+      return "Declined";
     default:
       return status;
   }
@@ -113,10 +113,10 @@ const ASSIGNMENTS_STATUS_OPTIONS: {
   value: "" | EventAssignmentsStatus;
   label: string;
 }[] = [
-  { value: "", label: "Tutti" },
-  { value: "DRAFT", label: "Bozza" },
-  { value: "READY_TO_SEND", label: "Pronto invio" },
-  { value: "SENT", label: "Inviato" },
+  { value: "", label: "All" },
+  { value: "DRAFT", label: "Draft" },
+  { value: "READY_TO_SEND", label: "Ready" },
+  { value: "SENT", label: "Sent" },
 ];
 
 type ListScope = "designable" | "all";
@@ -158,7 +158,7 @@ export default function DesignazioniPage() {
         setItems(next);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Errore nel caricamento");
+      setError(e instanceof Error ? e.message : "Loading error");
     } finally {
       setLoading(false);
     }
@@ -176,7 +176,7 @@ export default function DesignazioniPage() {
     }) => {
       const ids = group.assignments.map((a) => a.id);
       await sendDesignazioniForPerson(group.staffId, ids);
-      alert(`Mail inviata a ${group.staffName} (${ids.length} eventi)`);
+      alert(`Email sent to ${group.staffName} (${ids.length} events)`);
     },
     []
   );
@@ -185,10 +185,10 @@ export default function DesignazioniPage() {
     if (!startDate || !endDate) return;
     try {
       await sendDesignazioniForPeriod(startDate, endDate);
-      alert("Mail simulate per tutte le persone nel periodo");
+      alert("Simulated email for everyone in the period");
     } catch (e) {
       console.error(e);
-      alert("Errore nell'invio mail periodo");
+      alert("Error sending period email");
     }
   }, [startDate, endDate]);
 
@@ -246,9 +246,9 @@ export default function DesignazioniPage() {
   if (loading) {
     return (
       <>
-        <PageHeader title="Designazioni" />
+        <PageHeader title="Assignments" />
         <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-8 text-center text-pitch-gray">
-          Caricamento...
+          Loading...
         </div>
       </>
     );
@@ -257,7 +257,7 @@ export default function DesignazioniPage() {
   if (error) {
     return (
       <>
-        <PageHeader title="Designazioni" />
+        <PageHeader title="Assignments" />
         <div className="mt-6 rounded-lg border border-red-900/50 bg-red-900/20 p-6 text-red-300">
           {error}
         </div>
@@ -267,17 +267,17 @@ export default function DesignazioniPage() {
 
   return (
     <>
-      <PageHeader title="Designazioni" />
+      <PageHeader title="Assignments" />
 
       <p className="mt-2 max-w-3xl text-sm text-pitch-gray">
-        Elenco eventi in ottica designatore. Scegli se vedere solo i candidati
-        già designabili (standard e stato evento coerenti) oppure tutti gli
-        eventi in lista. Apri il dettaglio per gestire staffing e invii.
+        Event list for assigners. Choose whether to see only assignable candidates
+        (consistent standards and event state) or all events in the list. Open
+        the detail to manage staffing and sends.
       </p>
 
       <div className="mt-4 flex flex-wrap items-end gap-4">
         <div>
-          <label className="mb-1 block text-xs text-pitch-gray">Vista</label>
+          <label className="mb-1 block text-xs text-pitch-gray">View</label>
           <div className="flex rounded-lg border border-pitch-gray-dark p-0.5">
             <button
               type="button"
@@ -288,7 +288,7 @@ export default function DesignazioniPage() {
                   : "text-pitch-gray-light hover:text-pitch-white"
               }`}
             >
-              Designabili
+              Assignable
             </button>
             <button
               type="button"
@@ -299,13 +299,13 @@ export default function DesignazioniPage() {
                   : "text-pitch-gray-light hover:text-pitch-white"
               }`}
             >
-              Tutti gli eventi
+              All events
             </button>
           </div>
         </div>
         <div>
           <label className="mb-1 block text-xs text-pitch-gray">
-            Stato designazioni
+            Assignment status
           </label>
           <select
             value={assignmentsStatusFilter}
@@ -327,7 +327,7 @@ export default function DesignazioniPage() {
 
       <div className="mt-4">
         <SearchBar
-          placeholder="Cerca per competizione, match, show..."
+          placeholder="Search by competition, match, show..."
           onSearchChange={setSearch}
         />
       </div>
@@ -337,31 +337,31 @@ export default function DesignazioniPage() {
           <div className="rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-12 text-center text-pitch-gray">
             {items.length === 0
               ? listScope === "designable"
-                ? "Nessun evento designabile con i filtri selezionati."
-                : "Nessun evento con i filtri selezionati."
-              : "Nessun risultato per la ricerca."}
+                ? "No assignable events for the selected filters."
+                : "No events for the selected filters."
+              : "No results for your search."}
           </div>
         ) : (
           <table className="w-full min-w-[860px] border-collapse">
             <thead>
               <tr className="border-b border-pitch-gray-dark">
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Data e KO
+                  Date & KO
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Evento
+                  Event
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Categoria
+                  Category
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Competizione
+                  Competition
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Stato designazioni
+                  Assignment status
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Azioni
+                  Actions
                 </th>
               </tr>
             </thead>
@@ -394,7 +394,7 @@ export default function DesignazioniPage() {
                       href={`/designazioni/${event.id}`}
                       className="inline-flex rounded bg-pitch-accent px-3 py-1.5 text-sm font-medium text-pitch-bg hover:bg-yellow-200"
                     >
-                      Gestisci
+                      Manage
                     </Link>
                   </td>
                 </tr>
@@ -406,16 +406,16 @@ export default function DesignazioniPage() {
 
       <section className="mt-10 border-t border-pitch-gray-dark pt-8">
         <h2 className="mb-2 text-sm font-semibold text-pitch-white">
-          Designazioni per persona
+          Assignments by person
         </h2>
         <p className="mb-4 text-xs text-pitch-gray">
-          Raggruppa le assegnazioni per periodo e invia comunicazioni (step
-          operativo separato dalla lista eventi sopra).
+          Group assignments by period and send communications (operational step
+          separate from the event list above).
         </p>
 
         <div className="mb-4 flex flex-wrap items-end gap-3">
           <div>
-            <label className="mb-1 block text-xs text-pitch-gray">Da</label>
+            <label className="mb-1 block text-xs text-pitch-gray">From</label>
             <input
               type="date"
               value={startDate ?? ""}
@@ -424,7 +424,7 @@ export default function DesignazioniPage() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-pitch-gray">A</label>
+            <label className="mb-1 block text-xs text-pitch-gray">To</label>
             <input
               type="date"
               value={endDate ?? ""}
@@ -438,7 +438,7 @@ export default function DesignazioniPage() {
             disabled={!startDate || !endDate}
             onClick={loadAssignmentsByPeriod}
           >
-            Filtra periodo
+            Filter period
           </button>
           <button
             type="button"
@@ -446,7 +446,7 @@ export default function DesignazioniPage() {
             disabled={!startDate || !endDate || staffGroups.length === 0}
             onClick={handleSendMailForPeriod}
           >
-            Invia mail periodo
+            Send period email
           </button>
         </div>
 
@@ -454,15 +454,15 @@ export default function DesignazioniPage() {
           {staffGroups.length === 0 ? (
             <div className="p-6 text-center text-pitch-gray">
               {startDate && endDate
-                ? "Nessuna designazione nel periodo selezionato"
-                : "Seleziona un periodo e clicca su Filtra periodo"}
+                ? "No assignments in the selected period"
+                : "Select a period and click Filter period"}
             </div>
           ) : (
             <table className="w-full min-w-[400px] border-collapse text-xs">
               <thead>
                 <tr className="border-b border-pitch-gray-dark text-left text-pitch-gray">
-                  <th className="px-4 py-2">Persona</th>
-                  <th className="px-4 py-2">N. eventi</th>
+                  <th className="px-4 py-2">Person</th>
+                  <th className="px-4 py-2">N. events</th>
                   <th className="px-4 py-2"></th>
                 </tr>
               </thead>
@@ -494,7 +494,7 @@ export default function DesignazioniPage() {
                             handleSendMailForPerson(group);
                           }}
                         >
-                          Invia mail
+                          Send email
                         </button>
                       </td>
                     </tr>
@@ -505,9 +505,9 @@ export default function DesignazioniPage() {
                           <table className="mt-1 w-full text-[11px]">
                             <thead>
                               <tr className="text-pitch-gray">
-                                <th className="py-1 text-left">Evento</th>
+                                <th className="py-1 text-left">Event</th>
                                 <th className="py-1 text-left">Match</th>
-                                <th className="py-1 text-left">Ruolo</th>
+                                <th className="py-1 text-left">Role</th>
                                 <th className="py-1 text-left">Status</th>
                                 <th className="py-1 text-right"></th>
                               </tr>
@@ -563,7 +563,7 @@ export default function DesignazioniPage() {
                                         href={`/designazioni/${eventId}`}
                                         className="text-pitch-accent hover:underline"
                                       >
-                                        Apri designazioni
+                                        Open assignments
                                       </Link>
                                     </td>
                                   </tr>

@@ -32,12 +32,12 @@ export default async function DatabasePage() {
     <>
       <PageHeader title="Database" />
       <p className="mt-3 text-xs leading-relaxed text-pitch-gray">
-        Anagrafiche di sistema (ruoli, staff, pacchetti standard) usate nei menu e nei
-        flussi delle altre pagine — ad esempio Eventi, Designazioni e accrediti. Ruoli,
-        staff e pacchetti standard si possono creare o modificare da questa pagina.
+        System directory data (roles, staff, standard packages) used in navigation and
+        other flows — for example Events, Assignments and accreditations. Roles, staff
+        and standard packages can be created or edited from this page.
       </p>
       <div className="mt-4">
-        <SearchBar placeholder="Cerca nel database..." />
+        <SearchBar placeholder="Search database..." />
       </div>
 
       <div className="mt-8">

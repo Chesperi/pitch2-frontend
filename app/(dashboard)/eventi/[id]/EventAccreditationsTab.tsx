@@ -172,7 +172,7 @@ export function EventAccreditationsTab({ eventId }: Props) {
       setStaffOptions(parseStaffSearchResponse(data));
     } catch (err) {
       console.error("searchStaff error", err);
-      setFormError("Errore nella ricerca staff");
+      setFormError("Error searching staff");
       setStaffOptions([]);
     } finally {
       setStaffLoading(false);
@@ -210,7 +210,7 @@ export function EventAccreditationsTab({ eventId }: Props) {
 
   const handleSaveAccreditation = useCallback(async () => {
     if (!selectedStaff) {
-      setFormError("Seleziona una persona dallo staff");
+      setFormError("Select a person from staff");
       return;
     }
 
@@ -236,7 +236,7 @@ export function EventAccreditationsTab({ eventId }: Props) {
       });
 
       if (res.status === 409) {
-        setFormError("Staff già accreditato per questo evento");
+        setFormError("Staff already accredited for this event");
         return;
       }
 
@@ -249,7 +249,7 @@ export function EventAccreditationsTab({ eventId }: Props) {
       resetModalForm();
     } catch (err) {
       console.error("handleSaveAccreditation error", err);
-      setFormError("Errore durante il salvataggio");
+      setFormError("Error saving");
     } finally {
       setSaving(false);
     }
@@ -332,7 +332,7 @@ export function EventAccreditationsTab({ eventId }: Props) {
 
   const handleDeactivate = useCallback(
     async (id: number) => {
-      if (!window.confirm("Rimuovere questo accredito dall’evento?")) return;
+      if (!window.confirm("Remove this accreditation from the event?")) return;
       setDeactivatingId(id);
       try {
         const baseUrl = getApiBaseUrl();
@@ -368,7 +368,7 @@ export function EventAccreditationsTab({ eventId }: Props) {
             type="text"
             value={filterText}
             onChange={(e) => setFilterText(e.target.value)}
-            placeholder="Filtra per nome, azienda, ruolo…"
+            placeholder="Filter by name, company, role…"
             className="min-w-[200px] rounded border border-pitch-gray-dark bg-pitch-gray-dark/40 px-2 py-1 text-xs text-pitch-white placeholder:text-pitch-gray"
           />
 
@@ -377,7 +377,7 @@ export function EventAccreditationsTab({ eventId }: Props) {
             onChange={(e) => setFilterCompany(e.target.value)}
             className="min-w-[140px] rounded border border-pitch-gray-dark bg-pitch-gray-dark/40 px-2 py-1 text-xs text-pitch-white"
           >
-            <option value="">Tutte le aziende</option>
+            <option value="">All companies</option>
             {companyOptions.map((c) => (
               <option key={c} value={c}>
                 {c}
@@ -390,7 +390,7 @@ export function EventAccreditationsTab({ eventId }: Props) {
             onChange={(e) => setFilterRole(e.target.value)}
             className="min-w-[140px] rounded border border-pitch-gray-dark bg-pitch-gray-dark/40 px-2 py-1 text-xs text-pitch-white"
           >
-            <option value="">Tutti i ruoli</option>
+            <option value="">All roles</option>
             {roleOptions.map((r) => (
               <option key={r} value={r}>
                 {r}
@@ -405,7 +405,7 @@ export function EventAccreditationsTab({ eventId }: Props) {
               onChange={(e) => setFilterOnlyWithAreas(e.target.checked)}
               className="h-3 w-3 rounded border border-pitch-gray-dark bg-pitch-gray-dark/60"
             />
-            Solo con aree
+            With areas only
           </label>
 
           <button
@@ -413,7 +413,7 @@ export function EventAccreditationsTab({ eventId }: Props) {
             onClick={resetListFilters}
             className="rounded border border-pitch-gray-dark px-2 py-1 text-[11px] text-pitch-gray-light hover:bg-pitch-gray-dark hover:text-pitch-white"
           >
-            Reset filtri
+            Reset filters
           </button>
 
           <button
@@ -422,7 +422,7 @@ export function EventAccreditationsTab({ eventId }: Props) {
             disabled={loading}
             className="rounded border border-pitch-gray-dark px-2 py-1 text-xs text-pitch-white hover:bg-pitch-gray-dark disabled:opacity-50"
           >
-            {loading ? "Ricarico…" : "Ricarica"}
+            {loading ? "Reloading…" : "Reload"}
           </button>
           <button
             type="button"
@@ -432,7 +432,7 @@ export function EventAccreditationsTab({ eventId }: Props) {
             }}
             className="rounded border border-pitch-accent px-2 py-1 text-xs font-medium text-pitch-accent hover:bg-pitch-accent/10"
           >
-            + Aggiungi accredito
+            + Add accreditation
           </button>
         </div>
 
@@ -440,14 +440,14 @@ export function EventAccreditationsTab({ eventId }: Props) {
           <table className="min-w-full border-collapse text-xs">
             <thead>
               <tr className="border-b border-pitch-gray-dark text-[11px] text-pitch-gray-light">
-                <th className="px-2 py-1 text-left">AZIENDA</th>
-                <th className="px-2 py-1 text-left">COGNOME</th>
-                <th className="px-2 py-1 text-left">NOME</th>
-                <th className="px-2 py-1 text-left">RUOLO</th>
-                <th className="px-2 py-1 text-left">AREE</th>
-                <th className="px-2 py-1 text-left">VETTURA</th>
-                <th className="px-2 py-1 text-left">NOTE</th>
-                <th className="px-2 py-1 text-left">Azioni</th>
+                <th className="px-2 py-1 text-left">COMPANY</th>
+                <th className="px-2 py-1 text-left">LAST NAME</th>
+                <th className="px-2 py-1 text-left">FIRST NAME</th>
+                <th className="px-2 py-1 text-left">ROLE</th>
+                <th className="px-2 py-1 text-left">AREAS</th>
+                <th className="px-2 py-1 text-left">VEHICLE</th>
+                <th className="px-2 py-1 text-left">NOTES</th>
+                <th className="px-2 py-1 text-left">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -457,7 +457,7 @@ export function EventAccreditationsTab({ eventId }: Props) {
                     colSpan={8}
                     className="px-2 py-3 text-center text-pitch-gray"
                   >
-                    Caricamento accrediti…
+                    Loading accreditations…
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
@@ -466,7 +466,7 @@ export function EventAccreditationsTab({ eventId }: Props) {
                     colSpan={8}
                     className="px-2 py-3 text-center text-pitch-gray"
                   >
-                    Nessun accredito per questo evento.
+                    No accreditations for this event.
                   </td>
                 </tr>
               ) : (
@@ -503,7 +503,7 @@ export function EventAccreditationsTab({ eventId }: Props) {
                         disabled={deactivatingId === it.id}
                         className="rounded border border-red-500 px-2 py-[2px] text-[11px] text-red-400 hover:bg-red-500/10 disabled:opacity-50"
                       >
-                        {deactivatingId === it.id ? "Rimuovo…" : "Rimuovi"}
+                        {deactivatingId === it.id ? "Removing…" : "Remove"}
                       </button>
                     </td>
                   </tr>
@@ -518,12 +518,12 @@ export function EventAccreditationsTab({ eventId }: Props) {
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60">
           <div className="w-full max-w-lg rounded-lg border border-pitch-gray-dark bg-pitch-bg px-4 py-3 text-xs text-pitch-white">
             <div className="mb-2 flex items-center justify-between">
-              <h2 className="text-sm font-semibold">Aggiungi accredito</h2>
+              <h2 className="text-sm font-semibold">Add accreditation</h2>
               <button
                 type="button"
                 onClick={closeModal}
                 className="text-pitch-gray-light hover:text-pitch-white"
-                aria-label="Chiudi"
+                aria-label="Close"
               >
                 ✕
               </button>
@@ -535,14 +535,14 @@ export function EventAccreditationsTab({ eventId }: Props) {
 
             <div className="mb-3 space-y-1">
               <label className="block text-[11px] text-pitch-gray-light">
-                Cerca staff (cognome o nome)
+                Search staff (last or first name)
               </label>
               <div className="flex gap-2">
                 <input
                   type="text"
                   value={staffQuery}
                   onChange={(e) => setStaffQuery(e.target.value)}
-                  placeholder="Digita almeno 2 caratteri…"
+                  placeholder="Type at least 2 characters…"
                   className="flex-1 rounded border border-pitch-gray-dark bg-pitch-gray-dark/40 px-2 py-1 text-xs text-pitch-white placeholder:text-pitch-gray"
                 />
                 <button
@@ -553,7 +553,7 @@ export function EventAccreditationsTab({ eventId }: Props) {
                   disabled={staffLoading || staffQuery.trim().length < 2}
                   className="rounded border border-pitch-gray-dark px-2 py-1 text-xs hover:bg-pitch-gray-dark disabled:opacity-50"
                 >
-                  {staffLoading ? "Cerca…" : "Cerca"}
+                  {staffLoading ? "Searching…" : "Search"}
                 </button>
               </div>
               {staffOptions.length > 0 ? (
@@ -574,7 +574,7 @@ export function EventAccreditationsTab({ eventId }: Props) {
                   }}
                   className="mt-1 w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark/40 px-2 py-1 text-xs text-pitch-white"
                 >
-                  <option value="">Seleziona dalla lista…</option>
+                  <option value="">Select from list…</option>
                   {staffOptions.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.surname} {s.name}
@@ -589,7 +589,7 @@ export function EventAccreditationsTab({ eventId }: Props) {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <label className="block text-[11px] text-pitch-gray-light">
-                  Ruolo (override)
+                  Role (override)
                 </label>
                 <input
                   type="text"
@@ -601,19 +601,19 @@ export function EventAccreditationsTab({ eventId }: Props) {
               </div>
               <div className="space-y-1">
                 <label className="block text-[11px] text-pitch-gray-light">
-                  Aree (override)
+                  Areas (override)
                 </label>
                 <input
                   type="text"
                   value={formAreas}
                   onChange={(e) => setFormAreas(e.target.value)}
-                  placeholder="Vuoto = calcolo automatico"
+                  placeholder="Empty = auto calculate"
                   className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark/40 px-2 py-1 text-xs text-pitch-white placeholder:text-pitch-gray"
                 />
               </div>
               <div className="space-y-1">
                 <label className="block text-[11px] text-pitch-gray-light">
-                  Vettura / targa
+                  Vehicle / plate
                 </label>
                 <input
                   type="text"
@@ -642,7 +642,7 @@ export function EventAccreditationsTab({ eventId }: Props) {
                 onClick={closeModal}
                 className="rounded border border-pitch-gray-dark px-3 py-1 text-xs text-pitch-gray-light hover:bg-pitch-gray-dark"
               >
-                Annulla
+                Cancel
               </button>
               <button
                 type="button"
@@ -650,7 +650,7 @@ export function EventAccreditationsTab({ eventId }: Props) {
                 disabled={saving || !selectedStaff}
                 className="rounded border border-pitch-accent bg-pitch-accent px-3 py-1 text-xs font-medium text-black disabled:opacity-50"
               >
-                {saving ? "Salvo…" : "Salva accredito"}
+                {saving ? "Saving…" : "Save accreditation"}
               </button>
             </div>
           </div>

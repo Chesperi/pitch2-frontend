@@ -11,14 +11,14 @@ import { fetchLookupValues } from "@/lib/api/lookupValues";
 import type { CreateEventRulePayload, EventRule, LookupValue } from "@/lib/types";
 
 const DAY_OPTIONS: { value: string; label: string }[] = [
-  { value: "", label: "Qualsiasi" },
-  { value: "1", label: "Lunedì" },
-  { value: "2", label: "Martedì" },
-  { value: "3", label: "Mercoledì" },
-  { value: "4", label: "Giovedì" },
-  { value: "5", label: "Venerdì" },
-  { value: "6", label: "Sabato" },
-  { value: "0", label: "Domenica" },
+  { value: "", label: "Any" },
+  { value: "1", label: "Monday" },
+  { value: "2", label: "Tuesday" },
+  { value: "3", label: "Wednesday" },
+  { value: "4", label: "Thursday" },
+  { value: "5", label: "Friday" },
+  { value: "6", label: "Saturday" },
+  { value: "0", label: "Sunday" },
 ];
 
 function dayLabel(d: number | null): string {
@@ -114,7 +114,7 @@ function LookupSelect({
         onChange={(e) => onChange(e.target.value)}
         className={inputClass}
       >
-        <option value="">— qualsiasi —</option>
+        <option value="">— any —</option>
         {options.map((o) => (
           <option key={o.id} value={o.value}>
             {o.value}
@@ -122,7 +122,7 @@ function LookupSelect({
         ))}
         {v && !inList ? (
           <option value={v}>
-            {v} (non in elenco)
+            {v} (not in list)
           </option>
         ) : null}
       </select>
@@ -153,7 +153,7 @@ export function EventRulesSection() {
       setRules(rows);
     } catch (e) {
       setError(
-        e instanceof Error ? e.message : "Impossibile caricare le regole."
+        e instanceof Error ? e.message : "Unable to load rules."
       );
       setRules([]);
     } finally {
@@ -228,7 +228,7 @@ export function EventRulesSection() {
       closeModal();
       await loadRules();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Errore salvataggio");
+      alert(err instanceof Error ? err.message : "Save error");
     } finally {
       setSaving(false);
     }
@@ -237,7 +237,7 @@ export function EventRulesSection() {
   const handleDelete = async (r: EventRule) => {
     if (
       !confirm(
-        `Eliminare la regola #${r.id}${r.competition_name ? ` (${r.competition_name})` : ""}?`
+        `Delete rule #${r.id}${r.competition_name ? ` (${r.competition_name})` : ""}?`
       )
     ) {
       return;
@@ -246,7 +246,7 @@ export function EventRulesSection() {
       await deleteEventRule(r.id);
       await loadRules();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Errore eliminazione");
+      alert(err instanceof Error ? err.message : "Delete error");
     }
   };
 
@@ -259,14 +259,14 @@ export function EventRulesSection() {
     <section className="mt-10 border-t border-pitch-gray-dark pt-8">
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h3 className="text-lg font-semibold text-pitch-white">
-          Regole automatiche eventi
+          Automatic event rules
         </h3>
         <button
           type="button"
           onClick={openNew}
           className="rounded bg-pitch-accent px-4 py-2 text-sm font-medium text-pitch-bg hover:bg-yellow-200"
         >
-          Nuova regola
+          New rule
         </button>
       </div>
 
@@ -277,15 +277,15 @@ export function EventRulesSection() {
       ) : null}
 
       {loading ? (
-        <p className="text-sm text-pitch-gray">Caricamento…</p>
+        <p className="text-sm text-pitch-gray">Loading…</p>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-pitch-gray-dark">
           <table className="w-full min-w-[1100px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-pitch-gray-dark bg-pitch-gray-dark/30">
-                <th className={tableTh}>Competizione</th>
-                <th className={tableTh}>Giorno</th>
-                <th className={tableTh}>Orario</th>
+                <th className={tableTh}>Competition</th>
+                <th className={tableTh}>Day</th>
+                <th className={tableTh}>Time</th>
                 <th className={tableTh}>Onsite</th>
                 <th className={tableTh}>Cologno</th>
                 <th className={tableTh}>Facilities</th>
@@ -293,7 +293,7 @@ export function EventRulesSection() {
                 <th className={tableTh}>Show</th>
                 <th className={tableTh}>PRE</th>
                 <th className={tableTh}>Pri.</th>
-                <th className={tableTh}>Azioni</th>
+                <th className={tableTh}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -303,7 +303,7 @@ export function EventRulesSection() {
                     colSpan={11}
                     className="px-3 py-6 text-center text-pitch-gray"
                   >
-                    Nessuna regola. Crea la prima con «Nuova regola».
+                    No rules. Create the first one with &quot;New rule&quot;.
                   </td>
                 </tr>
               ) : (
@@ -350,14 +350,14 @@ export function EventRulesSection() {
                         onClick={() => openEdit(r)}
                         className="mr-2 text-pitch-accent underline-offset-2 hover:underline"
                       >
-                        Modifica
+                        Edit
                       </button>
                       <button
                         type="button"
                         onClick={() => void handleDelete(r)}
                         className="text-red-400 underline-offset-2 hover:underline"
                       >
-                        Elimina
+                        Delete
                       </button>
                     </td>
                   </tr>
@@ -372,12 +372,12 @@ export function EventRulesSection() {
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4">
           <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg border border-pitch-gray-dark bg-pitch-bg p-6">
             <h4 className="mb-4 text-base font-semibold text-pitch-white">
-              {editingId != null ? `Modifica regola #${editingId}` : "Nuova regola"}
+              {editingId != null ? `Edit rule #${editingId}` : "New rule"}
             </h4>
             <form onSubmit={(e) => void handleSubmit(e)} className="space-y-3">
               <div>
                 <label className="mb-1 block text-xs text-pitch-gray">
-                  Competizione (opzionale, vuoto = qualsiasi)
+                  Competition (optional, empty = any)
                 </label>
                 <input
                   type="text"
@@ -390,7 +390,7 @@ export function EventRulesSection() {
               </div>
               <div>
                 <label className="mb-1 block text-xs text-pitch-gray">
-                  Giorno settimana
+                  Day of week
                 </label>
                 <select
                   value={daySelectValue}
@@ -413,7 +413,7 @@ export function EventRulesSection() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="mb-1 block text-xs text-pitch-gray">
-                    KO da (HH:MM)
+                    KO from (HH:MM)
                   </label>
                   <input
                     type="time"
@@ -426,7 +426,7 @@ export function EventRulesSection() {
                 </div>
                 <div>
                   <label className="mb-1 block text-xs text-pitch-gray">
-                    KO a (HH:MM)
+                    KO to (HH:MM)
                   </label>
                   <input
                     type="time"
@@ -475,7 +475,7 @@ export function EventRulesSection() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="mb-1 block text-xs text-pitch-gray">
-                    PRE (minuti)
+                    PRE (minutes)
                   </label>
                   <input
                     type="number"
@@ -499,7 +499,7 @@ export function EventRulesSection() {
                 </div>
                 <div>
                   <label className="mb-1 block text-xs text-pitch-gray">
-                    Priorità (più alto vince)
+                    Priority (higher wins)
                   </label>
                   <input
                     type="number"
@@ -515,7 +515,7 @@ export function EventRulesSection() {
                 </div>
               </div>
               <div>
-                <label className="mb-1 block text-xs text-pitch-gray">Note</label>
+                <label className="mb-1 block text-xs text-pitch-gray">Notes</label>
                 <textarea
                   rows={3}
                   value={form.notes ?? ""}
@@ -531,14 +531,14 @@ export function EventRulesSection() {
                   onClick={closeModal}
                   className="rounded border border-pitch-gray-dark px-4 py-2 text-sm text-pitch-white hover:bg-pitch-gray-dark/40"
                 >
-                  Annulla
+                  Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
                   className="rounded bg-pitch-accent px-4 py-2 text-sm font-medium text-pitch-bg hover:bg-yellow-200 disabled:opacity-50"
                 >
-                  {saving ? "Salvataggio…" : "Salva"}
+                  {saving ? "Saving…" : "Save"}
                 </button>
               </div>
             </form>

@@ -88,7 +88,7 @@ export default function CronologiaPage() {
         const body = (await res.json().catch(() => null)) as {
           error?: string;
         } | null;
-        throw new Error(body?.error ?? `Errore ${res.status}`);
+        throw new Error(body?.error ?? `Error ${res.status}`);
       }
       const data = (await res.json()) as AuditLogResponse;
       const list = Array.isArray(data.items) ? data.items : [];
@@ -103,7 +103,7 @@ export default function CronologiaPage() {
       );
     } catch (e) {
       setError(
-        e instanceof Error ? e.message : "Impossibile caricare la cronologia."
+        e instanceof Error ? e.message : "Unable to load history."
       );
       setItems([]);
       setTotal(0);
@@ -118,9 +118,9 @@ export default function CronologiaPage() {
 
   const entityTypeOptions = useMemo(() => {
     const base: { value: string; label: string }[] = [
-      { value: "", label: "Tutte le entità" },
+      { value: "", label: "All entities" },
       { value: "assignment", label: "Assignment" },
-      { value: "event", label: "Evento" },
+      { value: "event", label: "Event" },
     ];
     const known = new Set(["", "assignment", "event"]);
     const extra = seenEntityTypes
@@ -131,7 +131,7 @@ export default function CronologiaPage() {
 
   return (
     <>
-      <PageHeader title="Cronologia" />
+      <PageHeader title="History" />
 
       <div className="mt-4 flex flex-wrap items-end gap-4">
         <div>
@@ -139,7 +139,7 @@ export default function CronologiaPage() {
             htmlFor="cronologia-entity-type"
             className="mb-1 block text-xs text-pitch-gray"
           >
-            Tipo entità
+            Entity type
           </label>
           <select
             id="cronologia-entity-type"
@@ -157,8 +157,8 @@ export default function CronologiaPage() {
         </div>
         {!loading && !error ? (
           <p className="text-xs text-pitch-gray">
-            {items.length} eventi visualizzati
-            {total > items.length ? ` (totale filtrato: ${total})` : null}
+            {items.length} entries shown
+            {total > items.length ? ` (total filtered: ${total})` : null}
           </p>
         ) : null}
       </div>
@@ -170,12 +170,12 @@ export default function CronologiaPage() {
       ) : null}
 
       {loading ? (
-        <p className="mt-6 text-sm text-pitch-gray">Caricamento…</p>
+        <p className="mt-6 text-sm text-pitch-gray">Loading…</p>
       ) : null}
 
       {!loading && !error && items.length === 0 ? (
         <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-6 text-center text-sm text-pitch-gray">
-          Nessun evento di cronologia.
+          No history entries.
         </div>
       ) : null}
 
@@ -185,19 +185,19 @@ export default function CronologiaPage() {
             <thead>
               <tr className="border-b border-pitch-gray-dark bg-pitch-gray-dark/30">
                 <th className="px-4 py-3 text-left font-medium text-pitch-gray">
-                  Data/Ora
+                  Date/Time
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-pitch-gray">
-                  Utente
+                  User
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-pitch-gray">
-                  Entità
+                  Entity
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-pitch-gray">
-                  Azione
+                  Action
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-pitch-gray">
-                  Dettaglio
+                  Detail
                 </th>
               </tr>
             </thead>

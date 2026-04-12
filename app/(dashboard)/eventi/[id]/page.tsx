@@ -94,7 +94,7 @@ export default function EventoDettaglioPage() {
       url,
       filename,
       onError: () => {
-        alert("Errore durante il download del file");
+        alert("Error downloading file");
       },
     });
 
@@ -113,27 +113,27 @@ export default function EventoDettaglioPage() {
   return (
     <>
       <PageHeader
-        title={loading ? "Evento" : notFound ? "Evento non trovato" : "Dettaglio evento"}
+        title={loading ? "Event" : notFound ? "Event not found" : "Event detail"}
         actions={
           <Link
             href="/eventi"
             className="rounded border border-pitch-gray-dark px-4 py-2 text-sm text-pitch-gray-light hover:bg-pitch-gray-dark"
           >
-            Torna alla lista
+            Back to list
           </Link>
         }
       />
 
       {loading ? (
-        <p className="mt-6 text-sm text-pitch-gray">Caricamento…</p>
+        <p className="mt-6 text-sm text-pitch-gray">Loading…</p>
       ) : notFound || !event ? (
         <p className="mt-6 text-sm text-pitch-gray">
-          L&apos;evento richiesto non è disponibile.
+          The requested event is not available.
         </p>
       ) : (
         <div className="mt-6 space-y-6">
           <div className="flex flex-wrap items-center gap-2 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/10 px-4 py-3">
-            <span className="text-sm font-medium text-pitch-white">Accrediti</span>
+            <span className="text-sm font-medium text-pitch-white">Accreditations</span>
             <button
               type="button"
               onClick={() => void handleDownload("pdf")}
@@ -174,7 +174,7 @@ export default function EventoDettaglioPage() {
                     : "border-b-2 border-transparent pb-2 text-pitch-gray-light hover:text-pitch-white"
                 }
               >
-                Accrediti
+                Accreditations
               </button>
             </nav>
           </div>
@@ -189,7 +189,7 @@ export default function EventoDettaglioPage() {
                   {event.competitionName}
                 </p>
                 <p className="mt-1 text-xs text-pitch-gray">
-                  KO Italia: {formatKoItaly(event.koItaly)}
+                  KO Italy: {formatKoItaly(event.koItaly)}
                 </p>
               </div>
 
@@ -198,7 +198,7 @@ export default function EventoDettaglioPage() {
                   href={`/designazioni/${event.id}`}
                   className="text-pitch-accent underline-offset-2 hover:underline"
                 >
-                  Apri designazioni
+                  Open assignments
                 </Link>
               </div>
             </div>

@@ -288,7 +288,7 @@ export async function updateAssignment(
       const msg =
         typeof parsed.message === "string"
           ? parsed.message
-          : "Lo staff selezionato non è compatibile con il ruolo dello slot.";
+          : "The selected staff is not compatible with the slot role.";
       const expected =
         typeof details.expectedRoleCode === "string"
           ? details.expectedRoleCode

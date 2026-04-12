@@ -459,7 +459,7 @@ export function DatabaseSections({
     setRoleFormError(null);
     const code = roleFormValues.roleCode.trim();
     if (!code) {
-      setRoleFormError("Il codice ruolo è obbligatorio.");
+      setRoleFormError("Role code is required.");
       return;
     }
     const nameTrim = roleFormValues.name.trim();
@@ -483,7 +483,7 @@ export function DatabaseSections({
       setEditingRole(null);
     } catch (err) {
       setRoleFormError(
-        err instanceof Error ? err.message : "Errore nel salvataggio del ruolo."
+        err instanceof Error ? err.message : "Error saving role."
       );
     } finally {
       setSavingRole(false);
@@ -501,7 +501,9 @@ export function DatabaseSections({
     const defaultLocation = staffFormValues.defaultLocation.trim();
 
     if (!surname || !name || !email || !defaultRoleCode || !defaultLocation) {
-      setStaffFormError("Cognome, nome, email, ruolo e sede sono obbligatori.");
+      setStaffFormError(
+        "Last name, first name, email, role and location are required."
+      );
       return;
     }
 
@@ -575,7 +577,7 @@ export function DatabaseSections({
       setStaffFormError(
         err instanceof Error
           ? err.message
-          : "Errore nel salvataggio dell'anagrafica staff."
+          : "Error saving staff profile."
       );
     } finally {
       setSavingStaff(false);
@@ -592,7 +594,7 @@ export function DatabaseSections({
       alert(
         e instanceof Error
           ? e.message
-          : "Errore durante l'invio dell'invito."
+          : "Error sending invite."
       );
     } finally {
       setInvitingStaffId(null);
@@ -602,7 +604,7 @@ export function DatabaseSections({
   const handleDeleteStaff = async (s: StaffItem) => {
     const nomeCognome = `${s.name} ${s.surname}`.trim();
     const ok = window.confirm(
-      `Vuoi eliminare ${nomeCognome} dalla rubrica? L'operazione non può essere annullata.`
+      `Remove ${nomeCognome} from the directory? This cannot be undone.`
     );
     if (!ok) return;
 
@@ -618,7 +620,7 @@ export function DatabaseSections({
       setStaffTotal(data.total ?? 0);
     } catch (e) {
       alert(
-        e instanceof Error ? e.message : "Errore durante l'eliminazione."
+        e instanceof Error ? e.message : "Error deleting."
       );
     } finally {
       setDeletingStaffId(null);
@@ -730,7 +732,7 @@ export function DatabaseSections({
       setComboFormError(
         err instanceof Error
           ? err.message
-          : "Errore nel salvataggio del pacchetto."
+          : "Error saving package."
       );
     } finally {
       setSavingCombo(false);
@@ -748,7 +750,7 @@ export function DatabaseSections({
       if (expandedComboId === id) setExpandedComboId(null);
     } catch (err) {
       alert(
-        err instanceof Error ? err.message : "Errore durante l'eliminazione."
+        err instanceof Error ? err.message : "Error deleting."
       );
     } finally {
       setDeletingCombo(false);
@@ -759,7 +761,7 @@ export function DatabaseSections({
     <>
       <CollapsibleSection
         title="Staff"
-        description="Elenco persone con ruolo e sede predefiniti; usato in Designazioni e per la compatibilità ruolo–slot in assegnazione."
+        description="Directory of people with default role and location; used in Assignments and for role–slot compatibility when assigning."
         open={staffOpen}
         onToggle={() => setStaffOpen(!staffOpen)}
       >
@@ -796,37 +798,37 @@ export function DatabaseSections({
               setIsStaffModalOpen(true);
             }}
           >
-            Nuovo staff
+            New staff
           </button>
         </div>
         <div className="overflow-x-auto">
           {staff.length === 0 ? (
             <div className="rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-6 text-pitch-gray">
-              Nessuno staff
+              No staff
             </div>
           ) : (
             <table className="w-full min-w-[1680px] border-collapse">
               <thead>
                 <tr className="border-b border-[#2a2a2a]">
-                  <th className={DB_TH}>Cognome</th>
-                  <th className={DB_TH}>Nome</th>
+                  <th className={DB_TH}>Last name</th>
+                  <th className={DB_TH}>First name</th>
                   <th className={DB_TH}>Email</th>
-                  <th className={DB_TH}>Telefono</th>
-                  <th className={DB_TH}>Azienda</th>
-                  <th className={DB_TH}>Ruolo</th>
-                  <th className={DB_TH}>Sede</th>
+                  <th className={DB_TH}>Phone</th>
+                  <th className={DB_TH}>Company</th>
+                  <th className={DB_TH}>Role</th>
+                  <th className={DB_TH}>Location</th>
                   <th className={DB_TH}>Fee</th>
-                  <th className={DB_TH}>Targa(e)</th>
+                  <th className={DB_TH}>Plate(s)</th>
                   <th className={DB_TH}>User level</th>
                   <th className={DB_TH}>Extra fee</th>
-                  <th className={DB_TH}>Team DAZN</th>
-                  <th className={DB_TH}>Note</th>
-                  <th className={DB_TH}>Luogo nascita</th>
-                  <th className={DB_TH}>Data nascita</th>
-                  <th className={DB_TH}>Indirizzo</th>
-                  <th className={DB_TH}>Documento</th>
-                  <th className={DB_TH}>Attivo</th>
-                  <th className={DB_TH}>Azioni</th>
+                  <th className={DB_TH}>DAZN Team</th>
+                  <th className={DB_TH}>Notes</th>
+                  <th className={DB_TH}>Place of birth</th>
+                  <th className={DB_TH}>Date of birth</th>
+                  <th className={DB_TH}>Address</th>
+                  <th className={DB_TH}>Document</th>
+                  <th className={DB_TH}>Active</th>
+                  <th className={DB_TH}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -940,7 +942,7 @@ export function DatabaseSections({
                           s.active ? DB_BADGE_ON : DB_BADGE_OFF
                         }
                       >
-                        {s.active ? "Sì" : "No"}
+                        {s.active ? "Yes" : "No"}
                       </span>
                     </td>
                     <td className="px-3 py-3">
@@ -988,7 +990,7 @@ export function DatabaseSections({
                               setIsStaffModalOpen(true);
                             }}
                           >
-                            Modifica
+                            Edit
                           </button>
                           <button
                             type="button"
@@ -997,11 +999,11 @@ export function DatabaseSections({
                               deletingStaffId === s.id
                             }
                             className="inline-flex items-center gap-1 text-xs text-pitch-accent underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
-                            title="Invia invito"
+                            title="Send invite"
                             onClick={() => void handleInviteStaff(s)}
                           >
                             <span aria-hidden>✉</span>
-                            {invitingStaffId === s.id ? "Invio…" : "Invita"}
+                            {invitingStaffId === s.id ? "Sending…" : "Invite"}
                           </button>
                           <button
                             type="button"
@@ -1010,11 +1012,11 @@ export function DatabaseSections({
                               invitingStaffId === s.id
                             }
                             className="inline-flex items-center gap-1 text-xs text-pitch-accent underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
-                            title="Elimina dalla rubrica"
+                            title="Remove from directory"
                             onClick={() => void handleDeleteStaff(s)}
                           >
                             <span aria-hidden>🗑</span>
-                            {deletingStaffId === s.id ? "Eliminazione…" : "Elimina"}
+                            {deletingStaffId === s.id ? "Deleting…" : "Delete"}
                           </button>
                         </div>
                       ) : (
@@ -1050,22 +1052,22 @@ export function DatabaseSections({
                   alert(
                     e instanceof Error
                       ? e.message
-                      : "Errore nel caricamento di altri record."
+                      : "Error loading more records."
                   );
                 } finally {
                   setStaffLoadingMore(false);
                 }
               }}
             >
-              {staffLoadingMore ? "Caricamento…" : "Carica altri"}
+              {staffLoadingMore ? "Loading…" : "Load more"}
             </button>
           </div>
         )}
       </CollapsibleSection>
 
       <CollapsibleSection
-        title="Ruoli"
-        description="Catalogo ruoli di produzione (codice, nome, sede tipo Stadio/Cologno); base per gli slot e per il default ruolo dello staff."
+        title="Roles"
+        description="Catalog of production roles (code, name, Stadio/Cologno location); basis for slots and staff default role."
         open={rolesOpen}
         onToggle={() => setRolesOpen(!rolesOpen)}
       >
@@ -1079,13 +1081,13 @@ export function DatabaseSections({
               setIsRoleModalOpen(true);
             }}
           >
-            Nuovo ruolo
+            New role
           </button>
         </div>
         <div className="overflow-x-auto">
           {roles.length === 0 ? (
             <div className="rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-6 text-pitch-gray">
-              Nessun ruolo
+              No roles
             </div>
           ) : (
             <table className="w-full min-w-[520px] border-collapse">
@@ -1094,7 +1096,7 @@ export function DatabaseSections({
                   <th className={DB_TH}>Code</th>
                   <th className={DB_TH}>Location</th>
                   <th className={DB_TH}>Description</th>
-                  <th className={DB_TH}>Azioni</th>
+                  <th className={DB_TH}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -1119,7 +1121,7 @@ export function DatabaseSections({
                           setIsRoleModalOpen(true);
                         }}
                       >
-                        Modifica
+                        Edit
                       </button>
                     </td>
                   </tr>
@@ -1153,7 +1155,7 @@ export function DatabaseSections({
               id="role-modal-title"
               className="text-lg font-semibold text-pitch-white"
             >
-              {editingRole ? "Modifica ruolo" : "Nuovo ruolo"}
+              {editingRole ? "Edit role" : "New role"}
             </h2>
             {roleFormError ? (
               <p className="mt-3 rounded border border-red-900/50 bg-red-950/40 px-3 py-2 text-xs text-red-200">
@@ -1166,7 +1168,7 @@ export function DatabaseSections({
                   htmlFor="role-code"
                   className="mb-1 block text-xs text-pitch-gray"
                 >
-                  Codice ruolo <span className="text-red-400">*</span>
+                  Role code <span className="text-red-400">*</span>
                 </label>
                 <input
                   id="role-code"
@@ -1193,12 +1195,12 @@ export function DatabaseSections({
                   htmlFor="role-name"
                   className="mb-1 block text-xs text-pitch-gray"
                 >
-                  Nome (opzionale)
+                  Name (optional)
                 </label>
                 <input
                   id="role-name"
                   type="text"
-                  placeholder="(uguale a codice se vuoto)"
+                  placeholder="(same as code if empty)"
                   value={roleFormValues.name}
                   onChange={(e) =>
                     setRoleFormValues((v) => ({ ...v, name: e.target.value }))
@@ -1211,7 +1213,7 @@ export function DatabaseSections({
                   htmlFor="role-location"
                   className="mb-1 block text-xs text-pitch-gray"
                 >
-                  Sede
+                  Location
                 </label>
                 <select
                   id="role-location"
@@ -1236,7 +1238,7 @@ export function DatabaseSections({
                   htmlFor="role-description"
                   className="mb-1 block text-xs text-pitch-gray"
                 >
-                  Descrizione
+                  Description
                 </label>
                 <textarea
                   id="role-description"
@@ -1262,14 +1264,14 @@ export function DatabaseSections({
                     setRoleFormError(null);
                   }}
                 >
-                  Annulla
+                  Cancel
                 </button>
                 <button
                   type="submit"
                   className={PRIMARY_BTN_SM}
                   disabled={savingRole}
                 >
-                  {savingRole ? "Salvataggio…" : "Salva"}
+                  {savingRole ? "Saving…" : "Save"}
                 </button>
               </div>
             </form>
@@ -1278,8 +1280,8 @@ export function DatabaseSections({
       ) : null}
 
       <CollapsibleSection
-        title="Pacchetti standard"
-        description="Ogni pacchetto raggruppa onsite, Cologno, facilities e studio con l’elenco ruoli (quantity e coverage). Usato in Designazioni per costruire i fabbisogni."
+        title="Standard packages"
+        description="Each package groups onsite, Cologno, facilities and studio with the role list (quantity and coverage). Used in Assignments to build requirements."
         open={standardOpen}
         onToggle={() => setStandardOpen(!standardOpen)}
       >
@@ -1294,7 +1296,7 @@ export function DatabaseSections({
                 className={PRIMARY_BTN_SM}
                 onClick={openNewComboModal}
               >
-                Nuovo standard
+                New standard
               </button>
             ) : null}
           </div>
@@ -1303,7 +1305,7 @@ export function DatabaseSections({
               className="rounded-lg border border-[#2a2a2a] p-6 text-sm text-pitch-gray"
               style={{ background: "#1a1a1a" }}
             >
-              Nessun pacchetto standard
+              No standard packages
             </div>
           ) : (
             <ul className="space-y-2">
@@ -1373,8 +1375,8 @@ export function DatabaseSections({
                         </span>
                       ) : null}
                       <span className="ml-auto text-xs text-pitch-accent">
-                        {combo.requirements.length} ruol
-                        {combo.requirements.length === 1 ? "o" : "i"}
+                        {combo.requirements.length} role
+                        {combo.requirements.length === 1 ? "" : "s"}
                       </span>
                       <span className="text-pitch-gray">{expanded ? "▼" : "▶"}</span>
                     </button>
@@ -1388,7 +1390,7 @@ export function DatabaseSections({
                             openEditComboModal(combo);
                           }}
                         >
-                          Modifica
+                          Edit
                         </button>
                         <button
                           type="button"
@@ -1398,14 +1400,14 @@ export function DatabaseSections({
                             setDeleteComboTarget(combo);
                           }}
                         >
-                          Elimina
+                          Delete
                         </button>
                       </div>
                     ) : null}
                     {expanded ? (
                       <div className="border-t border-[#2a2a2a] px-4 py-3">
                         <div className="mb-2 text-xs text-pitch-gray">
-                          Righe requirement collegate al pacchetto
+                          Requirement rows linked to this package
                         </div>
                         <div className="overflow-x-auto">
                           <table className="w-full min-w-[520px] border-collapse text-sm">
@@ -1426,7 +1428,7 @@ export function DatabaseSections({
                                     colSpan={4}
                                     className={`${DB_TD_EMPTY} py-3`}
                                   >
-                                    Nessun ruolo in questo pacchetto
+                                    No roles in this package
                                   </td>
                                 </tr>
                               ) : (
@@ -1486,7 +1488,7 @@ export function DatabaseSections({
               id="combo-modal-title"
               className="text-lg font-semibold text-pitch-white"
             >
-              {editingCombo ? "Modifica standard" : "Nuovo standard"}
+              {editingCombo ? "Edit standard" : "New standard"}
             </h2>
             {comboFormError ? (
               <p className="mt-3 rounded border border-red-900/50 bg-red-950/40 px-3 py-2 text-xs text-red-200">
@@ -1496,7 +1498,7 @@ export function DatabaseSections({
             <form className="mt-4 space-y-4" onSubmit={handleSubmitCombo}>
               <div>
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-pitch-accent">
-                  Step 1 — Header pacchetto
+                  Step 1 — Package header
                 </p>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div>
@@ -1614,7 +1616,7 @@ export function DatabaseSections({
                       htmlFor="combo-notes-h"
                       className="mb-1 block text-xs text-pitch-gray"
                     >
-                      Note pacchetto
+                      Package notes
                     </label>
                     <textarea
                       id="combo-notes-h"
@@ -1636,7 +1638,7 @@ export function DatabaseSections({
               <div>
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                   <p className="text-xs font-semibold uppercase tracking-wide text-pitch-accent">
-                    Step 2 — Ruoli
+                    Step 2 — Roles
                   </p>
                   <button
                     type="button"
@@ -1647,7 +1649,7 @@ export function DatabaseSections({
                       setComboRoleRows((rows) => [...rows, newRoleRow()])
                     }
                   >
-                    Aggiungi ruolo
+                    Add role
                   </button>
                 </div>
                 <div
@@ -1657,10 +1659,10 @@ export function DatabaseSections({
                   <table className="w-full min-w-[600px] border-collapse text-left text-xs">
                     <thead>
                       <tr className="border-b border-[#2a2a2a]">
-                        <th className={DB_TH}>Ruolo</th>
-                        <th className={DB_TH}>Sede ruolo</th>
+                        <th className={DB_TH}>Role</th>
+                        <th className={DB_TH}>Role location</th>
                         <th className={DB_TH}>Qty</th>
-                        <th className={DB_TH}>Note</th>
+                        <th className={DB_TH}>Notes</th>
                         <th className={`${DB_TH} w-10`} />
                       </tr>
                     </thead>
@@ -1711,7 +1713,7 @@ export function DatabaseSections({
                               className="w-full max-w-[220px] rounded border bg-[#111] px-1 py-1 text-pitch-white"
                               style={{ borderColor: "#2a2a2a" }}
                             >
-                              <option value="">Seleziona…</option>
+                              <option value="">Select…</option>
                               {rolesSortedForSelect.map((r) => (
                                 <option
                                   key={`${r.code}-${r.location}-${row.rowId}`}
@@ -1789,8 +1791,8 @@ export function DatabaseSections({
                               disabled={
                                 savingCombo || comboRoleRows.length <= 1
                               }
-                              title="Rimuovi riga"
-                              aria-label="Rimuovi riga"
+                              title="Remove row"
+                              aria-label="Remove row"
                               onClick={() =>
                                 setComboRoleRows((prev) =>
                                   prev.length <= 1
@@ -1821,14 +1823,14 @@ export function DatabaseSections({
                     setComboFormError(null);
                   }}
                 >
-                  Annulla
+                  Cancel
                 </button>
                 <button
                   type="submit"
                   className={PRIMARY_BTN_SM}
                   disabled={savingCombo}
                 >
-                  {savingCombo ? "Salvataggio…" : "Salva"}
+                  {savingCombo ? "Saving…" : "Save"}
                 </button>
               </div>
             </form>
@@ -1859,12 +1861,12 @@ export function DatabaseSections({
               id="del-combo-title"
               className="text-base font-semibold text-pitch-white"
             >
-              Elimina pacchetto
+              Delete package
             </h2>
             <p className="mt-3 text-sm text-pitch-gray-light">
-              Sei sicuro di voler eliminare questo standard? Verranno eliminate
-              anche tutte le {deleteComboTarget.requirements.length} righe di
-              requirements.
+              Are you sure you want to delete this standard? All{" "}
+              {deleteComboTarget.requirements.length} requirement rows will also be
+              removed.
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <button
@@ -1874,7 +1876,7 @@ export function DatabaseSections({
                 disabled={deletingCombo}
                 onClick={() => setDeleteComboTarget(null)}
               >
-                Annulla
+                Cancel
               </button>
               <button
                 type="button"
@@ -1882,7 +1884,7 @@ export function DatabaseSections({
                 disabled={deletingCombo}
                 onClick={() => void handleConfirmDeleteCombo()}
               >
-                {deletingCombo ? "Eliminazione…" : "Elimina"}
+                {deletingCombo ? "Deleting…" : "Delete"}
               </button>
             </div>
           </div>
@@ -1912,7 +1914,7 @@ export function DatabaseSections({
               id="staff-modal-title"
               className="text-lg font-semibold text-pitch-white"
             >
-              {editingStaff ? "Modifica staff" : "Nuovo staff"}
+              {editingStaff ? "Edit staff" : "New staff"}
             </h2>
             {staffFormError ? (
               <p className="mt-3 rounded border border-red-900/50 bg-red-950/40 px-3 py-2 text-xs text-red-200">
@@ -1922,7 +1924,7 @@ export function DatabaseSections({
             <form className="mt-4 space-y-3" onSubmit={handleSubmitStaff}>
               <div>
                 <p className="mb-2 border-b border-pitch-gray-dark pb-1 text-xs font-semibold uppercase text-pitch-gray">
-                  Dati Anagrafici
+                  Personal data
                 </p>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
@@ -1930,7 +1932,7 @@ export function DatabaseSections({
                       htmlFor="staff-place-birth"
                       className="mb-1 block text-xs text-pitch-gray"
                     >
-                      Luogo di nascita
+                      Place of birth
                     </label>
                     <input
                       id="staff-place-birth"
@@ -1950,7 +1952,7 @@ export function DatabaseSections({
                       htmlFor="staff-date-birth"
                       className="mb-1 block text-xs text-pitch-gray"
                     >
-                      Data di nascita
+                      Date of birth
                     </label>
                     <input
                       id="staff-date-birth"
@@ -1971,7 +1973,7 @@ export function DatabaseSections({
                     htmlFor="staff-address"
                     className="mb-1 block text-xs text-pitch-gray"
                   >
-                    Indirizzo di residenza
+                    Residential address
                   </label>
                   <input
                     id="staff-address"
@@ -1992,7 +1994,7 @@ export function DatabaseSections({
                       htmlFor="staff-id-number"
                       className="mb-1 block text-xs text-pitch-gray"
                     >
-                      Documento / ID
+                      Document / ID
                     </label>
                     <input
                       id="staff-id-number"
@@ -2012,7 +2014,7 @@ export function DatabaseSections({
 
               <div>
                 <p className="mb-2 border-b border-pitch-gray-dark pb-1 text-xs font-semibold uppercase text-pitch-gray">
-                  Dati Contrattuali
+                  Contract details
                 </p>
                 <div className="space-y-2">
                   <div>
@@ -2040,7 +2042,7 @@ export function DatabaseSections({
                       htmlFor="staff-team-dazn"
                       className="mb-1 block text-xs text-pitch-gray"
                     >
-                      Team DAZN
+                      DAZN Team
                     </label>
                     <input
                       id="staff-team-dazn"
@@ -2060,7 +2062,7 @@ export function DatabaseSections({
                       htmlFor="staff-notes"
                       className="mb-1 block text-xs text-pitch-gray"
                     >
-                      Note
+                      Notes
                     </label>
                     <textarea
                       id="staff-notes"
@@ -2080,7 +2082,7 @@ export function DatabaseSections({
 
               <div>
                 <p className="mb-2 border-b border-pitch-gray-dark pb-1 text-xs font-semibold uppercase text-pitch-gray">
-                  Impostazioni
+                  Settings
                 </p>
                 <label className="flex cursor-pointer items-center gap-2 text-sm text-pitch-gray-light">
                   <input
@@ -2095,7 +2097,7 @@ export function DatabaseSections({
                     }
                     className="rounded border-pitch-gray-dark"
                   />
-                  Visibilità finanziaria
+                  Financial visibility
                 </label>
               </div>
 
@@ -2104,7 +2106,7 @@ export function DatabaseSections({
                   htmlFor="staff-surname"
                   className="mb-1 block text-xs text-pitch-gray"
                 >
-                  Cognome <span className="text-red-400">*</span>
+                  Last name <span className="text-red-400">*</span>
                 </label>
                 <input
                   id="staff-surname"
@@ -2125,7 +2127,7 @@ export function DatabaseSections({
                   htmlFor="staff-name"
                   className="mb-1 block text-xs text-pitch-gray"
                 >
-                  Nome <span className="text-red-400">*</span>
+                  First name <span className="text-red-400">*</span>
                 </label>
                 <input
                   id="staff-name"
@@ -2164,7 +2166,7 @@ export function DatabaseSections({
                   htmlFor="staff-phone"
                   className="mb-1 block text-xs text-pitch-gray"
                 >
-                  Telefono
+                  Phone
                 </label>
                 <input
                   id="staff-phone"
@@ -2184,7 +2186,7 @@ export function DatabaseSections({
                   htmlFor="staff-company"
                   className="mb-1 block text-xs text-pitch-gray"
                 >
-                  Azienda
+                  Company
                 </label>
                 <input
                   id="staff-company"
@@ -2204,7 +2206,7 @@ export function DatabaseSections({
                   htmlFor="staff-default-role"
                   className="mb-1 block text-xs text-pitch-gray"
                 >
-                  Ruolo predefinito <span className="text-red-400">*</span>
+                  Default role <span className="text-red-400">*</span>
                 </label>
                 <select
                   id="staff-default-role"
@@ -2232,7 +2234,7 @@ export function DatabaseSections({
                   }}
                   className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
                 >
-                  <option value="">Seleziona ruolo…</option>
+                  <option value="">Select role…</option>
                   {!staffRolePairInCatalog && staffDefaultRoleSelectValue ? (
                     <option value={staffDefaultRoleSelectValue}>
                       {`${
@@ -2256,7 +2258,7 @@ export function DatabaseSections({
                   htmlFor="staff-default-loc"
                   className="mb-1 block text-xs text-pitch-gray"
                 >
-                  Sede predefinita <span className="text-red-400">*</span>
+                  Default location <span className="text-red-400">*</span>
                 </label>
                 <select
                   id="staff-default-loc"
@@ -2325,7 +2327,7 @@ export function DatabaseSections({
                     htmlFor="staff-plate-1"
                     className="mb-1 block text-xs text-pitch-gray"
                   >
-                    Targa 1
+                    Plate 1
                   </label>
                   <input
                     id="staff-plate-1"
@@ -2346,7 +2348,7 @@ export function DatabaseSections({
                     htmlFor="staff-plate-2"
                     className="mb-1 block text-xs text-pitch-gray"
                   >
-                    Targa 2
+                    Plate 2
                   </label>
                   <input
                     id="staff-plate-2"
@@ -2367,7 +2369,7 @@ export function DatabaseSections({
                     htmlFor="staff-plate-3"
                     className="mb-1 block text-xs text-pitch-gray"
                   >
-                    Targa 3
+                    Plate 3
                   </label>
                   <input
                     id="staff-plate-3"
@@ -2396,7 +2398,7 @@ export function DatabaseSections({
                   }
                   className="rounded border-pitch-gray-dark"
                 />
-                Attivo
+                Active
               </label>
               <div className="flex justify-end gap-2 pt-2">
                 <button
@@ -2409,14 +2411,14 @@ export function DatabaseSections({
                     setStaffFormError(null);
                   }}
                 >
-                  Annulla
+                  Cancel
                 </button>
                 <button
                   type="submit"
                   className={PRIMARY_BTN_SM}
                   disabled={savingStaff}
                 >
-                  {savingStaff ? "Salvataggio…" : "Salva"}
+                  {savingStaff ? "Saving…" : "Save"}
                 </button>
               </div>
             </form>

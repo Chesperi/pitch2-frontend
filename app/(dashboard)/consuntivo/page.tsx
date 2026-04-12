@@ -31,7 +31,7 @@ const BTN_PRIMARY =
   "rounded bg-pitch-accent px-4 py-2 text-xs font-semibold text-pitch-bg hover:bg-yellow-200 disabled:cursor-not-allowed disabled:opacity-50";
 
 const STATUS_OPTIONS = [
-  { value: "", label: "Tutti gli status" },
+  { value: "", label: "All statuses" },
   { value: "DRAFT", label: "DRAFT" },
   { value: "READY", label: "READY" },
   { value: "SENT", label: "SENT" },
@@ -61,9 +61,9 @@ function formatEventDate(iso: string | null): string {
 async function readFetchError(res: Response): Promise<string> {
   try {
     const data = (await res.json()) as { error?: string };
-    return data.error ?? `Errore ${res.status}`;
+    return data.error ?? `Error ${res.status}`;
   } catch {
-    return `Errore ${res.status}`;
+    return `Error ${res.status}`;
   }
 }
 
@@ -118,7 +118,7 @@ export default function ConsuntivoPage() {
         setRawItems(Array.isArray(data.items) ? data.items : []);
       } catch (e) {
         setError(
-          e instanceof Error ? e.message : "Impossibile caricare il consuntivo."
+          e instanceof Error ? e.message : "Unable to load summary."
         );
         setRawItems([]);
       } finally {
@@ -160,12 +160,12 @@ export default function ConsuntivoPage() {
 
   return (
     <>
-      <PageHeader title="Consuntivo" />
+      <PageHeader title="Summary" />
 
       <div className="mt-4 space-y-4 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/10 p-4">
         <div className="flex flex-wrap items-end gap-4">
           <div>
-            <label className="mb-1 block text-xs text-pitch-gray">Da</label>
+            <label className="mb-1 block text-xs text-pitch-gray">From</label>
             <input
               type="date"
               className={INPUT_CLASS}
@@ -175,7 +175,7 @@ export default function ConsuntivoPage() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-pitch-gray">A</label>
+            <label className="mb-1 block text-xs text-pitch-gray">To</label>
             <input
               type="date"
               className={INPUT_CLASS}
@@ -191,7 +191,7 @@ export default function ConsuntivoPage() {
             <input
               type="text"
               inputMode="numeric"
-              placeholder="es. 42"
+              placeholder="e.g. 42"
               className={`${INPUT_CLASS} w-28`}
               value={eventId}
               onChange={(e) => setEventId(e.target.value)}
@@ -213,7 +213,7 @@ export default function ConsuntivoPage() {
           </div>
           <div>
             <label className="mb-1 block text-xs text-pitch-gray">
-              Ruolo ID
+              Role ID
             </label>
             <input
               type="text"
@@ -244,11 +244,11 @@ export default function ConsuntivoPage() {
         <div className="flex flex-wrap items-end gap-4 border-t border-pitch-gray-dark/50 pt-4">
           <div>
             <label className="mb-1 block text-xs text-pitch-gray">
-              Staff (contiene)
+              Staff (contains)
             </label>
             <input
               type="text"
-              placeholder="Filtra risultati caricati…"
+              placeholder="Filter loaded results…"
               className={`${INPUT_CLASS} min-w-[180px]`}
               value={staffNameContains}
               onChange={(e) => setStaffNameContains(e.target.value)}
@@ -256,11 +256,11 @@ export default function ConsuntivoPage() {
           </div>
           <div>
             <label className="mb-1 block text-xs text-pitch-gray">
-              Codice ruolo (contiene)
+              Role code (contains)
             </label>
             <input
               type="text"
-              placeholder="Filtra risultati caricati…"
+              placeholder="Filter loaded results…"
               className={`${INPUT_CLASS} min-w-[160px]`}
               value={roleCodeContains}
               onChange={(e) => setRoleCodeContains(e.target.value)}
@@ -272,7 +272,7 @@ export default function ConsuntivoPage() {
             disabled={loading}
             onClick={handleApplyFilters}
           >
-            Applica filtri
+            Apply filters
           </button>
         </div>
       </div>
@@ -284,15 +284,15 @@ export default function ConsuntivoPage() {
       ) : null}
 
       {loading ? (
-        <p className="mt-4 text-sm text-pitch-gray">Caricamento…</p>
+        <p className="mt-4 text-sm text-pitch-gray">Loading…</p>
       ) : null}
 
       <div className="mt-4 flex flex-wrap gap-6 text-sm text-pitch-gray-light">
         <span>
-          Righe: <strong className="text-pitch-white">{filteredItems.length}</strong>
+          Rows: <strong className="text-pitch-white">{filteredItems.length}</strong>
         </span>
         <span>
-          Totale fee (righe visibili):{" "}
+          Total fee (visible rows):{" "}
           <strong className="text-pitch-white">
             {eur.format(visibleTotalFee)}
           </strong>
@@ -301,7 +301,7 @@ export default function ConsuntivoPage() {
 
       {!loading && !error && filteredItems.length === 0 ? (
         <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-6 text-center text-sm text-pitch-gray">
-          Nessuna riga per i filtri selezionati.
+          No rows for the selected filters.
         </div>
       ) : null}
 
@@ -311,19 +311,19 @@ export default function ConsuntivoPage() {
             <thead>
               <tr className="border-b border-pitch-gray-dark bg-pitch-gray-dark/30">
                 <th className="px-4 py-3 text-left font-medium text-pitch-gray">
-                  Data evento
+                  Event date
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-pitch-gray">
                   MD
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-pitch-gray">
-                  Evento
+                  Event
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-pitch-gray">
                   Staff
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-pitch-gray">
-                  Ruolo
+                  Role
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-pitch-gray">
                   Location

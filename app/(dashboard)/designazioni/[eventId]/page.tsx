@@ -72,19 +72,19 @@ function renderAssignmentsStatusBadge(
     case "DRAFT":
       return (
         <span className="rounded-full bg-pitch-gray-dark px-2 py-0.5 text-xs text-pitch-gray-light">
-          Bozza
+          Draft
         </span>
       );
     case "READY_TO_SEND":
       return (
         <span className="rounded-full bg-yellow-900/50 px-2 py-0.5 text-xs text-yellow-300">
-          Pronto invio
+          Ready to send
         </span>
       );
     case "SENT":
       return (
         <span className="rounded-full bg-green-900/50 px-2 py-0.5 text-xs text-green-300">
-          Inviato
+          Sent
         </span>
       );
     default:
@@ -117,15 +117,15 @@ function getAssignmentStatusClasses(status: string): string {
 function getAssignmentStatusLabel(status: string): string {
   switch (status) {
     case "DRAFT":
-      return "Bozza";
+      return "Draft";
     case "READY":
-      return "Pronto";
+      return "Ready";
     case "SENT":
-      return "Inviato";
+      return "Sent";
     case "CONFIRMED":
-      return "Confermato";
+      return "Confirmed";
     case "REJECTED":
-      return "Rifiutato";
+      return "Declined";
     default:
       return status;
   }
@@ -134,19 +134,19 @@ function getAssignmentStatusLabel(status: string): string {
 /** Valori `EventAssignmentsStatus` (tipo frontend); sul DB compaiono soprattutto DRAFT e READY_TO_SEND. */
 const EVENT_ASSIGNMENTS_STATUS_INFO = {
   DRAFT: {
-    label: "Bozza",
+    label: "Draft",
     description:
-      "Designazioni dell’evento ancora in lavorazione, senza invio mail collettivo completato.",
+      "Event assignments still in progress, with no bulk assignment email sent yet.",
   },
   READY_TO_SEND: {
-    label: "Pronto invio",
+    label: "Ready to send",
     description:
-      "Evento pronto per generare/inviare le email di designazione ai freelance.",
+      "Event ready to generate/send assignment emails to freelancers.",
   },
   SENT: {
-    label: "Inviato",
+    label: "Sent",
     description:
-      "Solo uso UI/API esteso: mail inviate; esito sulle singole righe (AssignmentStatus).",
+      "Extended UI/API use: emails sent; outcome on individual rows (AssignmentStatus).",
   },
 } satisfies Record<
   EventAssignmentsStatus,
@@ -156,26 +156,26 @@ const EVENT_ASSIGNMENTS_STATUS_INFO = {
 /** Valori `AssignmentStatus` (allineati a pitch-backend). */
 const ASSIGNMENT_STATUS_INFO = {
   DRAFT: {
-    label: "Bozza",
+    label: "Draft",
     description:
-      "Slot creato o in bozza, spesso senza persona o fuori dal blocco «pronto all’invio».",
+      "Slot created or in draft, often without a person or outside the “ready to send” block.",
   },
   READY: {
-    label: "Pronto",
+    label: "Ready",
     description:
-      "Riga inclusa nel prossimo invio mail (checkbox OK in tabella).",
+      "Row included in the next email send (OK checkbox in table).",
   },
   SENT: {
-    label: "Inviato",
-    description: "Notifica inviata al freelance, in attesa di conferma o rifiuto.",
+    label: "Sent",
+    description: "Notification sent to the freelancer, awaiting accept or decline.",
   },
   CONFIRMED: {
-    label: "Confermato",
-    description: "Il freelance ha accettato l’assegnazione.",
+    label: "Confirmed",
+    description: "The freelancer accepted the assignment.",
   },
   REJECTED: {
-    label: "Rifiutato",
-    description: "Il freelance ha rifiutato; serve riassegnare o rivedere lo slot.",
+    label: "Declined",
+    description: "The freelancer declined; reassign or adjust the slot.",
   },
 } satisfies Record<AssignmentStatus, { label: string; description: string }>;
 
@@ -379,7 +379,7 @@ function StaffPicker({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
       <div className="w-full max-w-md rounded-lg border border-pitch-gray-dark bg-pitch-bg p-4">
         <div className="mb-2 text-sm font-semibold text-pitch-white">
-          Assegna {roleCode || "—"}
+          Assign {roleCode || "—"}
         </div>
         {errorMessage ? (
           <p
@@ -391,7 +391,7 @@ function StaffPicker({
         ) : null}
         <ul className="max-h-64 overflow-auto text-sm">
           {candidates.length === 0 ? (
-            <li className="text-pitch-gray">Nessuna persona compatibile</li>
+            <li className="text-pitch-gray">No compatible person found</li>
           ) : (
             candidates.map((s) => (
               <li key={s.id}>
@@ -413,7 +413,7 @@ function StaffPicker({
           className="mt-3 text-xs text-pitch-gray hover:text-pitch-gray-light"
           onClick={onClose}
         >
-          Chiudi
+          Close
         </button>
       </div>
     </div>
@@ -503,7 +503,7 @@ export default function DesignazioniEventPage() {
       setRoles(rolesData);
       setStandardRequirements(stdData);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Errore nel caricamento");
+      setError(e instanceof Error ? e.message : "Loading error");
     } finally {
       setLoading(false);
     }
@@ -581,7 +581,7 @@ export default function DesignazioniEventPage() {
     try {
       const row = assignments.find((x) => x.id === assignmentId);
       if (!row) {
-        setPickerError("Slot non trovato.");
+        setPickerError("Slot not found.");
         return;
       }
       await updateDesignatorAssignment(assignmentId, {
@@ -595,7 +595,7 @@ export default function DesignazioniEventPage() {
       setPickerError(
         err instanceof Error
           ? err.message
-          : "Non è stato possibile aggiornare lo slot."
+          : "Unable to update slot."
       );
     }
   };
@@ -629,7 +629,7 @@ export default function DesignazioniEventPage() {
         prev.map((a) => (a.id === assignmentId ? updated : a))
       );
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Errore");
+      alert(e instanceof Error ? e.message : "Error");
     } finally {
       setActioningId(null);
     }
@@ -638,7 +638,7 @@ export default function DesignazioniEventPage() {
   const handleAddSlot = async (roleId: number) => {
     const role = roles.find((r) => r.id === roleId);
     if (!role) {
-      alert("Ruolo non trovato.");
+      alert("Role not found.");
       return;
     }
     setAddingSlot(true);
@@ -651,7 +651,7 @@ export default function DesignazioniEventPage() {
       );
       await reloadAssignments();
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Errore");
+      alert(e instanceof Error ? e.message : "Error");
     } finally {
       setAddingSlot(false);
     }
@@ -668,7 +668,7 @@ export default function DesignazioniEventPage() {
       setReadyMap({});
     } catch (err) {
       console.error(err);
-      alert(err instanceof Error ? err.message : "Errore nella rigenerazione");
+      alert(err instanceof Error ? err.message : "Regeneration error");
     } finally {
       setIsGeneratingFromStandard(false);
     }
@@ -697,9 +697,9 @@ export default function DesignazioniEventPage() {
   if (loading && assignments.length === 0) {
     return (
       <>
-        <PageHeader title="Designazioni evento" />
+        <PageHeader title="Event assignments" />
         <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-8 text-center text-pitch-gray">
-          Caricamento...
+          Loading...
         </div>
       </>
     );
@@ -708,7 +708,7 @@ export default function DesignazioniEventPage() {
   if (error) {
     return (
       <>
-        <PageHeader title="Designazioni evento" />
+        <PageHeader title="Event assignments" />
         <div className="mt-6 rounded-lg border border-red-900/50 bg-red-900/20 p-6 text-red-300">
           {error}
         </div>
@@ -719,9 +719,9 @@ export default function DesignazioniEventPage() {
   if (!event) {
     return (
       <>
-        <PageHeader title="Designazioni evento" />
+        <PageHeader title="Event assignments" />
         <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-8 text-center text-pitch-gray">
-          Evento non trovato
+          Event not found
         </div>
       </>
     );
@@ -735,27 +735,27 @@ export default function DesignazioniEventPage() {
   return (
     <>
       <PageHeader
-        title="Designazioni"
+        title="Event assignments"
         subtitle={
           <Link
             href="/designazioni"
             className="text-pitch-gray hover:text-pitch-accent"
           >
-            ← Torna alla lista
+            ← Back to list
           </Link>
         }
       />
 
       <section className="mt-4 space-y-2">
         <h2 className="text-sm font-semibold text-pitch-white">
-          Legenda stati
+          Status legend
         </h2>
         <p className="text-[11px] leading-snug text-pitch-gray">
           Enum{" "}
           <code className="rounded bg-pitch-gray-dark px-1 font-mono text-[10px] text-pitch-accent">
             EventAssignmentsStatus
           </code>{" "}
-          → campo{" "}
+          → field{" "}
           <code className="rounded bg-pitch-gray-dark px-1 font-mono text-[10px] text-pitch-gray-light">
             assignments_status
           </code>
@@ -763,16 +763,16 @@ export default function DesignazioniEventPage() {
           <code className="rounded bg-pitch-gray-dark px-1 font-mono text-[10px] text-pitch-accent">
             AssignmentStatus
           </code>{" "}
-          → campo{" "}
+          → field{" "}
           <code className="rounded bg-pitch-gray-dark px-1 font-mono text-[10px] text-pitch-gray-light">
             status
           </code>{" "}
-          su ogni riga.
+          on each row.
         </p>
         <div className="grid gap-2 md:grid-cols-2">
           <div className="rounded-md border border-pitch-gray-dark bg-pitch-gray-dark/20 p-2 text-xs">
             <div className="mb-1.5 font-semibold text-pitch-gray-light">
-              Stato designazioni (evento)
+              Assignment status (event)
             </div>
             {(
               Object.entries(EVENT_ASSIGNMENTS_STATUS_INFO) as [
@@ -798,7 +798,7 @@ export default function DesignazioniEventPage() {
           </div>
           <div className="rounded-md border border-pitch-gray-dark bg-pitch-gray-dark/20 p-2 text-xs">
             <div className="mb-1.5 font-semibold text-pitch-gray-light">
-              Stato singole assegnazioni
+              Individual assignment status
             </div>
             {(
               Object.entries(ASSIGNMENT_STATUS_INFO) as [
@@ -824,8 +824,8 @@ export default function DesignazioniEventPage() {
             <p className="mt-1.5 border-t border-pitch-gray-dark/60 pt-1.5 text-[10px] leading-snug text-pitch-gray">
               <code className="font-mono text-pitch-gray-light">ACCEPTED</code> /{" "}
               <code className="font-mono text-pitch-gray-light">DECLINED</code>
-              : solo legacy in dati/UI, trattati come Confermato / Rifiutato nei colori
-              tabella.
+              : legacy in data/UI only, shown with Confirmed / Declined colors in the
+              table.
             </p>
           </div>
         </div>
@@ -834,7 +834,7 @@ export default function DesignazioniEventPage() {
       {/* Select evento */}
       <div className="mt-6">
         <label className="mb-2 block text-sm text-pitch-gray">
-          Evento
+          Event
         </label>
         <select
           value={event.id}
@@ -867,7 +867,7 @@ export default function DesignazioniEventPage() {
       <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-6">
         <div className="flex flex-wrap items-center gap-4">
           <div>
-            <span className="text-sm text-pitch-gray">Data e KO: </span>
+            <span className="text-sm text-pitch-gray">Date & KO: </span>
             <span className="text-pitch-white">
               {formatKoItaly(event.koItaly)}
             </span>
@@ -877,14 +877,14 @@ export default function DesignazioniEventPage() {
             <span className="text-pitch-white">{match}</span>
           </div>
           <div>
-            <span className="text-sm text-pitch-gray">Competizione: </span>
+            <span className="text-sm text-pitch-gray">Competition: </span>
             <span className="text-pitch-white">
               {event.competitionName}
               {event.competitionCode ? ` (${event.competitionCode})` : ""}
             </span>
           </div>
           <div>
-            <span className="text-sm text-pitch-gray">Area produzione: </span>
+            <span className="text-sm text-pitch-gray">Production area: </span>
             <span className="text-pitch-white">
               {event.areaProduzione ?? "—"}
             </span>
@@ -894,11 +894,11 @@ export default function DesignazioniEventPage() {
             <span className="text-pitch-white">{event.showName ?? "—"}</span>
           </div>
           <div>
-            <span className="text-sm text-pitch-gray">Stato evento: </span>
+            <span className="text-sm text-pitch-gray">Event status: </span>
             <span className="text-pitch-white">{event.status}</span>
           </div>
           <div>
-            <span className="text-sm text-pitch-gray">Stato designazioni: </span>
+            <span className="text-sm text-pitch-gray">Assignment status: </span>
             {renderAssignmentsStatusBadge(event.assignmentsStatus)}
           </div>
           <div className="flex items-center gap-2">
@@ -908,7 +908,7 @@ export default function DesignazioniEventPage() {
               disabled={!hasAnyReady}
               className="rounded bg-pitch-accent px-3 py-1 text-xs font-semibold text-pitch-bg hover:bg-yellow-200 disabled:cursor-not-allowed disabled:bg-pitch-gray-dark disabled:text-pitch-gray"
             >
-              Pronto all&apos;invio
+              Ready to send
             </button>
             <button
               type="button"
@@ -920,7 +920,7 @@ export default function DesignazioniEventPage() {
               }
               className="rounded border border-pitch-gray px-3 py-1 text-xs text-pitch-gray-light hover:bg-pitch-gray-dark disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {isGeneratingFromStandard ? "Rigenerazione..." : "Rigenera da standard"}
+              {isGeneratingFromStandard ? "Regenerating..." : "Regenerate from standard"}
             </button>
           </div>
         </div>
@@ -929,27 +929,26 @@ export default function DesignazioniEventPage() {
       {/* Standard vs assegnato (riepilogo per ruolo) */}
       <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/20 p-5">
         <h3 className="text-base font-semibold text-pitch-white">
-          Standard vs assegnato per ruolo
+          Standard vs assigned by role
         </h3>
         <p className="mt-1 text-xs text-pitch-gray">
-          Confronto tra FTE richiesti dagli standard e slot/assegnazioni
-          correnti per <code className="text-pitch-gray-light">roleId</code>.
+          Comparison of FTE required by standards vs current slots/assignments
+          per <code className="text-pitch-gray-light">roleId</code>.
         </p>
         {standardRequirements.length === 0 ? (
           <p className="mt-4 text-sm text-pitch-gray">
-            Nessuno standard requirement trovato per questo evento (mancano
-            standard onsite/cologno o nessuna riga in anagrafica).
+            No standard requirements found for this event (missing standard onsite/cologno or no rows in the database).
           </p>
         ) : (
           <div className="mt-4 overflow-x-auto">
             <table className="w-full min-w-[640px] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-pitch-gray-dark text-left text-pitch-gray">
-                  <th className="px-3 py-2 font-medium">Ruolo</th>
-                  <th className="px-3 py-2 font-medium text-right">Richiesti</th>
+                  <th className="px-3 py-2 font-medium">Role</th>
+                  <th className="px-3 py-2 font-medium text-right">Required</th>
                   <th className="px-3 py-2 font-medium text-right">Slot</th>
-                  <th className="px-3 py-2 font-medium text-right">Assegnati</th>
-                  <th className="px-3 py-2 font-medium">Situazione</th>
+                  <th className="px-3 py-2 font-medium text-right">Assigned</th>
+                  <th className="px-3 py-2 font-medium">Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -964,25 +963,25 @@ export default function DesignazioniEventPage() {
                   if (lackSlots) {
                     situation = (
                       <span className="rounded-full bg-amber-900/40 px-2 py-0.5 text-xs text-amber-200">
-                        Mancano {row.required - row.slots} slot
+                        {row.required - row.slots} slots missing
                       </span>
                     );
                   } else if (extraSlots) {
                     situation = (
                       <span className="rounded-full bg-sky-900/40 px-2 py-0.5 text-xs text-sky-200">
-                        +{row.slots - row.required} oltre standard
+                        +{row.slots - row.required} above standard
                       </span>
                     );
                   } else if (extraOnly) {
                     situation = (
                       <span className="rounded-full bg-slate-700/60 px-2 py-0.5 text-xs text-pitch-gray-light">
-                        Solo extra (non in standard)
+                        Extra only (not in standard)
                       </span>
                     );
                   } else if (row.required > 0) {
                     situation = (
                       <span className="rounded-full bg-emerald-900/30 px-2 py-0.5 text-xs text-emerald-200">
-                        Slot allineati
+                        Slots aligned
                       </span>
                     );
                   }
@@ -1017,7 +1016,7 @@ export default function DesignazioniEventPage() {
                         {row.assigned}
                         {row.slots > 0 && row.assigned < row.slots ? (
                           <span className="ml-1 text-[10px] text-amber-300">
-                            ({row.slots - row.assigned} liberi)
+                            ({row.slots - row.assigned} free)
                           </span>
                         ) : null}
                       </td>
@@ -1034,7 +1033,7 @@ export default function DesignazioniEventPage() {
       {/* Tabella Assegnazioni */}
       <div className="mt-6 flex items-center justify-between">
         <h3 className="text-lg font-semibold text-pitch-white">
-          Assegnazioni
+          Assignments
         </h3>
         <div className="flex items-center gap-2">
           <select
@@ -1054,7 +1053,7 @@ export default function DesignazioniEventPage() {
             disabled={addingSlot}
             className="rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
           >
-            <option value="">Aggiungi slot...</option>
+            <option value="">Add slot...</option>
             {roles.map((r) => (
               <option key={r.id} value={`${r.code}__${r.location}`}>
                 {r.code} - {r.name} ({r.location})
@@ -1067,17 +1066,17 @@ export default function DesignazioniEventPage() {
       <div className="mt-4 overflow-x-auto">
         {assignments.length === 0 ? (
           <div className="rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-8 text-center text-pitch-gray">
-            Nessuna assegnazione. Aggiungi uno slot.
+            No assignments. Add a slot.
           </div>
         ) : (
           <table className="w-full min-w-[800px] border-collapse">
             <thead>
               <tr className="border-b border-pitch-gray-dark">
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Ruolo
+                  Role
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Persona
+                  Person
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
                   Fee
@@ -1092,7 +1091,7 @@ export default function DesignazioniEventPage() {
                   OK
                 </th>
                 <th className="px-4 py-3 text-right text-sm font-medium text-pitch-gray">
-                  Azioni
+                  Actions
                 </th>
               </tr>
             </thead>
@@ -1124,7 +1123,7 @@ export default function DesignazioniEventPage() {
                             onClick={() => handleClearStaff(a.id)}
                             className={btnSmallGrey}
                           >
-                            Svuota
+                            Clear
                           </button>
                         </div>
                       ) : (
@@ -1133,7 +1132,7 @@ export default function DesignazioniEventPage() {
                           onClick={() => setStaffPickerForId(a.id)}
                           className={btnSmallYellow}
                         >
-                          Assegna
+                          Assign
                         </button>
                       )}
                     </td>
@@ -1158,7 +1157,7 @@ export default function DesignazioniEventPage() {
                           }
                         }}
                         className="w-32 rounded border border-pitch-gray-dark bg-pitch-gray-dark px-2 py-1 text-sm text-pitch-white"
-                        placeholder="Note..."
+                        placeholder="Notes..."
                       />
                     </td>
                     <td className="px-4 py-3">
@@ -1175,8 +1174,8 @@ export default function DesignazioniEventPage() {
                         className="h-4 w-4 rounded border-pitch-gray-dark"
                         title={
                           !isAssigned
-                            ? "Seleziona prima una persona"
-                            : "Designazione pronta"
+                            ? "Select a person first"
+                            : "Assignment ready"
                         }
                       />
                     </td>
@@ -1186,7 +1185,7 @@ export default function DesignazioniEventPage() {
                         className="text-xs text-red-400 hover:text-red-300"
                         onClick={async () => {
                           const confirmDelete = window.confirm(
-                            "Vuoi cancellare questo slot?"
+                            "Delete this slot?"
                           );
                           if (!confirmDelete) return;
                           try {
@@ -1197,7 +1196,7 @@ export default function DesignazioniEventPage() {
                           }
                         }}
                       >
-                        Cancella
+                        Delete
                       </button>
                     </td>
                   </tr>

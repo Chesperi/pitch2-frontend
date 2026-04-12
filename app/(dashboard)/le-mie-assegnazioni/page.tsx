@@ -34,19 +34,19 @@ function renderStatusBadge(status: string): React.ReactNode {
     case "CONFIRMED":
       return (
         <span className="rounded-full bg-green-900/50 px-2 py-0.5 text-xs text-green-300">
-          Confermato
+          Confirmed
         </span>
       );
     case "REJECTED":
       return (
         <span className="rounded-full bg-red-900/50 px-2 py-0.5 text-xs text-red-300">
-          Rifiutato
+          Declined
         </span>
       );
     default:
       return (
         <span className="rounded-full bg-yellow-900/50 px-2 py-0.5 text-xs text-yellow-300">
-          Da confermare
+          To confirm
         </span>
       );
   }
@@ -114,11 +114,11 @@ export default function LeMieAssegnazioniPage() {
         const seconds = err.retryAfterSeconds ?? 600;
         const minutes = Math.ceil(seconds / 60);
         setBlockedMessage(
-          `Troppi tentativi di accesso. Riprova tra circa ${minutes} minuti.`
+          `Too many attempts. Try again in about ${minutes} minutes.`
         );
         return;
       }
-      setError("Errore nel caricamento delle designazioni.");
+      setError("Error loading assignments.");
     } finally {
       setLoading(false);
     }
@@ -159,7 +159,7 @@ export default function LeMieAssegnazioniPage() {
         )
       );
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Errore nella conferma");
+      alert(e instanceof Error ? e.message : "Error confirming");
     } finally {
       setActionId(null);
     }
@@ -183,7 +183,7 @@ export default function LeMieAssegnazioniPage() {
         )
       );
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Errore nel rifiuto");
+      alert(e instanceof Error ? e.message : "Error declining");
     } finally {
       setActionId(null);
     }
@@ -196,7 +196,7 @@ export default function LeMieAssegnazioniPage() {
       await confirmAllMyAssignmentsStaff();
       await loadAssignments();
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Errore nella conferma");
+      alert(e instanceof Error ? e.message : "Error confirming");
     } finally {
       setConfirmingAll(false);
     }
@@ -212,12 +212,12 @@ export default function LeMieAssegnazioniPage() {
   if (loading) {
     return (
       <>
-        <PageHeader title="Le mie assegnazioni" />
+        <PageHeader title="My assignments" />
         <div className="mt-4">
-          <SearchBar placeholder="Cerca assegnazioni..." />
+          <SearchBar placeholder="Search assignments..." />
         </div>
         <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-8 text-center text-pitch-gray">
-          Caricamento...
+          Loading...
         </div>
       </>
     );
@@ -226,7 +226,7 @@ export default function LeMieAssegnazioniPage() {
   if (blockedMessage) {
     return (
       <>
-        <PageHeader title="Le mie assegnazioni" />
+        <PageHeader title="My assignments" />
         <div className="mt-6 rounded-lg border border-yellow-900/50 bg-yellow-900/20 p-6 text-yellow-300">
           {blockedMessage}
         </div>
@@ -237,9 +237,9 @@ export default function LeMieAssegnazioniPage() {
   if (error) {
     return (
       <>
-        <PageHeader title="Le mie assegnazioni" />
+        <PageHeader title="My assignments" />
         <div className="mt-4">
-          <SearchBar placeholder="Cerca assegnazioni..." />
+          <SearchBar placeholder="Search assignments..." />
         </div>
         <div className="mt-6 rounded-lg border border-red-900/50 bg-red-900/20 p-6 text-red-300">
           {error}
@@ -250,10 +250,10 @@ export default function LeMieAssegnazioniPage() {
 
   return (
     <>
-      <PageHeader title="Le mie assegnazioni" />
+      <PageHeader title="My assignments" />
       <div className="mt-4">
         <SearchBar
-          placeholder="Cerca per competizione, squadre, show..."
+          placeholder="Search by competition, teams, show..."
           onSearchChange={setSearch}
         />
       </div>
@@ -266,7 +266,7 @@ export default function LeMieAssegnazioniPage() {
             disabled={confirmingAll}
             className="rounded-lg bg-pitch-accent px-4 py-2 text-sm font-medium text-pitch-bg hover:bg-yellow-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {confirmingAll ? "Conferma in corso..." : "Conferma tutti"}
+            {confirmingAll ? "Confirming..." : "Confirm all"}
           </button>
         </div>
       )}
@@ -275,27 +275,27 @@ export default function LeMieAssegnazioniPage() {
         {filteredItems.length === 0 ? (
           <div className="rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-12 text-center text-pitch-gray">
             {items.length === 0
-              ? "Non hai ancora assegnazioni per questo periodo."
-              : "Nessun risultato per la ricerca."}
+              ? "No assignments for this period yet."
+              : "No results for your search."}
           </div>
         ) : (
           <table className="w-full min-w-[900px] border-collapse">
             <thead>
               <tr className="border-b border-pitch-gray-dark">
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Data KO
+                  KO date
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
                   Match
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Competizione
+                  Competition
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Luogo
+                  Venue
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Ruolo
+                  Role
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
                   Fee
@@ -304,10 +304,10 @@ export default function LeMieAssegnazioniPage() {
                   Status
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Targa
+                  Plate
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Azioni
+                  Actions
                 </th>
               </tr>
             </thead>
@@ -375,7 +375,7 @@ export default function LeMieAssegnazioniPage() {
                               onChange={() => toggleCarPass(assignment.id)}
                               className="rounded border-pitch-gray-dark bg-pitch-gray-dark text-pitch-accent focus:ring-pitch-accent"
                             />
-                            Pass auto
+                            Car pass
                           </label>
                         </div>
                       ) : (
@@ -400,7 +400,7 @@ export default function LeMieAssegnazioniPage() {
                             disabled={isActioning}
                             className="rounded bg-pitch-accent px-3 py-1 text-sm font-medium text-pitch-bg hover:bg-yellow-200 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            {isActioning ? "..." : "Conferma"}
+                            {isActioning ? "..." : "Confirm"}
                           </button>
                           <button
                             type="button"
@@ -408,7 +408,7 @@ export default function LeMieAssegnazioniPage() {
                             disabled={isActioning}
                             className="rounded border border-red-500/50 bg-transparent px-3 py-1 text-sm font-medium text-red-400 hover:bg-red-900/30 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            Rifiuta
+                            Decline
                           </button>
                         </div>
                       )}

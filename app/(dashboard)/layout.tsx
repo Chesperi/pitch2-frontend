@@ -18,8 +18,8 @@ export default function DashboardLayout({
 }) {
   const [collapsed, setCollapsed] = useState(true);
   const [isFreelance, setIsFreelance] = useState(false);
-  const [userName, setUserName] = useState("Utente");
-  const [userEmail, setUserEmail] = useState("Email non disponibile");
+  const [userName, setUserName] = useState("User");
+  const [userEmail, setUserEmail] = useState("Email not available");
   const [userInitials, setUserInitials] = useState("?");
 
   useEffect(() => {
@@ -32,14 +32,14 @@ export default function DashboardLayout({
           setIsFreelance(lvl === "FREELANCE");
           const fullName = `${me.name ?? ""} ${me.surname ?? ""}`.trim();
           setUserName(fullName || "Utente");
-          setUserEmail(me.email?.trim() || "Email non disponibile");
+          setUserEmail(me.email?.trim() || "Email not available");
           setUserInitials(getInitials(me.name ?? "", me.surname ?? ""));
         }
       } catch {
         if (!cancelled) {
           setIsFreelance(false);
-          setUserName("Utente");
-          setUserEmail("Email non disponibile");
+          setUserName("User");
+          setUserEmail("Email not available");
           setUserInitials("?");
         }
       }

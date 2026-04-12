@@ -25,6 +25,7 @@ const LOOKUP_CATEGORY_ORDER = [
   { key: "facilities", label: "Facilities" },
   { key: "studio", label: "Studio" },
   { key: "show", label: "Show" },
+  { key: "rights_holder", label: "Rights holder" },
 ] as const;
 
 type CategoryKey = (typeof LOOKUP_CATEGORY_ORDER)[number]["key"];
@@ -88,7 +89,7 @@ export function LookupValuesSection() {
       setItems(rows);
     } catch (e) {
       setError(
-        e instanceof Error ? e.message : "Impossibile caricare il vocabolario."
+        e instanceof Error ? e.message : "Unable to load vocabulary."
       );
       setItems([]);
     } finally {
@@ -166,19 +167,19 @@ export function LookupValuesSection() {
       closeModal();
       await load();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Errore salvataggio");
+      alert(err instanceof Error ? err.message : "Save error");
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (row: LookupValue) => {
-    if (!confirm(`Eliminare «${row.value}» da ${row.category}?`)) return;
+    if (!confirm(`Remove "${row.value}" from ${row.category}?`)) return;
     try {
       await deleteLookupValue(row.id);
       await load();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Errore eliminazione");
+      alert(err instanceof Error ? err.message : "Delete error");
     }
   };
 
@@ -187,10 +188,10 @@ export function LookupValuesSection() {
 
   return (
     <section className="mt-6">
-      <h2 className="text-lg font-semibold text-pitch-white">Vocabolario</h2>
+      <h2 className="text-lg font-semibold text-pitch-white">Vocabulary</h2>
       <p className="mt-1 text-xs text-pitch-gray">
-        Valori controllati per standard onsite, Cologno, facilities, studio e show
-        (usati nei form eventi e regole automatiche).
+        Controlled values for standard onsite, Cologno, facilities, studio, show and
+        rights holder (used in event forms and automatic rules).
       </p>
 
       {error ? (
@@ -200,7 +201,7 @@ export function LookupValuesSection() {
       ) : null}
 
       {loading ? (
-        <p className="mt-4 text-sm text-pitch-gray">Caricamento…</p>
+        <p className="mt-4 text-sm text-pitch-gray">Loading…</p>
       ) : (
         <div className="mt-4">
           {LOOKUP_CATEGORY_ORDER.map((cat) => {
@@ -220,7 +221,7 @@ export function LookupValuesSection() {
                       className={PRIMARY_BTN_SM}
                       onClick={() => openAdd(cat.key)}
                     >
-                      Aggiungi valore
+                      Add value
                     </button>
                   ) : null}
                 </div>
@@ -228,9 +229,9 @@ export function LookupValuesSection() {
                   <table className="w-full min-w-[480px] border-collapse">
                     <thead>
                       <tr className="border-b border-[#2a2a2a]">
-                        <th className={DB_TH}>Valore</th>
-                        <th className={DB_TH}>Ordine</th>
-                        <th className={DB_TH}>Azioni</th>
+                        <th className={DB_TH}>Value</th>
+                        <th className={DB_TH}>Order</th>
+                        <th className={DB_TH}>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -240,7 +241,7 @@ export function LookupValuesSection() {
                             colSpan={3}
                             className={`${DB_TD_EMPTY} py-4 text-center`}
                           >
-                            Nessun valore — usa «Aggiungi valore».
+                            No values — use &quot;Add value&quot;.
                           </td>
                         </tr>
                       ) : (
@@ -256,14 +257,14 @@ export function LookupValuesSection() {
                                     className="mr-2 text-xs text-pitch-accent underline-offset-2 hover:underline"
                                     onClick={() => openEdit(row)}
                                   >
-                                    Modifica
+                                    Edit
                                   </button>
                                   <button
                                     type="button"
                                     className="text-xs text-red-400 underline-offset-2 hover:underline"
                                     onClick={() => void handleDelete(row)}
                                   >
-                                    Elimina
+                                    Delete
                                   </button>
                                 </>
                               ) : (
@@ -286,7 +287,7 @@ export function LookupValuesSection() {
         <div className="fixed inset-0 z-[72] flex items-center justify-center bg-black/70 p-4">
           <div className="w-full max-w-md rounded-lg border border-pitch-gray-dark bg-pitch-bg p-6">
             <h3 className="mb-4 text-base font-semibold text-pitch-white">
-              {editing ? "Modifica valore" : "Nuovo valore"} —{" "}
+              {editing ? "Edit value" : "New value"} —{" "}
               {
                 LOOKUP_CATEGORY_ORDER.find((c) => c.key === modalCategory)
                   ?.label
@@ -295,7 +296,7 @@ export function LookupValuesSection() {
             <form onSubmit={(e) => void handleSubmit(e)} className="space-y-3">
               <div>
                 <label className="mb-1 block text-xs text-pitch-gray">
-                  Valore
+                  Value
                 </label>
                 <input
                   type="text"
@@ -306,7 +307,7 @@ export function LookupValuesSection() {
               </div>
               <div>
                 <label className="mb-1 block text-xs text-pitch-gray">
-                  Ordine
+                  Order
                 </label>
                 <input
                   type="number"
@@ -323,14 +324,14 @@ export function LookupValuesSection() {
                   onClick={closeModal}
                   className="rounded border border-pitch-gray-dark px-4 py-2 text-sm text-pitch-white hover:bg-pitch-gray-dark/40"
                 >
-                  Annulla
+                  Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
                   className={PRIMARY_BTN_SM}
                 >
-                  {saving ? "Salvataggio…" : "Salva"}
+                  {saving ? "Saving…" : "Save"}
                 </button>
               </div>
             </form>

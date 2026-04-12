@@ -43,21 +43,21 @@ function renderEventStatus(status: string | null): React.ReactNode {
     case "TBD":
       return (
         <span className="rounded-full bg-yellow-900/50 px-2 py-0.5 text-xs text-yellow-300">
-          Da confermare
+          To confirm
         </span>
       );
     case "OK":
     case "CONFIRMED":
       return (
         <span className="rounded-full bg-green-900/50 px-2 py-0.5 text-xs text-green-300">
-          {value === "OK" ? "OK" : "Confermato"}
+          {value === "OK" ? "OK" : "Confirmed"}
         </span>
       );
     case "CANCELLED":
     case "CANCELED":
       return (
         <span className="rounded-full bg-red-900/50 px-2 py-0.5 text-xs text-red-300">
-          Cancellato
+          Cancelled
         </span>
       );
     default:
@@ -79,19 +79,19 @@ function renderAssignmentsStatusBadge(
     case "DRAFT":
       return (
         <span className="rounded-full bg-pitch-gray-dark px-2 py-0.5 text-xs text-pitch-gray-light">
-          Bozza
+          Draft
         </span>
       );
     case "READY_TO_SEND":
       return (
         <span className="rounded-full bg-yellow-900/50 px-2 py-0.5 text-xs text-yellow-300">
-          Pronto invio
+          Ready
         </span>
       );
     case "SENT":
       return (
         <span className="rounded-full bg-green-900/50 px-2 py-0.5 text-xs text-green-300">
-          Inviato
+          Sent
         </span>
       );
     default:
@@ -129,14 +129,14 @@ function EventFormLookupSelect({
         onChange={(e) => onChange(e.target.value)}
         className={inputClassName}
       >
-        <option value="">— seleziona —</option>
+        <option value="">— select —</option>
         {options.map((o) => (
           <option key={o.id} value={o.value}>
             {o.value}
           </option>
         ))}
         {v && !inList ? (
-          <option value={v}>{v} (non in elenco)</option>
+          <option value={v}>{v} (not in list)</option>
         ) : null}
       </select>
     </div>
@@ -205,17 +205,21 @@ function EventModal({
   const [lookupFacilities, setLookupFacilities] = useState<LookupValue[]>([]);
   const [lookupStudio, setLookupStudio] = useState<LookupValue[]>([]);
   const [lookupShow, setLookupShow] = useState<LookupValue[]>([]);
+  const [lookupRightsHolder, setLookupRightsHolder] = useState<LookupValue[]>(
+    []
+  );
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       try {
-        const [a, b, c, d, e] = await Promise.all([
+        const [a, b, c, d, e, f] = await Promise.all([
           fetchLookupValues("standard_onsite"),
           fetchLookupValues("standard_cologno"),
           fetchLookupValues("facilities"),
           fetchLookupValues("studio"),
           fetchLookupValues("show"),
+          fetchLookupValues("rights_holder"),
         ]);
         if (!cancelled) {
           setLookupOnsite(a);
@@ -223,6 +227,7 @@ function EventModal({
           setLookupFacilities(c);
           setLookupStudio(d);
           setLookupShow(e);
+          setLookupRightsHolder(f);
         }
       } catch {
         if (!cancelled) {
@@ -231,6 +236,7 @@ function EventModal({
           setLookupFacilities([]);
           setLookupStudio([]);
           setLookupShow([]);
+          setLookupRightsHolder([]);
         }
       }
     })();
@@ -266,7 +272,7 @@ function EventModal({
       onSaved();
       onClose();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Errore");
+      alert(err instanceof Error ? err.message : "Error");
     } finally {
       setSaving(false);
     }
@@ -279,13 +285,13 @@ function EventModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
       <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-pitch-gray-dark bg-pitch-bg p-6">
         <h3 className="mb-4 text-lg font-semibold text-pitch-white">
-          {event ? "Modifica evento" : "Nuovo evento"}
+          {event ? "Edit event" : "New event"}
         </h3>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="mb-1 block text-xs text-pitch-gray">
-                Categoria
+                Category
               </label>
               <select
                 value={form.category}
@@ -320,7 +326,7 @@ function EventModal({
           </div>
           <div>
             <label className="mb-1 block text-xs text-pitch-gray">
-              Competizione
+              Competition
             </label>
             <input
               type="text"
@@ -334,7 +340,7 @@ function EventModal({
           </div>
           <div>
             <label className="mb-1 block text-xs text-pitch-gray">
-              Codice competizione
+              Competition code
             </label>
             <input
               type="text"
@@ -362,7 +368,7 @@ function EventModal({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="mb-1 block text-xs text-pitch-gray">
-                Squadra casa
+                Home team
               </label>
               <input
                 type="text"
@@ -376,7 +382,7 @@ function EventModal({
             </div>
             <div>
               <label className="mb-1 block text-xs text-pitch-gray">
-                Squadra trasferta
+                Away team
               </label>
               <input
                 type="text"
@@ -392,7 +398,7 @@ function EventModal({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="mb-1 block text-xs text-pitch-gray">
-                Data/ora KO (ISO)
+                KO date/time (ISO)
               </label>
               <input
                 type="datetime-local"
@@ -413,7 +419,7 @@ function EventModal({
             </div>
             <div>
               <label className="mb-1 block text-xs text-pitch-gray">
-                PRE (minuti)
+                PRE (minutes)
               </label>
               <input
                 type="number"
@@ -451,7 +457,7 @@ function EventModal({
           </div>
           <div>
             <label className="mb-1 block text-xs text-pitch-gray">
-              Area produzione
+              Production area
             </label>
             <input
               type="text"
@@ -498,24 +504,18 @@ function EventModal({
             />
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <div>
-              <label className="mb-1 block text-xs text-pitch-gray">
-                Rights holder
-              </label>
-              <input
-                type="text"
-                value={form.rightsHolder ?? ""}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, rightsHolder: e.target.value }))
-                }
-                className={inputClass}
-              />
-            </div>
             <EventFormLookupSelect
               label="Facilities"
               value={form.facilities ?? ""}
               onChange={(v) => setForm((f) => ({ ...f, facilities: v }))}
               options={lookupFacilities}
+              inputClassName={inputClass}
+            />
+            <EventFormLookupSelect
+              label="Rights holder"
+              value={form.rightsHolder ?? ""}
+              onChange={(v) => setForm((f) => ({ ...f, rightsHolder: v }))}
+              options={lookupRightsHolder}
               inputClassName={inputClass}
             />
             <EventFormLookupSelect
@@ -528,7 +528,7 @@ function EventModal({
           </div>
           <div>
             <label className="mb-1 block text-xs text-pitch-gray">
-              Note evento
+              Event notes
             </label>
             <textarea
               value={form.notes ?? ""}
@@ -545,14 +545,14 @@ function EventModal({
               onClick={onClose}
               className="rounded border border-pitch-gray-dark px-4 py-2 text-sm text-pitch-gray-light hover:bg-pitch-gray-dark"
             >
-              Annulla
+              Cancel
             </button>
             <button
               type="submit"
               disabled={saving}
               className="rounded bg-pitch-accent px-4 py-2 text-sm font-medium text-pitch-bg hover:bg-yellow-200 disabled:opacity-50"
             >
-              {saving ? "Salvataggio..." : "Salva"}
+              {saving ? "Saving..." : "Save"}
             </button>
           </div>
         </form>
@@ -589,7 +589,7 @@ async function downloadAccreditiExport(
     url,
     filename,
     onError: () => {
-      alert("Errore durante il download del file");
+      alert("Error downloading file");
     },
   });
 }
@@ -686,7 +686,7 @@ export default function EventiPage() {
   return (
     <>
       <PageHeader
-        title="Eventi"
+        title="Events"
         actions={
           <div className="flex flex-wrap gap-2">
             {canImportMatches ? (
@@ -695,7 +695,7 @@ export default function EventiPage() {
                 onClick={() => setImportModalOpen(true)}
                 className="rounded border border-pitch-accent px-4 py-2 text-sm font-medium text-pitch-accent hover:bg-pitch-accent/10"
               >
-                Importa partite
+                Import matches
               </button>
             ) : null}
             <button
@@ -706,7 +706,7 @@ export default function EventiPage() {
               }}
               className="rounded bg-pitch-accent px-4 py-2 text-sm font-medium text-pitch-bg hover:bg-yellow-200"
             >
-              Nuovo evento
+              New event
             </button>
           </div>
         }
@@ -720,7 +720,7 @@ export default function EventiPage() {
         open={importModalOpen}
         onClose={() => setImportModalOpen(false)}
         onImported={(n) => {
-          setImportFlash(`${n} partite importate`);
+          setImportFlash(`${n} matches imported`);
           window.setTimeout(() => setImportFlash(null), 5000);
           void loadEvents();
         }}
@@ -728,7 +728,7 @@ export default function EventiPage() {
       <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
         <div className="min-w-[200px] flex-1">
           <SearchBar
-            placeholder="Cerca eventi..."
+            placeholder="Search events..."
             onSearchChange={setSearch}
           />
         </div>
@@ -750,7 +750,7 @@ export default function EventiPage() {
                 setPage(0);
               }}
             >
-              <option value="">Tutti</option>
+              <option value="">All</option>
               <option value="TBD">TBD</option>
               <option value="OK">OK</option>
               <option value="CONFIRMED">CONFIRMED</option>
@@ -759,7 +759,7 @@ export default function EventiPage() {
           </div>
           <div>
             <label className="mb-1 block text-xs text-pitch-gray">
-              Categoria
+              Category
             </label>
             <select
               className={filterSelectClass}
@@ -776,14 +776,14 @@ export default function EventiPage() {
                 setPage(0);
               }}
             >
-              <option value="">Tutte</option>
+              <option value="">All</option>
               <option value="MATCH">MATCH</option>
               <option value="MEDIA_CONTENT">MEDIA_CONTENT</option>
             </select>
           </div>
           <div>
             <label className="mb-1 block text-xs text-pitch-gray">
-              Stato designazioni
+              Assignment status
             </label>
             <select
               className={filterSelectClass}
@@ -800,10 +800,10 @@ export default function EventiPage() {
                 setPage(0);
               }}
             >
-              <option value="">Tutti</option>
-              <option value="DRAFT">Bozza</option>
-              <option value="READY_TO_SEND">Pronto invio</option>
-              <option value="SENT">Inviato</option>
+              <option value="">All</option>
+              <option value="DRAFT">Draft</option>
+              <option value="READY_TO_SEND">Ready</option>
+              <option value="SENT">Sent</option>
             </select>
           </div>
         </div>
@@ -811,8 +811,8 @@ export default function EventiPage() {
       {total > PAGE_SIZE && (
         <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-pitch-gray-light">
           <span>
-            Pagina {page + 1} di {Math.max(1, Math.ceil(total / PAGE_SIZE))} (
-            {total} eventi)
+            Page {page + 1} of {Math.max(1, Math.ceil(total / PAGE_SIZE))} (
+            {total} events)
           </span>
           <button
             type="button"
@@ -820,7 +820,7 @@ export default function EventiPage() {
             onClick={() => setPage((p) => Math.max(0, p - 1))}
             className="rounded border border-pitch-gray-dark px-3 py-1.5 text-pitch-white hover:bg-pitch-gray-dark disabled:opacity-40"
           >
-            Precedente
+            Previous
           </button>
           <button
             type="button"
@@ -830,18 +830,18 @@ export default function EventiPage() {
             onClick={() => setPage((p) => p + 1)}
             className="rounded border border-pitch-gray-dark px-3 py-1.5 text-pitch-white hover:bg-pitch-gray-dark disabled:opacity-40"
           >
-            Successiva
+            Next
           </button>
         </div>
       )}
       <div className="mt-6 overflow-x-auto">
         {isLoading ? (
           <div className="rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-8 text-center text-pitch-gray">
-            Caricamento...
+            Loading...
           </div>
         ) : filteredEvents.length === 0 ? (
           <div className="rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-8 text-center text-pitch-gray">
-            Nessun evento
+            No events
           </div>
         ) : (
           <table className="w-full min-w-[1180px] border-collapse">
@@ -851,16 +851,16 @@ export default function EventiPage() {
                   Match
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Competizione
+                  Competition
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Categoria
+                  Category
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
                   Rights
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Data KO
+                  KO
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
                   PRE
@@ -872,7 +872,7 @@ export default function EventiPage() {
                   Standard Cologno
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Area produzione
+                  Production area
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
                   Show
@@ -881,10 +881,10 @@ export default function EventiPage() {
                   Status
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Designazioni
+                  Assignments
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Accrediti
+                  Accreditations
                 </th>
               </tr>
             </thead>
@@ -897,6 +897,7 @@ export default function EventiPage() {
                       event.awayTeamNameShort ??
                       "—";
                 const rowExporting = exporting?.eventId === event.id;
+                const rightsTrimmed = event.rightsHolder?.trim() ?? "";
                 return (
                   <tr
                     key={event.id}
@@ -916,10 +917,14 @@ export default function EventiPage() {
                       {event.category}
                     </td>
                     <td
-                      className="max-w-[7rem] truncate px-4 py-3 text-sm text-pitch-gray-light"
-                      title={event.rightsHolder ?? undefined}
+                      className={`max-w-[7rem] truncate px-4 py-3 text-sm ${
+                        rightsTrimmed === "DAZN/SKY"
+                          ? "text-red-400"
+                          : "text-pitch-gray-light"
+                      }`}
+                      title={rightsTrimmed || undefined}
                     >
-                      {event.rightsHolder?.trim() ? event.rightsHolder : "—"}
+                      {rightsTrimmed ? rightsTrimmed : "—"}
                     </td>
                     <td className="px-4 py-3 text-sm text-pitch-gray-light">
                       {formatKoItaly(event.koItaly)}
@@ -954,7 +959,7 @@ export default function EventiPage() {
                           href={`/designazioni/${event.id}`}
                           className="text-[11px] text-pitch-accent underline-offset-2 hover:underline"
                         >
-                          Apri
+                          Open
                         </Link>
                       </div>
                     </td>

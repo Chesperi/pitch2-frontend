@@ -56,10 +56,10 @@ const TEAM_OPTIONS = [
 ] as const;
 
 const DOC_CATEGORY_LABEL: Record<PitchDocument["category"], string> = {
-  REGULATION: "Regolamento",
-  TECH_SPEC: "Capitolato tecnico",
-  INTERNAL_PROCEDURE: "Procedura interna",
-  OTHER: "Altro",
+  REGULATION: "Regulation",
+  TECH_SPEC: "Technical spec",
+  INTERNAL_PROCEDURE: "Internal procedure",
+  OTHER: "Other",
 };
 
 type DocumentFormValues = {
@@ -130,19 +130,19 @@ function statusBadge(status: CookiesJarTask["status"]) {
     case "IN_PROGRESS":
       return (
         <span className="rounded-full bg-yellow-900/50 px-2 py-0.5 text-xs text-yellow-200">
-          In corso
+          In progress
         </span>
       );
     case "DONE":
       return (
         <span className="rounded-full bg-green-900/50 px-2 py-0.5 text-xs text-green-300">
-          Fatto
+          Done
         </span>
       );
     case "ON_HOLD":
       return (
         <span className="rounded-full bg-orange-900/40 px-2 py-0.5 text-xs text-orange-200">
-          In attesa
+          On hold
         </span>
       );
     default:
@@ -272,7 +272,7 @@ export function CookiesJarTasksPage({
       setDocsError(
         err instanceof Error
           ? err.message
-          : "Errore nel caricamento documenti."
+          : "Error loading documents."
       );
     } finally {
       setDocsLoading(false);
@@ -298,7 +298,7 @@ export function CookiesJarTasksPage({
         setTasks(items);
       } catch (err) {
         setError(
-          err instanceof Error ? err.message : "Errore nel caricamento tasks."
+          err instanceof Error ? err.message : "Error loading tasks."
         );
       } finally {
         if (!opts?.silent) {
@@ -319,11 +319,11 @@ export function CookiesJarTasksPage({
 
     const title = taskFormValues.title.trim();
     if (!title) {
-      setFormError("La descrizione attività è obbligatoria.");
+      setFormError("Task description is required.");
       return;
     }
     if (!taskFormValues.startDate) {
-      setFormError("La data di inizio è obbligatoria.");
+      setFormError("Start date is required.");
       return;
     }
 
@@ -333,7 +333,7 @@ export function CookiesJarTasksPage({
     } else {
       const n = Number(taskFormValues.assigneeId);
       if (!Number.isFinite(n) || n < 1) {
-        setFormError("Assegnato non valido.");
+        setFormError("Invalid assignee.");
         return;
       }
       assigneeForApi = n;
@@ -371,7 +371,7 @@ export function CookiesJarTasksPage({
       setFormError(
         err instanceof Error
           ? err.message
-          : "Errore nel salvataggio dell'attività."
+          : "Error saving task."
       );
     } finally {
       setSaving(false);
@@ -388,7 +388,7 @@ export function CookiesJarTasksPage({
     const filePath = docFormValues.filePath.trim();
 
     if (!title || !category || !filePath) {
-      setDocFormError("Titolo, categoria e file path sono obbligatori.");
+      setDocFormError("Title, category, and file path are required.");
       return;
     }
 
@@ -432,7 +432,7 @@ export function CookiesJarTasksPage({
       setDocFormError(
         err instanceof Error
           ? err.message
-          : "Errore nel salvataggio del documento."
+          : "Error saving document."
       );
     } finally {
       setSavingDoc(false);
@@ -499,7 +499,7 @@ export function CookiesJarTasksPage({
       setChatError(
         err instanceof Error
           ? err.message
-          : "Errore nella chiamata all'agent."
+          : "Error calling agent."
       );
     } finally {
       setChatLoading(false);
@@ -510,7 +510,7 @@ export function CookiesJarTasksPage({
     <div className="mt-6 space-y-4">
       <div className="flex flex-wrap items-end gap-4">
         <div>
-          <label className="mb-1 block text-xs text-pitch-gray">Data</label>
+          <label className="mb-1 block text-xs text-pitch-gray">Date</label>
           <input
             type="date"
             value={selectedDate}
@@ -525,7 +525,7 @@ export function CookiesJarTasksPage({
             value={teamFilter}
             onChange={(e) => setTeamFilter(e.target.value)}
           >
-            <option value="">Tutti</option>
+            <option value="">All</option>
             {TEAM_OPTIONS.map((t) => (
               <option key={t} value={t}>
                 {t}
@@ -542,7 +542,7 @@ export function CookiesJarTasksPage({
             }
             className={FILTER_SELECT_CLASS}
           >
-            <option value="">Tutti</option>
+            <option value="">All</option>
             <option value="TODO">TODO</option>
             <option value="IN_PROGRESS">IN_PROGRESS</option>
             <option value="DONE">DONE</option>
@@ -558,7 +558,7 @@ export function CookiesJarTasksPage({
       ) : null}
 
       {loading ? (
-        <p className="text-sm text-pitch-gray">Caricamento…</p>
+        <p className="text-sm text-pitch-gray">Loading…</p>
       ) : null}
 
       <div className="mb-3 flex justify-end">
@@ -579,7 +579,7 @@ export function CookiesJarTasksPage({
             setIsModalOpen(true);
           }}
         >
-          Nuova attività
+          New task
         </button>
       </div>
 
@@ -588,28 +588,28 @@ export function CookiesJarTasksPage({
           <thead>
             <tr className="border-b border-pitch-gray-dark bg-pitch-gray-dark/30">
               <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                Descrizione
+                Description
               </th>
               <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                Assegnato a
+                Assigned to
               </th>
               <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
                 Team
               </th>
               <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                Progetto
+                Project
               </th>
               <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
                 Status
               </th>
               <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                Data inizio
+                Start date
               </th>
               <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                Data chiusura
+                End date
               </th>
               <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                Azioni
+                Actions
               </th>
             </tr>
           </thead>
@@ -620,7 +620,7 @@ export function CookiesJarTasksPage({
                   colSpan={8}
                   className="px-4 py-8 text-center text-sm text-pitch-gray"
                 >
-                  Nessuna attività per i filtri selezionati.
+                  No tasks for the selected filters.
                 </td>
               </tr>
             ) : (
@@ -675,7 +675,7 @@ export function CookiesJarTasksPage({
                         setIsModalOpen(true);
                       }}
                     >
-                      Modifica
+                      Edit
                     </button>
                   </td>
                 </tr>
@@ -708,7 +708,7 @@ export function CookiesJarTasksPage({
               id="cj-task-modal-title"
               className="text-lg font-semibold text-pitch-white"
             >
-              {editingTask ? "Modifica attività" : "Nuova attività"}
+              {editingTask ? "Edit task" : "New task"}
             </h2>
             {formError ? (
               <p className="mt-3 rounded border border-red-900/50 bg-red-950/40 px-3 py-2 text-xs text-red-200">
@@ -721,7 +721,7 @@ export function CookiesJarTasksPage({
                   htmlFor="cj-title"
                   className="mb-1 block text-xs text-pitch-gray"
                 >
-                  Titolo <span className="text-red-400">*</span>
+                  Title <span className="text-red-400">*</span>
                 </label>
                 <input
                   id="cj-title"
@@ -742,7 +742,7 @@ export function CookiesJarTasksPage({
                   htmlFor="cj-assignee"
                   className="mb-1 block text-xs text-pitch-gray"
                 >
-                  Assegnato a
+                  Assigned to
                 </label>
                 <select
                   id="cj-assignee"
@@ -760,7 +760,7 @@ export function CookiesJarTasksPage({
                   }}
                   className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
                 >
-                  <option value="">(Non assegnato)</option>
+                  <option value="">Unassigned</option>
                   {staffForSelect.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.fullName}
@@ -783,7 +783,7 @@ export function CookiesJarTasksPage({
                     setTaskFormValues((v) => ({ ...v, team: e.target.value }))
                   }
                 >
-                  <option value="">(Nessun team)</option>
+                  <option value="">No team</option>
                   {teamFormSelectOptions.map((t) => (
                     <option key={t} value={t}>
                       {t}
@@ -796,13 +796,13 @@ export function CookiesJarTasksPage({
                   htmlFor="cj-project"
                   className="mb-1 block text-xs text-pitch-gray"
                 >
-                  Progetto
+                  Project
                 </label>
                 <input
                   id="cj-project"
                   type="text"
                   list="cookies-jar-projects"
-                  placeholder="es. Serie A 25/26, Produzioni onsite..."
+                  placeholder="e.g. Serie A 25/26, onsite productions..."
                   value={taskFormValues.project}
                   onChange={(e) =>
                     setTaskFormValues((v) => ({
@@ -823,7 +823,7 @@ export function CookiesJarTasksPage({
                   htmlFor="cj-start"
                   className="mb-1 block text-xs text-pitch-gray"
                 >
-                  Data <span className="text-red-400">*</span>
+                  Date <span className="text-red-400">*</span>
                 </label>
                 <input
                   id="cj-start"
@@ -874,14 +874,14 @@ export function CookiesJarTasksPage({
                     setFormError(null);
                   }}
                 >
-                  Annulla
+                  Cancel
                 </button>
                 <button
                   type="submit"
                   className={PRIMARY_BTN_SM}
                   disabled={saving}
                 >
-                  {saving ? "Salvataggio…" : "Salva"}
+                  {saving ? "Saving…" : "Save"}
                 </button>
               </div>
             </form>
@@ -890,13 +890,13 @@ export function CookiesJarTasksPage({
       ) : null}
 
       <h2 className="mb-3 mt-10 text-sm font-semibold text-pitch-gray">
-        Documenti (regolamenti, capitolati, procedure)
+        Documents (regulations, specs, procedures)
       </h2>
 
       <div className="mb-3 flex flex-wrap items-end gap-3 text-xs">
         <div>
           <label className="mb-1 block text-[11px] text-pitch-gray">
-            Competizione
+            Competition
           </label>
           <input
             type="text"
@@ -908,7 +908,7 @@ export function CookiesJarTasksPage({
         </div>
         <div>
           <label className="mb-1 block text-[11px] text-pitch-gray">
-            Categoria
+            Category
           </label>
           <select
             className={INPUT_SM_CLASS}
@@ -921,11 +921,11 @@ export function CookiesJarTasksPage({
               )
             }
           >
-            <option value="">Tutte</option>
-            <option value="REGULATION">Regolamento</option>
-            <option value="TECH_SPEC">Capitolato tecnico</option>
-            <option value="INTERNAL_PROCEDURE">Procedura interna</option>
-            <option value="OTHER">Altro</option>
+            <option value="">All</option>
+            <option value="REGULATION">Regulation</option>
+            <option value="TECH_SPEC">Technical spec</option>
+            <option value="INTERNAL_PROCEDURE">Internal procedure</option>
+            <option value="OTHER">Other</option>
           </select>
         </div>
         <div>
@@ -935,7 +935,7 @@ export function CookiesJarTasksPage({
             className={INPUT_SM_CLASS}
             value={docTagFilter}
             onChange={(e) => setDocTagFilter(e.target.value)}
-            placeholder="es. interviste"
+            placeholder="e.g. interviews"
           />
         </div>
         <div className="ml-auto flex items-end">
@@ -957,7 +957,7 @@ export function CookiesJarTasksPage({
               setIsDocModalOpen(true);
             }}
           >
-            Nuovo documento
+            New document
           </button>
         </div>
       </div>
@@ -968,7 +968,7 @@ export function CookiesJarTasksPage({
         </p>
       ) : null}
       {docsLoading ? (
-        <p className="text-xs text-pitch-gray">Caricamento documenti…</p>
+        <p className="text-xs text-pitch-gray">Loading documents…</p>
       ) : null}
 
       <div className="overflow-x-auto rounded-lg border border-pitch-gray-dark">
@@ -976,16 +976,16 @@ export function CookiesJarTasksPage({
           <thead>
             <tr className="bg-pitch-gray-dark/30">
               <th className="px-3 py-2 text-left font-medium text-pitch-gray">
-                Titolo
+                Title
               </th>
               <th className="px-3 py-2 text-left font-medium text-pitch-gray">
-                Categoria
+                Category
               </th>
               <th className="px-3 py-2 text-left font-medium text-pitch-gray">
-                Competizione
+                Competition
               </th>
               <th className="px-3 py-2 text-left font-medium text-pitch-gray">
-                Validità
+                Validity
               </th>
               <th className="px-3 py-2 text-left font-medium text-pitch-gray">
                 Tag
@@ -994,10 +994,10 @@ export function CookiesJarTasksPage({
                 File
               </th>
               <th className="px-3 py-2 text-left font-medium text-pitch-gray">
-                Creato il
+                Created on
               </th>
               <th className="px-3 py-2 text-right font-medium text-pitch-gray">
-                Azioni
+                Actions
               </th>
             </tr>
           </thead>
@@ -1008,7 +1008,7 @@ export function CookiesJarTasksPage({
                   colSpan={8}
                   className="px-3 py-6 text-center text-pitch-gray"
                 >
-                  Nessun documento per i filtri selezionati.
+                  No documents for the selected filters.
                 </td>
               </tr>
             ) : (
@@ -1058,7 +1058,7 @@ export function CookiesJarTasksPage({
                         setIsDocModalOpen(true);
                       }}
                     >
-                      Modifica
+                      Edit
                     </button>
                   </td>
                 </tr>
@@ -1091,7 +1091,7 @@ export function CookiesJarTasksPage({
               id="doc-modal-title"
               className="text-lg font-semibold text-pitch-white"
             >
-              {editingDoc ? "Modifica documento" : "Nuovo documento"}
+              {editingDoc ? "Edit document" : "New document"}
             </h2>
             {docFormError ? (
               <p className="mt-3 rounded border border-red-900/50 bg-red-950/40 px-3 py-2 text-xs text-red-200">
@@ -1104,7 +1104,7 @@ export function CookiesJarTasksPage({
                   htmlFor="doc-title"
                   className="mb-1 block text-xs text-pitch-gray"
                 >
-                  Titolo <span className="text-red-400">*</span>
+                  Title <span className="text-red-400">*</span>
                 </label>
                 <input
                   id="doc-title"
@@ -1122,7 +1122,7 @@ export function CookiesJarTasksPage({
                   htmlFor="doc-category"
                   className="mb-1 block text-xs text-pitch-gray"
                 >
-                  Categoria <span className="text-red-400">*</span>
+                  Category <span className="text-red-400">*</span>
                 </label>
                 <select
                   id="doc-category"
@@ -1136,10 +1136,10 @@ export function CookiesJarTasksPage({
                   }
                   className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
                 >
-                  <option value="REGULATION">Regolamento</option>
-                  <option value="TECH_SPEC">Capitolato tecnico</option>
-                  <option value="INTERNAL_PROCEDURE">Procedura interna</option>
-                  <option value="OTHER">Altro</option>
+                  <option value="REGULATION">Regulation</option>
+                  <option value="TECH_SPEC">Technical spec</option>
+                  <option value="INTERNAL_PROCEDURE">Internal procedure</option>
+                  <option value="OTHER">Other</option>
                 </select>
               </div>
               <div>
@@ -1147,7 +1147,7 @@ export function CookiesJarTasksPage({
                   htmlFor="doc-competition"
                   className="mb-1 block text-xs text-pitch-gray"
                 >
-                  Competizione
+                  Competition
                 </label>
                 <input
                   id="doc-competition"
@@ -1168,7 +1168,7 @@ export function CookiesJarTasksPage({
                     htmlFor="doc-valid-from"
                     className="mb-1 block text-xs text-pitch-gray"
                   >
-                    Valido da
+                    Valid from
                   </label>
                   <input
                     id="doc-valid-from"
@@ -1188,7 +1188,7 @@ export function CookiesJarTasksPage({
                     htmlFor="doc-valid-to"
                     className="mb-1 block text-xs text-pitch-gray"
                   >
-                    Valido a
+                    Valid to
                   </label>
                   <input
                     id="doc-valid-to"
@@ -1209,7 +1209,7 @@ export function CookiesJarTasksPage({
                   htmlFor="doc-tags"
                   className="mb-1 block text-xs text-pitch-gray"
                 >
-                  Tag (separati da virgola)
+                  Tags (comma separated)
                 </label>
                 <input
                   id="doc-tags"
@@ -1257,14 +1257,14 @@ export function CookiesJarTasksPage({
                     setDocFormError(null);
                   }}
                 >
-                  Annulla
+                  Cancel
                 </button>
                 <button
                   type="submit"
                   className={PRIMARY_BTN_SM}
                   disabled={savingDoc}
                 >
-                  {savingDoc ? "Salvataggio…" : "Salva"}
+                  {savingDoc ? "Saving…" : "Save"}
                 </button>
               </div>
             </form>
@@ -1274,14 +1274,14 @@ export function CookiesJarTasksPage({
 
       <section className="mt-10 border-t border-pitch-gray-dark pt-4">
         <h2 className="mb-2 text-sm font-semibold text-pitch-gray">
-          Chat operativa (agent Cookies jar)
+          Operational chat (Cookies jar agent)
         </h2>
 
         <div className="mb-2 max-h-60 overflow-y-auto rounded border border-pitch-gray-dark bg-pitch-gray-dark/20 p-2 text-xs">
           {chatMessages.length === 0 && (
             <p className="text-[11px] text-pitch-gray">
-              Inizia a scrivere una domanda o un comando operativo (es. &quot;Mostrami
-              le attività aperte di oggi per il team MEDIA&quot;).
+              Start typing a question or operational command (e.g. &quot;Show me
+              today&apos;s open tasks for the MEDIA team&quot;).
             </p>
           )}
           {chatMessages.map((m) => (
@@ -1294,7 +1294,7 @@ export function CookiesJarTasksPage({
               }
             >
               <span className="font-semibold text-pitch-white">
-                {m.role === "user" ? "Tu" : "Agent"}:
+                {m.role === "user" ? "You" : "Agent"}:
               </span>{" "}
               <span className="whitespace-pre-line">{m.content}</span>
             </div>
@@ -1311,7 +1311,7 @@ export function CookiesJarTasksPage({
             className={`${INPUT_SM_CLASS} flex-1 min-w-0`}
             value={chatInput}
             onChange={(e) => setChatInput(e.target.value)}
-            placeholder="Scrivi una domanda o un comando operativo..."
+            placeholder="Write a question or operational command..."
             disabled={chatLoading}
           />
           <button
@@ -1319,7 +1319,7 @@ export function CookiesJarTasksPage({
             className={PRIMARY_BTN_SM}
             disabled={chatLoading || !chatInput.trim()}
           >
-            {chatLoading ? "Invio..." : "Invia"}
+            {chatLoading ? "Sending..." : "Send"}
           </button>
         </form>
       </section>

@@ -86,7 +86,7 @@ export function ImportEventsModal({ open, onClose, onImported }: Props) {
   const handleSearch = async () => {
     setError(null);
     if (!dateFrom.trim() || !dateTo.trim()) {
-      setError("Indica data inizio e fine.");
+      setError("Please enter start and end date.");
       return;
     }
     setLoadingPreview(true);
@@ -100,7 +100,7 @@ export function ImportEventsModal({ open, onClose, onImported }: Props) {
       setSelected(new Set());
       setStep(2);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Errore caricamento anteprima");
+      setError(e instanceof Error ? e.message : "Error loading preview");
     } finally {
       setLoadingPreview(false);
     }
@@ -127,7 +127,7 @@ export function ImportEventsModal({ open, onClose, onImported }: Props) {
       (r) => selected.has(r.external_match_id) && !r.already_exists
     );
     if (toSend.length === 0) {
-      setError("Seleziona almeno una partita da importare.");
+      setError("Select at least one match to import.");
       return;
     }
     setError(null);
@@ -137,7 +137,7 @@ export function ImportEventsModal({ open, onClose, onImported }: Props) {
       onImported(imported);
       handleClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Errore durante l'import");
+      setError(e instanceof Error ? e.message : "Import error");
     } finally {
       setImporting(false);
     }
@@ -150,14 +150,14 @@ export function ImportEventsModal({ open, onClose, onImported }: Props) {
       <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-lg border border-pitch-gray-dark bg-pitch-bg p-6">
         <div className="mb-4 flex items-start justify-between gap-4">
           <h3 className="text-lg font-semibold text-pitch-white">
-            Importa partite
+            Import matches
           </h3>
           <button
             type="button"
             onClick={handleClose}
             className="rounded border border-pitch-gray-dark px-3 py-1 text-sm text-pitch-gray-light hover:bg-pitch-gray-dark/50"
           >
-            Chiudi
+            Close
           </button>
         </div>
 
@@ -170,11 +170,11 @@ export function ImportEventsModal({ open, onClose, onImported }: Props) {
         {step === 1 ? (
           <div className="space-y-4">
             <p className="text-sm text-pitch-gray">
-              Step 1 — Parametri ricerca (API football-data.org)
+              Step 1 — Search parameters (API football-data.org)
             </p>
             <div>
               <label className="mb-1 block text-xs text-pitch-gray">
-                Competizione
+                Competition
               </label>
               <select
                 value={competitionCode}
@@ -191,7 +191,7 @@ export function ImportEventsModal({ open, onClose, onImported }: Props) {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="mb-1 block text-xs text-pitch-gray">
-                  Data da
+                  Date from
                 </label>
                 <input
                   type="date"
@@ -202,7 +202,7 @@ export function ImportEventsModal({ open, onClose, onImported }: Props) {
               </div>
               <div>
                 <label className="mb-1 block text-xs text-pitch-gray">
-                  Data a
+                  Date to
                 </label>
                 <input
                   type="date"
@@ -218,14 +218,14 @@ export function ImportEventsModal({ open, onClose, onImported }: Props) {
               onClick={() => void handleSearch()}
               className="rounded bg-pitch-accent px-4 py-2 text-sm font-medium text-pitch-bg hover:bg-yellow-200 disabled:opacity-50"
             >
-              {loadingPreview ? "Caricamento…" : "Cerca partite"}
+              {loadingPreview ? "Loading…" : "Search matches"}
             </button>
           </div>
         ) : (
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm text-pitch-gray">
-                Step 2 — Anteprima ({preview.length} partite)
+                Step 2 — Preview ({preview.length} matches)
               </p>
               <div className="flex flex-wrap gap-2">
                 <button
@@ -233,21 +233,21 @@ export function ImportEventsModal({ open, onClose, onImported }: Props) {
                   onClick={() => setStep(1)}
                   className="rounded border border-pitch-gray-dark px-3 py-1.5 text-xs text-pitch-white hover:bg-pitch-gray-dark/40"
                 >
-                  ← Indietro
+                  ← Back
                 </button>
                 <button
                   type="button"
                   onClick={selectAll}
                   className="rounded border border-pitch-gray-dark px-3 py-1.5 text-xs text-pitch-white hover:bg-pitch-gray-dark/40"
                 >
-                  Seleziona tutto
+                  Select all
                 </button>
                 <button
                   type="button"
                   onClick={deselectAll}
                   className="rounded border border-pitch-gray-dark px-3 py-1.5 text-xs text-pitch-white hover:bg-pitch-gray-dark/40"
                 >
-                  Deseleziona tutto
+                  Deselect all
                 </button>
               </div>
             </div>
@@ -261,13 +261,13 @@ export function ImportEventsModal({ open, onClose, onImported }: Props) {
                       Match
                     </th>
                     <th className="px-3 py-2 text-left text-xs font-medium text-pitch-gray">
-                      Data KO
+                      KO
                     </th>
                     <th className="px-3 py-2 text-left text-xs font-medium text-pitch-gray">
                       MD
                     </th>
                     <th className="px-3 py-2 text-left text-xs font-medium text-pitch-gray">
-                      Campi suggeriti
+                      Suggested fields
                     </th>
                     <th className="px-3 py-2 text-left text-xs font-medium text-pitch-gray" />
                   </tr>
@@ -311,7 +311,7 @@ export function ImportEventsModal({ open, onClose, onImported }: Props) {
                         <td className="px-3 py-2">
                           {row.already_exists ? (
                             <span className="inline-flex rounded-full bg-pitch-gray-dark px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-pitch-gray">
-                              Già presente
+                              Already exists
                             </span>
                           ) : null}
                         </td>
@@ -329,8 +329,8 @@ export function ImportEventsModal({ open, onClose, onImported }: Props) {
               className="rounded bg-pitch-accent px-4 py-2 text-sm font-medium text-pitch-bg hover:bg-yellow-200 disabled:opacity-50"
             >
               {importing
-                ? "Import in corso…"
-                : `Importa selezionate (${selected.size})`}
+                ? "Importing…"
+                : `Import selected (${selected.size})`}
             </button>
           </div>
         )}

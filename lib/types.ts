@@ -58,3 +58,19 @@ export type CreateEventRulePayload = {
 };
 
 export type UpdateEventRulePayload = Partial<CreateEventRulePayload>;
+
+export interface LookupValue {
+  id: number;
+  category: string;
+  value: string;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface CreateLookupValuePayload {
+  category: string;
+  value: string;
+  sort_order?: number;
+}
+
+export type UpdateLookupValuePayload = Partial<CreateLookupValuePayload>;

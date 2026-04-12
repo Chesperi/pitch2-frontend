@@ -17,6 +17,8 @@ import { getApiBaseUrl } from "@/lib/api/config";
 import { downloadBackendFile } from "@/lib/utils/downloadFile";
 import { fetchAuthMe } from "@/lib/api/freelanceAssignments";
 import { ImportEventsModal } from "./ImportEventsModal";
+import { fetchLookupValues } from "@/lib/api/lookupValues";
+import type { LookupValue } from "@/lib/types";
 
 function formatKoItaly(koItaly: string | null): string {
   if (!koItaly) return "—";
@@ -104,6 +106,43 @@ function renderAssignmentsStatusBadge(
 const CATEGORY_OPTIONS = ["MATCH", "MEDIA CONTENT", "OTHER"];
 const STATUS_OPTIONS = ["TBC", "TBD", "OK", "CONFIRMED", "CANCELLED"];
 
+function EventFormLookupSelect({
+  label,
+  value,
+  onChange,
+  options,
+  inputClassName,
+}: {
+  label: string;
+  value: string | undefined;
+  onChange: (v: string) => void;
+  options: LookupValue[];
+  inputClassName: string;
+}) {
+  const v = value ?? "";
+  const inList = options.some((o) => o.value === v);
+  return (
+    <div>
+      <label className="mb-1 block text-xs text-pitch-gray">{label}</label>
+      <select
+        value={v}
+        onChange={(e) => onChange(e.target.value)}
+        className={inputClassName}
+      >
+        <option value="">— seleziona —</option>
+        {options.map((o) => (
+          <option key={o.id} value={o.value}>
+            {o.value}
+          </option>
+        ))}
+        {v && !inList ? (
+          <option value={v}>{v} (non in elenco)</option>
+        ) : null}
+      </select>
+    </div>
+  );
+}
+
 function EventModal({
   event,
   onClose,
@@ -161,6 +200,44 @@ function EventModal({
         }
   );
   const [saving, setSaving] = useState(false);
+  const [lookupOnsite, setLookupOnsite] = useState<LookupValue[]>([]);
+  const [lookupCologno, setLookupCologno] = useState<LookupValue[]>([]);
+  const [lookupFacilities, setLookupFacilities] = useState<LookupValue[]>([]);
+  const [lookupStudio, setLookupStudio] = useState<LookupValue[]>([]);
+  const [lookupShow, setLookupShow] = useState<LookupValue[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const [a, b, c, d, e] = await Promise.all([
+          fetchLookupValues("standard_onsite"),
+          fetchLookupValues("standard_cologno"),
+          fetchLookupValues("facilities"),
+          fetchLookupValues("studio"),
+          fetchLookupValues("show"),
+        ]);
+        if (!cancelled) {
+          setLookupOnsite(a);
+          setLookupCologno(b);
+          setLookupFacilities(c);
+          setLookupStudio(d);
+          setLookupShow(e);
+        }
+      } catch {
+        if (!cancelled) {
+          setLookupOnsite([]);
+          setLookupCologno([]);
+          setLookupFacilities([]);
+          setLookupStudio([]);
+          setLookupShow([]);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -353,32 +430,24 @@ function EventModal({
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="mb-1 block text-xs text-pitch-gray">
-                Standard onsite
-              </label>
-              <input
-                type="text"
-                value={form.standardOnsite}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, standardOnsite: e.target.value }))
-                }
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-pitch-gray">
-                Standard Cologno
-              </label>
-              <input
-                type="text"
-                value={form.standardCologno}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, standardCologno: e.target.value }))
-                }
-                className={inputClass}
-              />
-            </div>
+            <EventFormLookupSelect
+              label="Standard onsite"
+              value={form.standardOnsite}
+              onChange={(v) =>
+                setForm((f) => ({ ...f, standardOnsite: v }))
+              }
+              options={lookupOnsite}
+              inputClassName={inputClass}
+            />
+            <EventFormLookupSelect
+              label="Standard Cologno"
+              value={form.standardCologno}
+              onChange={(v) =>
+                setForm((f) => ({ ...f, standardCologno: v }))
+              }
+              options={lookupCologno}
+              inputClassName={inputClass}
+            />
           </div>
           <div>
             <label className="mb-1 block text-xs text-pitch-gray">
@@ -420,17 +489,13 @@ function EventModal({
                 className={inputClass}
               />
             </div>
-            <div>
-              <label className="mb-1 block text-xs text-pitch-gray">Show</label>
-              <input
-                type="text"
-                value={form.showName}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, showName: e.target.value }))
-                }
-                className={inputClass}
-              />
-            </div>
+            <EventFormLookupSelect
+              label="Show"
+              value={form.showName}
+              onChange={(v) => setForm((f) => ({ ...f, showName: v }))}
+              options={lookupShow}
+              inputClassName={inputClass}
+            />
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
@@ -446,30 +511,20 @@ function EventModal({
                 className={inputClass}
               />
             </div>
-            <div>
-              <label className="mb-1 block text-xs text-pitch-gray">
-                Facilities
-              </label>
-              <input
-                type="text"
-                value={form.facilities ?? ""}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, facilities: e.target.value }))
-                }
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-pitch-gray">Studio</label>
-              <input
-                type="text"
-                value={form.studio ?? ""}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, studio: e.target.value }))
-                }
-                className={inputClass}
-              />
-            </div>
+            <EventFormLookupSelect
+              label="Facilities"
+              value={form.facilities ?? ""}
+              onChange={(v) => setForm((f) => ({ ...f, facilities: v }))}
+              options={lookupFacilities}
+              inputClassName={inputClass}
+            />
+            <EventFormLookupSelect
+              label="Studio"
+              value={form.studio ?? ""}
+              onChange={(v) => setForm((f) => ({ ...f, studio: v }))}
+              options={lookupStudio}
+              inputClassName={inputClass}
+            />
           </div>
           <div>
             <label className="mb-1 block text-xs text-pitch-gray">

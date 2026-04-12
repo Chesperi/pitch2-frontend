@@ -7,7 +7,8 @@ import {
   updateEventRule,
   deleteEventRule,
 } from "@/lib/api/eventRules";
-import type { CreateEventRulePayload, EventRule } from "@/lib/types";
+import { fetchLookupValues } from "@/lib/api/lookupValues";
+import type { CreateEventRulePayload, EventRule, LookupValue } from "@/lib/types";
 
 const DAY_OPTIONS: { value: string; label: string }[] = [
   { value: "", label: "Qualsiasi" },
@@ -92,7 +93,44 @@ const inputClass =
 const tableTh =
   "px-3 py-2 text-left text-[11px] font-medium uppercase tracking-wide text-pitch-gray";
 
-export function EventRulesMasterSection() {
+function LookupSelect({
+  label,
+  fieldValue,
+  onChange,
+  options,
+}: {
+  label: string;
+  fieldValue: string;
+  onChange: (v: string) => void;
+  options: LookupValue[];
+}) {
+  const v = fieldValue ?? "";
+  const inList = options.some((o) => o.value === v);
+  return (
+    <div>
+      <label className="mb-1 block text-xs text-pitch-gray">{label}</label>
+      <select
+        value={v}
+        onChange={(e) => onChange(e.target.value)}
+        className={inputClass}
+      >
+        <option value="">— qualsiasi —</option>
+        {options.map((o) => (
+          <option key={o.id} value={o.value}>
+            {o.value}
+          </option>
+        ))}
+        {v && !inList ? (
+          <option value={v}>
+            {v} (non in elenco)
+          </option>
+        ) : null}
+      </select>
+    </div>
+  );
+}
+
+export function EventRulesSection() {
   const [rules, setRules] = useState<EventRule[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -101,14 +139,19 @@ export function EventRulesMasterSection() {
   const [form, setForm] = useState<CreateEventRulePayload>(() => emptyForm());
   const [saving, setSaving] = useState(false);
 
-  const load = useCallback(async () => {
+  const [lookupOnsite, setLookupOnsite] = useState<LookupValue[]>([]);
+  const [lookupCologno, setLookupCologno] = useState<LookupValue[]>([]);
+  const [lookupFacilities, setLookupFacilities] = useState<LookupValue[]>([]);
+  const [lookupStudio, setLookupStudio] = useState<LookupValue[]>([]);
+  const [lookupShow, setLookupShow] = useState<LookupValue[]>([]);
+
+  const loadRules = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const rows = await fetchEventRules();
       setRules(rows);
     } catch (e) {
-      console.error("EventRulesMasterSection load error:", e);
       setError(
         e instanceof Error ? e.message : "Impossibile caricare le regole."
       );
@@ -119,8 +162,41 @@ export function EventRulesMasterSection() {
   }, []);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void loadRules();
+  }, [loadRules]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const [a, b, c, d, e] = await Promise.all([
+          fetchLookupValues("standard_onsite"),
+          fetchLookupValues("standard_cologno"),
+          fetchLookupValues("facilities"),
+          fetchLookupValues("studio"),
+          fetchLookupValues("show"),
+        ]);
+        if (!cancelled) {
+          setLookupOnsite(a);
+          setLookupCologno(b);
+          setLookupFacilities(c);
+          setLookupStudio(d);
+          setLookupShow(e);
+        }
+      } catch {
+        if (!cancelled) {
+          setLookupOnsite([]);
+          setLookupCologno([]);
+          setLookupFacilities([]);
+          setLookupStudio([]);
+          setLookupShow([]);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const openNew = () => {
     setEditingId(null);
@@ -150,7 +226,7 @@ export function EventRulesMasterSection() {
         await createEventRule(body);
       }
       closeModal();
-      await load();
+      await loadRules();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Errore salvataggio");
     } finally {
@@ -168,7 +244,7 @@ export function EventRulesMasterSection() {
     }
     try {
       await deleteEventRule(r.id);
-      await load();
+      await loadRules();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Errore eliminazione");
     }
@@ -178,15 +254,6 @@ export function EventRulesMasterSection() {
     form.day_of_week === undefined || form.day_of_week === null
       ? ""
       : String(form.day_of_week);
-
-  console.log(
-    "EventRulesMasterSection rendering, loading:",
-    loading,
-    "error:",
-    error,
-    "rules:",
-    rules.length
-  );
 
   return (
     <section className="mt-10 border-t border-pitch-gray-dark pt-8">
@@ -371,69 +438,40 @@ export function EventRulesMasterSection() {
                   />
                 </div>
               </div>
-              <div>
-                <label className="mb-1 block text-xs text-pitch-gray">
-                  Standard onsite
-                </label>
-                <input
-                  type="text"
-                  value={form.standard_onsite ?? ""}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, standard_onsite: e.target.value }))
-                  }
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs text-pitch-gray">
-                  Standard Cologno
-                </label>
-                <input
-                  type="text"
-                  value={form.standard_cologno ?? ""}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, standard_cologno: e.target.value }))
-                  }
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs text-pitch-gray">
-                  Facilities
-                </label>
-                <input
-                  type="text"
-                  value={form.facilities ?? ""}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, facilities: e.target.value }))
-                  }
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs text-pitch-gray">
-                  Studio
-                </label>
-                <input
-                  type="text"
-                  value={form.studio ?? ""}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, studio: e.target.value }))
-                  }
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs text-pitch-gray">Show</label>
-                <input
-                  type="text"
-                  value={form.show_name ?? ""}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, show_name: e.target.value }))
-                  }
-                  className={inputClass}
-                />
-              </div>
+              <LookupSelect
+                label="Standard onsite"
+                fieldValue={form.standard_onsite ?? ""}
+                onChange={(v) =>
+                  setForm((f) => ({ ...f, standard_onsite: v }))
+                }
+                options={lookupOnsite}
+              />
+              <LookupSelect
+                label="Standard Cologno"
+                fieldValue={form.standard_cologno ?? ""}
+                onChange={(v) =>
+                  setForm((f) => ({ ...f, standard_cologno: v }))
+                }
+                options={lookupCologno}
+              />
+              <LookupSelect
+                label="Facilities"
+                fieldValue={form.facilities ?? ""}
+                onChange={(v) => setForm((f) => ({ ...f, facilities: v }))}
+                options={lookupFacilities}
+              />
+              <LookupSelect
+                label="Studio"
+                fieldValue={form.studio ?? ""}
+                onChange={(v) => setForm((f) => ({ ...f, studio: v }))}
+                options={lookupStudio}
+              />
+              <LookupSelect
+                label="Show"
+                fieldValue={form.show_name ?? ""}
+                onChange={(v) => setForm((f) => ({ ...f, show_name: v }))}
+                options={lookupShow}
+              />
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="mb-1 block text-xs text-pitch-gray">

@@ -31,6 +31,14 @@ import {
   fetchStandardCombos,
   updateStandardCombo,
 } from "@/lib/api/standardCombos";
+import { LookupValuesSection } from "./LookupValuesSection";
+import { EventRulesSection } from "./EventRulesSection";
+import {
+  DB_TH,
+  DB_TBODY_TR,
+  DB_TD,
+  DB_TD_EMPTY,
+} from "./dbSectionStyles";
 
 /** Usate quando si ripristinano POST/PATCH su staff/ruoli (evita import “unused”). */
 const _databaseApiReadRef = {
@@ -164,13 +172,6 @@ const PRIMARY_BTN_SM =
 const COMBO_ROLE_LOCATION_OPTIONS = ["STADIO", "COLOGNO", "REMOTE"] as const;
 const COMBO_ROLE_LOCATION_SORTED = sortAsc([...COMBO_ROLE_LOCATION_OPTIONS]);
 
-/** Stile unificato tabelle Database (Staff, Ruoli, pacchetti / requirement). */
-const DB_TH =
-  "px-3 py-3 text-left text-[11px] font-medium uppercase tracking-[1px] text-[#868A8C]";
-const DB_TBODY_TR =
-  "border-b border-[#2a2a2a] transition-colors hover:bg-[#1a1a1a]";
-const DB_TD = "px-3 py-3 text-sm text-white";
-const DB_TD_EMPTY = "px-3 py-3 text-sm text-[#3F4547]";
 const DB_BADGE_ON =
   "inline-flex rounded-full px-2 py-0.5 text-xs font-medium text-white bg-[#639922]";
 const DB_BADGE_OFF =
@@ -1454,6 +1455,9 @@ export function DatabaseSections({
           )}
         </div>
       </CollapsibleSection>
+
+      <LookupValuesSection />
+      <EventRulesSection />
 
       {isComboModalOpen ? (
         <div

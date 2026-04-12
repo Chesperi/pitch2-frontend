@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { apiFetch } from "@/lib/api/apiFetch";
+import { EventRulesMasterSection } from "./EventRulesMasterSection";
 
 type AccessLevel = "none" | "view" | "edit";
 
@@ -309,6 +310,8 @@ export default function MasterPage() {
         </div>
         </>
       ) : null}
+
+      {!loading && !loadError ? <EventRulesMasterSection /> : null}
     </>
   );
 }

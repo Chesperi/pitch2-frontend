@@ -15,6 +15,8 @@ import {
 } from "@/lib/api/events";
 import { getApiBaseUrl } from "@/lib/api/config";
 import { downloadBackendFile } from "@/lib/utils/downloadFile";
+import { fetchAuthMe } from "@/lib/api/freelanceAssignments";
+import { ImportEventsModal } from "./ImportEventsModal";
 
 function formatKoItaly(koItaly: string | null): string {
   if (!koItaly) return "—";
@@ -554,6 +556,30 @@ export default function EventiPage() {
     eventId: string;
     type: "pdf" | "xlsx";
   } | null>(null);
+  const [userLevel, setUserLevel] = useState<string | null>(null);
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [importFlash, setImportFlash] = useState<string | null>(null);
+
+  const canImportMatches =
+    userLevel != null &&
+    ["MANAGER", "MASTER"].includes(userLevel.toUpperCase().trim());
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const me = await fetchAuthMe();
+        if (!cancelled) {
+          setUserLevel((me.user_level ?? "").toUpperCase().trim() || null);
+        }
+      } catch {
+        if (!cancelled) setUserLevel(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const loadEvents = useCallback(async () => {
     setIsLoading(true);
@@ -607,17 +633,42 @@ export default function EventiPage() {
       <PageHeader
         title="Eventi"
         actions={
-          <button
-            type="button"
-            onClick={() => {
-              setEditingEvent(null);
-              setIsCreateModalOpen(true);
-            }}
-            className="rounded bg-pitch-accent px-4 py-2 text-sm font-medium text-pitch-bg hover:bg-yellow-200"
-          >
-            Nuovo evento
-          </button>
+          <div className="flex flex-wrap gap-2">
+            {canImportMatches ? (
+              <button
+                type="button"
+                onClick={() => setImportModalOpen(true)}
+                className="rounded border border-pitch-accent px-4 py-2 text-sm font-medium text-pitch-accent hover:bg-pitch-accent/10"
+              >
+                Importa partite
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => {
+                setEditingEvent(null);
+                setIsCreateModalOpen(true);
+              }}
+              className="rounded bg-pitch-accent px-4 py-2 text-sm font-medium text-pitch-bg hover:bg-yellow-200"
+            >
+              Nuovo evento
+            </button>
+          </div>
         }
+      />
+      {importFlash ? (
+        <p className="mt-2 rounded border border-green-900/40 bg-green-950/30 px-3 py-2 text-sm text-green-200">
+          {importFlash}
+        </p>
+      ) : null}
+      <ImportEventsModal
+        open={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        onImported={(n) => {
+          setImportFlash(`${n} partite importate`);
+          window.setTimeout(() => setImportFlash(null), 5000);
+          void loadEvents();
+        }}
       />
       <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
         <div className="min-w-[200px] flex-1">

@@ -1060,6 +1060,9 @@ export default function EventiPage() {
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
                   Rights
                 </th>
+                <th className="min-w-[40px] px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+                  MD
+                </th>
                 <th className="min-w-[130px] px-4 py-3 text-left text-sm font-medium text-pitch-gray">
                   KO
                 </th>
@@ -1110,7 +1113,7 @@ export default function EventiPage() {
                 if (cancelledEvents.length > 0 && idx === activeEvents.length) {
                   rows.push(
                     <tr key="cancelled-separator" className="border-y border-pitch-gray-dark/80 bg-pitch-gray-dark/20">
-                      <td colSpan={12} className="px-4 py-2 text-xs font-medium uppercase tracking-wide text-pitch-gray">
+                      <td colSpan={13} className="px-4 py-2 text-xs font-medium uppercase tracking-wide text-pitch-gray">
                         Cancelled events
                       </td>
                     </tr>
@@ -1153,6 +1156,11 @@ export default function EventiPage() {
                       title={rightsTrimmed || undefined}
                     >
                       {rightsTrimmed ? rightsTrimmed : "—"}
+                    </td>
+                    <td className="min-w-[40px] px-4 py-3 text-sm text-pitch-gray-light">
+                      {event.matchDay?.trim()
+                        ? event.matchDay
+                        : "—"}
                     </td>
                     <td className="px-4 py-3 text-sm text-pitch-gray-light">
                       {formatKoItaly(event.koItaly)}

@@ -138,7 +138,7 @@ export function eventPayloadToSnakeCase(
 /** Filtri lista eventi (query verso /api/events). */
 export type EventFilters = {
   status?: "TBD" | "OK" | "CONFIRMED" | "CANCELED";
-  category?: "MATCH" | "MEDIA_CONTENT";
+  category?: "MATCH" | "STUDIO SHOW" | "MEDIA_CONTENT";
   assignmentsStatus?: EventAssignmentsStatus;
 };
 

@@ -82,11 +82,12 @@ function toDatetimeLocalValueFromEvent(event: EventItem): string {
 
 function renderEventStatus(status: string | null): React.ReactNode {
   const value = status?.toUpperCase() ?? "";
+  const baseClass = "rounded-full px-2 py-0.5 text-xs font-medium";
   switch (value) {
     case "TBC":
     case "TBD":
       return (
-        <span className="rounded-full bg-yellow-900/50 px-2 py-0.5 text-xs text-yellow-300">
+        <span className={`${baseClass} bg-yellow-900/50 text-yellow-300`}>
           To confirm
         </span>
       );
@@ -94,7 +95,7 @@ function renderEventStatus(status: string | null): React.ReactNode {
     case "CONFIRMED":
       return (
         <span
-          className={`rounded-full px-2 py-0.5 text-xs ${
+          className={`${baseClass} ${
             value === "CONFIRMED"
               ? "bg-orange-500 text-white"
               : "bg-green-900/50 text-green-300"
@@ -106,7 +107,7 @@ function renderEventStatus(status: string | null): React.ReactNode {
     case "CANCELLED":
     case "CANCELED":
       return (
-        <span className="rounded-full bg-red-900/50 px-2 py-0.5 text-xs text-red-300">
+        <span className={`${baseClass} bg-red-900/50 text-red-300`}>
           Cancelled
         </span>
       );
@@ -153,7 +154,7 @@ function renderAssignmentsStatusBadge(
   }
 }
 
-const CATEGORY_OPTIONS = ["MATCH", "MEDIA CONTENT", "OTHER"];
+const CATEGORY_OPTIONS = ["MATCH", "STUDIO SHOW", "MEDIA CONTENT", "OTHER"];
 const STATUS_OPTIONS = ["TBC", "TBD", "OK", "CONFIRMED", "CANCELLED"];
 
 function EventFormLookupSelect({
@@ -258,6 +259,8 @@ function EventModal({
   const [lookupRightsHolder, setLookupRightsHolder] = useState<LookupValue[]>(
     []
   );
+  const isMediaContent = form.category === "MEDIA CONTENT";
+  const isStudioShow = form.category === "STUDIO SHOW";
 
   useEffect(() => {
     let cancelled = false;
@@ -407,7 +410,11 @@ function EventModal({
           </div>
           <div>
             <label className="mb-1 block text-xs text-pitch-gray">
-              Competition
+              {isMediaContent
+                ? "Competition / Project"
+                : isStudioShow
+                  ? "Competition / Partner"
+                  : "Competition"}
             </label>
             <input
               type="text"
@@ -419,50 +426,58 @@ function EventModal({
               required
             />
           </div>
-          <div>
-            <label className="mb-1 block text-xs text-pitch-gray">
-              Matchday
-            </label>
-            <input
-              type="text"
-              value={form.matchDay}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, matchDay: e.target.value }))
-              }
-              className={inputClass}
-              required
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="mb-1 block text-xs text-pitch-gray">
-                Home team
-              </label>
-              <input
-                type="text"
-                value={form.homeTeamNameShort}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, homeTeamNameShort: e.target.value }))
-                }
-                className={inputClass}
-                required
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-pitch-gray">
-                Away team
-              </label>
-              <input
-                type="text"
-                value={form.awayTeamNameShort}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, awayTeamNameShort: e.target.value }))
-                }
-                className={inputClass}
-                required
-              />
-            </div>
-          </div>
+          {!isMediaContent ? (
+            <>
+              <div>
+                <label className="mb-1 block text-xs text-pitch-gray">
+                  {isStudioShow ? "Episode" : "Matchday"}
+                </label>
+                <input
+                  type="text"
+                  value={form.matchDay}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, matchDay: e.target.value }))
+                  }
+                  className={inputClass}
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                {!isStudioShow ? (
+                  <div>
+                  <label className="mb-1 block text-xs text-pitch-gray">
+                    Home team
+                  </label>
+                  <input
+                    type="text"
+                    value={form.homeTeamNameShort}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, homeTeamNameShort: e.target.value }))
+                    }
+                    className={inputClass}
+                    required
+                  />
+                  </div>
+                ) : null}
+                {!isStudioShow ? (
+                  <div>
+                  <label className="mb-1 block text-xs text-pitch-gray">
+                    Away team
+                  </label>
+                  <input
+                    type="text"
+                    value={form.awayTeamNameShort}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, awayTeamNameShort: e.target.value }))
+                    }
+                    className={inputClass}
+                    required
+                  />
+                  </div>
+                ) : null}
+              </div>
+            </>
+          ) : null}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="mb-1 block text-xs text-pitch-gray">
@@ -478,26 +493,28 @@ function EventModal({
                   }))
                 }
                 className={inputClass}
-                required
+                required={!isStudioShow}
               />
             </div>
-            <div>
-              <label className="mb-1 block text-xs text-pitch-gray">
-                PRE (minutes)
-              </label>
-              <input
-                type="number"
-                value={form.preDurationMinutes}
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    preDurationMinutes: parseInt(e.target.value, 10) || 0,
-                  }))
-                }
-                className={inputClass}
-                min={0}
-              />
-            </div>
+            {!isMediaContent ? (
+              <div>
+                <label className="mb-1 block text-xs text-pitch-gray">
+                  PRE (minutes)
+                </label>
+                <input
+                  type="number"
+                  value={form.preDurationMinutes}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      preDurationMinutes: parseInt(e.target.value, 10) || 0,
+                    }))
+                  }
+                  className={inputClass}
+                  min={0}
+                />
+              </div>
+            ) : null}
           </div>
           <div className="grid grid-cols-2 gap-4">
             <EventFormLookupSelect
@@ -520,32 +537,40 @@ function EventModal({
             />
           </div>
           <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="mb-1 block text-xs text-pitch-gray">
-                Venue name
-              </label>
-              <input
-                type="text"
-                value={form.venueName}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, venueName: e.target.value }))
-                }
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-pitch-gray">
-                Venue city
-              </label>
-              <input
-                type="text"
-                value={form.venueCity}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, venueCity: e.target.value }))
-                }
-                className={inputClass}
-              />
-            </div>
+            {!isMediaContent ? (
+              <>
+                {!isStudioShow ? (
+                  <div>
+                  <label className="mb-1 block text-xs text-pitch-gray">
+                    Venue name
+                  </label>
+                  <input
+                    type="text"
+                    value={form.venueName}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, venueName: e.target.value }))
+                    }
+                    className={inputClass}
+                  />
+                  </div>
+                ) : null}
+                {!isStudioShow ? (
+                  <div>
+                  <label className="mb-1 block text-xs text-pitch-gray">
+                    Venue city
+                  </label>
+                  <input
+                    type="text"
+                    value={form.venueCity}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, venueCity: e.target.value }))
+                    }
+                    className={inputClass}
+                  />
+                  </div>
+                ) : null}
+              </>
+            ) : null}
             <EventFormLookupSelect
               label="Show"
               value={form.showName}
@@ -562,13 +587,15 @@ function EventModal({
               options={lookupFacilities}
               inputClassName={inputClass}
             />
-            <EventFormLookupSelect
-              label="Rights holder"
-              value={form.rightsHolder ?? ""}
-              onChange={(v) => setForm((f) => ({ ...f, rightsHolder: v }))}
-              options={lookupRightsHolder}
-              inputClassName={inputClass}
-            />
+            {!isMediaContent && !isStudioShow ? (
+              <EventFormLookupSelect
+                label="Rights holder"
+                value={form.rightsHolder ?? ""}
+                onChange={(v) => setForm((f) => ({ ...f, rightsHolder: v }))}
+                options={lookupRightsHolder}
+                inputClassName={inputClass}
+              />
+            ) : null}
             <EventFormLookupSelect
               label="Studio"
               value={form.studio ?? ""}
@@ -687,10 +714,10 @@ export default function EventiPage() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [filters, setFilters] = useState<EventFilters>({
-    status: undefined,
     category: undefined,
     assignmentsStatus: undefined,
   });
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>(["ALL"]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [editingEvent, setEditingEvent] = useState<EventItem | null>(null);
@@ -742,16 +769,30 @@ export default function EventiPage() {
   }, [loadEvents]);
 
   const filteredEvents = useMemo(() => {
-    if (!search.trim()) return events;
     const q = search.trim().toLowerCase();
-    return events.filter(
-      (e) =>
+    const list = events.filter((e) => {
+      const st = (e.status ?? "").toUpperCase().trim();
+      const withToConfirm = st === "TBC" || st === "TBD";
+      const withCancelled = st === "CANCELED" || st === "CANCELLED";
+      const isAll = selectedStatuses.length === 0 || selectedStatuses.includes("ALL");
+      const statusMatch =
+        isAll ||
+        selectedStatuses.some((s) => {
+          if (s === "TO_CONFIRM") return withToConfirm;
+          if (s === "CANCELLED") return withCancelled;
+          return st === s;
+        });
+      if (!statusMatch) return false;
+      if (!q) return true;
+      return (
         e.competitionName?.toLowerCase().includes(q) ||
         e.homeTeamNameShort?.toLowerCase().includes(q) ||
         e.awayTeamNameShort?.toLowerCase().includes(q) ||
         e.showName?.toLowerCase().includes(q)
-    );
-  }, [events, search]);
+      );
+    });
+    return list;
+  }, [events, search, selectedStatuses]);
 
   const showModal = isCreateModalOpen || editingEvent !== null;
 
@@ -807,27 +848,41 @@ export default function EventiPage() {
         <div className="flex flex-wrap gap-4">
           <div>
             <label className="mb-1 block text-xs text-pitch-gray">Status</label>
-            <select
-              className={filterSelectClass}
-              value={filters.status ?? ""}
-              onChange={(e) => {
-                const v = e.target.value;
-                setFilters((f) => ({
-                  ...f,
-                  status:
-                    v === ""
-                      ? undefined
-                      : (v as EventFilters["status"]),
-                }));
-                setPage(0);
-              }}
-            >
-              <option value="">All</option>
-              <option value="TBD">TBD</option>
-              <option value="OK">OK</option>
-              <option value="CONFIRMED">CONFIRMED</option>
-              <option value="CANCELED">CANCELED</option>
-            </select>
+            <div className="flex flex-wrap gap-1.5 rounded border border-pitch-gray-dark bg-pitch-gray-dark p-1.5">
+              {[
+                { id: "ALL", label: "All" },
+                { id: "TBC", label: "TBC" },
+                { id: "TBD", label: "TBD" },
+                { id: "OK", label: "OK" },
+                { id: "CONFIRMED", label: "Confirmed" },
+                { id: "TO_CONFIRM", label: "To confirm" },
+                { id: "CANCELLED", label: "Cancelled" },
+              ].map((opt) => {
+                const active = selectedStatuses.includes(opt.id);
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedStatuses((prev) => {
+                        if (opt.id === "ALL") return ["ALL"];
+                        const base = prev.filter((s) => s !== "ALL");
+                        const has = base.includes(opt.id);
+                        const next = has ? base.filter((s) => s !== opt.id) : [...base, opt.id];
+                        return next.length === 0 ? ["ALL"] : next;
+                      });
+                    }}
+                    className={`rounded px-2 py-1 text-xs ${
+                      active
+                        ? "bg-pitch-accent text-pitch-bg"
+                        : "text-pitch-gray-light hover:bg-pitch-gray-dark/50 hover:text-pitch-white"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
           <div>
             <label className="mb-1 block text-xs text-pitch-gray">
@@ -850,6 +905,7 @@ export default function EventiPage() {
             >
               <option value="">All</option>
               <option value="MATCH">MATCH</option>
+              <option value="STUDIO SHOW">STUDIO SHOW</option>
               <option value="MEDIA_CONTENT">MEDIA_CONTENT</option>
             </select>
           </div>
@@ -968,12 +1024,15 @@ export default function EventiPage() {
                 const orderedEvents = [...activeEvents, ...cancelledEvents];
                 return orderedEvents.flatMap((event, idx) => {
                 const rows = [];
+                const eventCategory = (event.category ?? "").toUpperCase().trim();
                 const match =
-                  event.homeTeamNameShort && event.awayTeamNameShort
-                    ? `${event.homeTeamNameShort} vs ${event.awayTeamNameShort}`
-                    : event.homeTeamNameShort ??
-                      event.awayTeamNameShort ??
-                      "—";
+                  eventCategory === "STUDIO SHOW"
+                    ? event.showName?.trim() || event.competitionName?.trim() || "—"
+                    : event.homeTeamNameShort && event.awayTeamNameShort
+                      ? `${event.homeTeamNameShort} vs ${event.awayTeamNameShort}`
+                      : event.homeTeamNameShort ??
+                        event.awayTeamNameShort ??
+                        "—";
                 const rightsTrimmed = event.rightsHolder?.trim() ?? "";
                 if (cancelledEvents.length > 0 && idx === activeEvents.length) {
                   rows.push(

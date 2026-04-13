@@ -335,13 +335,18 @@ function EventModal({
 
   const handleDelete = async () => {
     if (!event) return;
-    const ok = window.confirm("Delete this event?");
+    const ok = window.confirm(
+      "This will permanently delete the event. This action cannot be undone. Are you sure?"
+    );
     if (!ok) return;
     setDeleting(true);
     try {
-      const res = await apiFetch(`/api/events/${encodeURIComponent(event.id)}`, {
-        method: "DELETE",
-      });
+      const res = await apiFetch(
+        `/api/events/${encodeURIComponent(event.id)}/permanent`,
+        {
+          method: "DELETE",
+        }
+      );
       if (!res.ok) {
         const body = (await res.json().catch(() => null)) as { error?: string } | null;
         throw new Error(body?.error ?? `HTTP ${res.status}`);
@@ -673,7 +678,7 @@ function EventModal({
                   disabled={deleting || saving}
                   className="rounded border border-red-400 px-4 py-2 text-sm text-red-400 hover:bg-red-900/20 disabled:opacity-50"
                 >
-                  {deleting ? "Deleting..." : "Delete"}
+                  {deleting ? "Deleting permanently…" : "Delete permanently"}
                 </button>
               ) : null}
             </div>

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { SearchBar } from "@/components/SearchBar";
@@ -18,6 +17,7 @@ import { downloadBackendFile } from "@/lib/utils/downloadFile";
 import { fetchAuthMe } from "@/lib/api/freelanceAssignments";
 import { ImportEventsModal } from "./ImportEventsModal";
 import { fetchLookupValues } from "@/lib/api/lookupValues";
+import { apiFetch } from "@/lib/api/apiFetch";
 import type { LookupValue } from "@/lib/types";
 
 function formatKoItaly(koItaly: string | null): string {
@@ -34,6 +34,31 @@ function formatKoItaly(koItaly: string | null): string {
   } catch {
     return koItaly;
   }
+}
+
+function toDatetimeLocalValueFromEvent(event: EventItem): string {
+  const rawDate = (event as EventItem & { date?: string }).date;
+  const rawKoTime = (event as EventItem & { koItalyTime?: string; ko_italy_time?: string })
+    .koItalyTime ?? (event as EventItem & { ko_italy_time?: string }).ko_italy_time;
+  const date = typeof rawDate === "string" ? rawDate.trim() : "";
+  const koTime = typeof rawKoTime === "string" ? rawKoTime.trim() : "";
+  if (date && koTime) {
+    return `${date}T${koTime.slice(0, 5)}`;
+  }
+
+  const ko = event.koItaly?.trim() ?? "";
+  if (!ko) return "";
+  const direct = ko.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})/);
+  if (direct) return `${direct[1]}T${direct[2]}`;
+
+  const d = new Date(ko);
+  if (Number.isNaN(d.getTime())) return "";
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${y}-${m}-${day}T${hh}:${mm}`;
 }
 
 function renderEventStatus(status: string | null): React.ReactNode {
@@ -164,7 +189,7 @@ function EventModal({
           venueName: event.venueName ?? "",
           venueCity: event.venueCity ?? "",
           venueAddress: event.venueAddress ?? "",
-          koItaly: event.koItaly,
+          koItaly: toDatetimeLocalValueFromEvent(event),
           preDurationMinutes: event.preDurationMinutes,
           standardOnsite: event.standardOnsite ?? "",
           standardCologno: event.standardCologno ?? "",
@@ -200,6 +225,8 @@ function EventModal({
         }
   );
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [exporting, setExporting] = useState<"pdf" | "xlsx" | null>(null);
   const [lookupOnsite, setLookupOnsite] = useState<LookupValue[]>([]);
   const [lookupCologno, setLookupCologno] = useState<LookupValue[]>([]);
   const [lookupFacilities, setLookupFacilities] = useState<LookupValue[]>([]);
@@ -278,6 +305,38 @@ function EventModal({
     }
   };
 
+  const handleDelete = async () => {
+    if (!event) return;
+    const ok = window.confirm("Delete this event?");
+    if (!ok) return;
+    setDeleting(true);
+    try {
+      const res = await apiFetch(`/api/events/${encodeURIComponent(event.id)}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error ?? `HTTP ${res.status}`);
+      }
+      onSaved();
+      onClose();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Error deleting event");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleAccreditiDownloadInModal = async (type: "pdf" | "xlsx") => {
+    if (!event) return;
+    setExporting(type);
+    try {
+      await downloadAccreditiExport(event.id, type);
+    } finally {
+      setExporting(null);
+    }
+  };
+
   const inputClass =
     "w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none";
 
@@ -340,19 +399,6 @@ function EventModal({
           </div>
           <div>
             <label className="mb-1 block text-xs text-pitch-gray">
-              Competition code
-            </label>
-            <input
-              type="text"
-              value={form.competitionCode}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, competitionCode: e.target.value }))
-              }
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-pitch-gray">
               Matchday
             </label>
             <input
@@ -402,15 +448,11 @@ function EventModal({
               </label>
               <input
                 type="datetime-local"
-                value={
-                  form.koItaly
-                    ? form.koItaly.slice(0, 16)
-                    : ""
-                }
+                value={form.koItaly ? form.koItaly.slice(0, 16) : ""}
                 onChange={(e) =>
                   setForm((f) => ({
                     ...f,
-                    koItaly: e.target.value ? `${e.target.value}:00` : "",
+                    koItaly: e.target.value,
                   }))
                 }
                 className={inputClass}
@@ -539,7 +581,43 @@ function EventModal({
               className={inputClass}
             />
           </div>
-          <div className="flex justify-end gap-2 pt-4">
+          {event ? (
+            <div className="rounded border border-pitch-gray-dark/60 p-3">
+              <div className="mb-2 text-xs text-pitch-gray">Accreditations</div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className={exportBtnClass}
+                  disabled={exporting != null}
+                  onClick={() => void handleAccreditiDownloadInModal("pdf")}
+                >
+                  {exporting === "pdf" ? "PDF…" : "PDF"}
+                </button>
+                <button
+                  type="button"
+                  className={exportBtnClass}
+                  disabled={exporting != null}
+                  onClick={() => void handleAccreditiDownloadInModal("xlsx")}
+                >
+                  {exporting === "xlsx" ? "XLSX…" : "XLSX"}
+                </button>
+              </div>
+            </div>
+          ) : null}
+          <div className="flex items-center justify-between gap-2 pt-4">
+            <div>
+              {event ? (
+                <button
+                  type="button"
+                  onClick={() => void handleDelete()}
+                  disabled={deleting || saving}
+                  className="rounded border border-red-400 px-4 py-2 text-sm text-red-400 hover:bg-red-900/20 disabled:opacity-50"
+                >
+                  {deleting ? "Deleting..." : "Delete"}
+                </button>
+              ) : null}
+            </div>
+            <div className="flex justify-end gap-2">
             <button
               type="button"
               onClick={onClose}
@@ -554,6 +632,7 @@ function EventModal({
             >
               {saving ? "Saving..." : "Save"}
             </button>
+            </div>
           </div>
         </form>
       </div>
@@ -607,10 +686,6 @@ export default function EventiPage() {
   const [search, setSearch] = useState("");
   const [editingEvent, setEditingEvent] = useState<EventItem | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [exporting, setExporting] = useState<{
-    eventId: string;
-    type: "pdf" | "xlsx";
-  } | null>(null);
   const [userLevel, setUserLevel] = useState<string | null>(null);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [importFlash, setImportFlash] = useState<string | null>(null);
@@ -670,18 +745,6 @@ export default function EventiPage() {
   }, [events, search]);
 
   const showModal = isCreateModalOpen || editingEvent !== null;
-
-  const handleAccreditiDownload = async (
-    eventId: string,
-    type: "pdf" | "xlsx"
-  ) => {
-    setExporting({ eventId, type });
-    try {
-      await downloadAccreditiExport(eventId, type);
-    } finally {
-      setExporting(null);
-    }
-  };
 
   return (
     <>
@@ -844,7 +907,7 @@ export default function EventiPage() {
             No events
           </div>
         ) : (
-          <table className="w-full min-w-[1180px] border-collapse">
+          <table className="w-full min-w-[1080px] border-collapse">
             <thead>
               <tr className="border-b border-pitch-gray-dark">
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
@@ -883,9 +946,6 @@ export default function EventiPage() {
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
                   Assignments
                 </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Accreditations
-                </th>
               </tr>
             </thead>
             <tbody>
@@ -896,7 +956,6 @@ export default function EventiPage() {
                     : event.homeTeamNameShort ??
                       event.awayTeamNameShort ??
                       "—";
-                const rowExporting = exporting?.eventId === event.id;
                 const rightsTrimmed = event.rightsHolder?.trim() ?? "";
                 return (
                   <tr
@@ -951,48 +1010,7 @@ export default function EventiPage() {
                       className="px-4 py-3"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <div className="flex flex-col gap-1.5">
-                        {renderAssignmentsStatusBadge(
-                          event.assignmentsStatus
-                        )}
-                        <Link
-                          href={`/designazioni/${event.id}`}
-                          className="text-[11px] text-pitch-accent underline-offset-2 hover:underline"
-                        >
-                          Open
-                        </Link>
-                      </div>
-                    </td>
-                    <td
-                      className="whitespace-nowrap px-4 py-3"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <div className="flex flex-wrap gap-1.5">
-                        <button
-                          type="button"
-                          className={exportBtnClass}
-                          disabled={rowExporting}
-                          onClick={() =>
-                            void handleAccreditiDownload(event.id, "pdf")
-                          }
-                        >
-                          {rowExporting && exporting?.type === "pdf"
-                            ? "PDF…"
-                            : "PDF"}
-                        </button>
-                        <button
-                          type="button"
-                          className={exportBtnClass}
-                          disabled={rowExporting}
-                          onClick={() =>
-                            void handleAccreditiDownload(event.id, "xlsx")
-                          }
-                        >
-                          {rowExporting && exporting?.type === "xlsx"
-                            ? "XLSX…"
-                            : "XLSX"}
-                        </button>
-                      </div>
+                      {renderAssignmentsStatusBadge(event.assignmentsStatus)}
                     </td>
                   </tr>
                 );

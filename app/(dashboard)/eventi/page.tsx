@@ -212,7 +212,6 @@ function EventModal({
           preDurationMinutes: event.preDurationMinutes,
           standardOnsite: event.standardOnsite ?? "",
           standardCologno: event.standardCologno ?? "",
-          areaProduzione: event.areaProduzione ?? "",
           showName: event.showName ?? "",
           status: event.status,
           rightsHolder: event.rightsHolder ?? "",
@@ -234,7 +233,6 @@ function EventModal({
           preDurationMinutes: 0,
           standardOnsite: "",
           standardCologno: "",
-          areaProduzione: "",
           showName: "",
           status: "TBC",
           rightsHolder: "",
@@ -303,7 +301,6 @@ function EventModal({
         venueAddress: form.venueAddress || undefined,
         standardOnsite: form.standardOnsite || undefined,
         standardCologno: form.standardCologno || undefined,
-        areaProduzione: form.areaProduzione || undefined,
         showName: form.showName || undefined,
         rightsHolder: form.rightsHolder?.trim() || null,
         facilities: form.facilities?.trim() || null,
@@ -514,19 +511,6 @@ function EventModal({
               }
               options={lookupCologno}
               inputClassName={inputClass}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-pitch-gray">
-              Production area
-            </label>
-            <input
-              type="text"
-              value={form.areaProduzione}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, areaProduzione: e.target.value }))
-              }
-              className={inputClass}
             />
           </div>
           <div className="grid grid-cols-3 gap-4">
@@ -954,7 +938,7 @@ export default function EventiPage() {
                   Standard Cologno
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Production area
+                  Facilities
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
                   Show
@@ -1001,7 +985,6 @@ export default function EventiPage() {
                       void (async () => {
                         setIsCreateModalOpen(false);
                         const full = await fetchEventById(event.id).catch(() => null);
-                        console.log("EVENT DATA:", JSON.stringify(full, null, 2));
                         setEditingEvent(full ?? event);
                       })()
                     }
@@ -1039,7 +1022,7 @@ export default function EventiPage() {
                       {event.standardCologno ?? "—"}
                     </td>
                     <td className="px-4 py-3 text-sm text-pitch-gray-light">
-                      {event.areaProduzione ?? "—"}
+                      {event.facilities ?? "—"}
                     </td>
                     <td className="px-4 py-3 text-sm text-pitch-gray-light">
                       {event.showName ?? "—"}

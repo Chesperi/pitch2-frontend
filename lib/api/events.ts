@@ -118,8 +118,6 @@ export function eventPayloadToSnakeCase(
     out.standard_onsite = payload.standardOnsite || null;
   if (payload.standardCologno !== undefined)
     out.standard_cologno = payload.standardCologno || null;
-  if (payload.areaProduzione !== undefined)
-    out.location = payload.areaProduzione || null;
   if (payload.showName !== undefined)
     out.show_name = payload.showName || null;
   if (payload.status !== undefined) out.status = payload.status;

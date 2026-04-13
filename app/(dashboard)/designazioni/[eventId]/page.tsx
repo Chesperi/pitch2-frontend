@@ -488,9 +488,6 @@ export default function DesignazioniEventPage() {
           stdData = await fetchStandardRequirements({
             standardOnsite: ev.standardOnsite.trim(),
             standardCologno: ev.standardCologno.trim(),
-            ...(ev.areaProduzione?.trim()
-              ? { areaProduzione: ev.areaProduzione.trim() }
-              : {}),
             page: 0,
             pageSize: 500,
           });

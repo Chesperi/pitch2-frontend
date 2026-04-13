@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import {
   fetchImportPreview,
+  fetchPdfImportPreview,
   confirmImport,
 } from "@/lib/api/eventsImport";
 import type { ImportPreviewItem } from "@/lib/types";
@@ -12,6 +13,8 @@ const COMPETITION_OPTIONS = [
   { code: "SB", label: "Serie B" },
   { code: "PD", label: "LaLiga" },
 ] as const;
+
+type SourceTab = "api" | "pdf";
 
 function formatKoItaly(iso: string): string {
   if (!iso) return "—";
@@ -49,33 +52,48 @@ const inputClass =
 type Props = {
   open: boolean;
   onClose: () => void;
-  /** Chiamato dopo import riuscito con numero di righe create. */
-  onImported: (importedCount: number) => void;
+  onImported: (result: { imported: number; zonaCreated: number }) => void;
 };
 
 export function ImportEventsModal({ open, onClose, onImported }: Props) {
+  const [sourceTab, setSourceTab] = useState<SourceTab>("api");
   const [step, setStep] = useState<1 | 2>(1);
   const [competitionCode, setCompetitionCode] = useState<string>("SA");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<ImportPreviewItem[]>([]);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [loadingPreview, setLoadingPreview] = useState(false);
+  const [parsingPdf, setParsingPdf] = useState(false);
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const reset = useCallback(() => {
+    setSourceTab("api");
     setStep(1);
     setPreview([]);
     setSelected(new Set());
+    setPdfFile(null);
     setError(null);
     setLoadingPreview(false);
+    setParsingPdf(false);
     setImporting(false);
   }, []);
 
   const handleClose = () => {
     reset();
     onClose();
+  };
+
+  const selectTab = (t: SourceTab) => {
+    setSourceTab(t);
+    setError(null);
+    if (step === 2) {
+      setStep(1);
+      setPreview([]);
+      setSelected(new Set());
+    }
   };
 
   const selectableRows = useMemo(
@@ -106,6 +124,25 @@ export function ImportEventsModal({ open, onClose, onImported }: Props) {
     }
   };
 
+  const handlePdfParse = async () => {
+    setError(null);
+    if (!pdfFile) {
+      setError("Select a PDF file.");
+      return;
+    }
+    setParsingPdf(true);
+    try {
+      const rows = await fetchPdfImportPreview(pdfFile);
+      setPreview(rows);
+      setSelected(new Set());
+      setStep(2);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "PDF parse error");
+    } finally {
+      setParsingPdf(false);
+    }
+  };
+
   const toggleRow = (id: string, disabled: boolean) => {
     if (disabled) return;
     setSelected((prev) => {
@@ -133,8 +170,8 @@ export function ImportEventsModal({ open, onClose, onImported }: Props) {
     setError(null);
     setImporting(true);
     try {
-      const { imported } = await confirmImport(toSend);
-      onImported(imported);
+      const { imported, zona_created } = await confirmImport(toSend);
+      onImported({ imported, zonaCreated: zona_created });
       handleClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Import error");
@@ -161,6 +198,31 @@ export function ImportEventsModal({ open, onClose, onImported }: Props) {
           </button>
         </div>
 
+        <div className="mb-4 flex gap-1 border-b border-pitch-gray-dark">
+          <button
+            type="button"
+            onClick={() => selectTab("api")}
+            className={`px-4 py-2 text-sm font-medium transition-colors ${
+              sourceTab === "api"
+                ? "border-b-2 border-[#FFFA00] text-pitch-white"
+                : "border-b-2 border-transparent text-pitch-gray hover:text-pitch-gray-light"
+            }`}
+          >
+            API
+          </button>
+          <button
+            type="button"
+            onClick={() => selectTab("pdf")}
+            className={`px-4 py-2 text-sm font-medium transition-colors ${
+              sourceTab === "pdf"
+                ? "border-b-2 border-[#FFFA00] text-pitch-white"
+                : "border-b-2 border-transparent text-pitch-gray hover:text-pitch-gray-light"
+            }`}
+          >
+            PDF Serie A
+          </button>
+        </div>
+
         {error ? (
           <p className="mb-3 rounded border border-red-900/50 bg-red-950/40 px-3 py-2 text-sm text-red-200">
             {error}
@@ -169,57 +231,89 @@ export function ImportEventsModal({ open, onClose, onImported }: Props) {
 
         {step === 1 ? (
           <div className="space-y-4">
-            <p className="text-sm text-pitch-gray">
-              Step 1 — Search parameters (API football-data.org)
-            </p>
-            <div>
-              <label className="mb-1 block text-xs text-pitch-gray">
-                Competition
-              </label>
-              <select
-                value={competitionCode}
-                onChange={(e) => setCompetitionCode(e.target.value)}
-                className={inputClass}
-              >
-                {COMPETITION_OPTIONS.map((o) => (
-                  <option key={o.code} value={o.code}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label className="mb-1 block text-xs text-pitch-gray">
-                  Date from
-                </label>
-                <input
-                  type="date"
-                  value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs text-pitch-gray">
-                  Date to
-                </label>
-                <input
-                  type="date"
-                  value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
-                  className={inputClass}
-                />
-              </div>
-            </div>
-            <button
-              type="button"
-              disabled={loadingPreview}
-              onClick={() => void handleSearch()}
-              className="rounded bg-pitch-accent px-4 py-2 text-sm font-medium text-pitch-bg hover:bg-yellow-200 disabled:opacity-50"
-            >
-              {loadingPreview ? "Loading…" : "Search matches"}
-            </button>
+            {sourceTab === "api" ? (
+              <>
+                <p className="text-sm text-pitch-gray">
+                  Step 1 — Search parameters (API football-data.org)
+                </p>
+                <div>
+                  <label className="mb-1 block text-xs text-pitch-gray">
+                    Competition
+                  </label>
+                  <select
+                    value={competitionCode}
+                    onChange={(e) => setCompetitionCode(e.target.value)}
+                    className={inputClass}
+                  >
+                    {COMPETITION_OPTIONS.map((o) => (
+                      <option key={o.code} value={o.code}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-xs text-pitch-gray">
+                      Date from
+                    </label>
+                    <input
+                      type="date"
+                      value={dateFrom}
+                      onChange={(e) => setDateFrom(e.target.value)}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs text-pitch-gray">
+                      Date to
+                    </label>
+                    <input
+                      type="date"
+                      value={dateTo}
+                      onChange={(e) => setDateTo(e.target.value)}
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  disabled={loadingPreview}
+                  onClick={() => void handleSearch()}
+                  className="rounded bg-pitch-accent px-4 py-2 text-sm font-medium text-pitch-bg hover:bg-yellow-200 disabled:opacity-50"
+                >
+                  {loadingPreview ? "Loading…" : "Search matches"}
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-pitch-gray">
+                  Step 1 — Upload Serie A PDF (anticipi/posticipi)
+                </p>
+                <div>
+                  <label className="mb-1 block text-xs text-pitch-gray">
+                    PDF file
+                  </label>
+                  <input
+                    type="file"
+                    accept=".pdf,application/pdf"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0] ?? null;
+                      setPdfFile(f);
+                    }}
+                    className={inputClass}
+                  />
+                </div>
+                <button
+                  type="button"
+                  disabled={parsingPdf}
+                  onClick={() => void handlePdfParse()}
+                  className="rounded bg-[#FFFA00] px-4 py-2 text-sm font-medium text-black hover:opacity-90 disabled:opacity-50"
+                >
+                  {parsingPdf ? "Parsing PDF…" : "Parse PDF"}
+                </button>
+              </>
+            )}
           </div>
         ) : (
           <div className="space-y-4">

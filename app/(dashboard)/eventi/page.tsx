@@ -225,6 +225,7 @@ function EventModal({
           facilities: event.facilities ?? "",
           studio: event.studio ?? "",
           notes: event.notes ?? "",
+          isTopMatch: Boolean(event.isTopMatch),
         }
       : {
           category: "MATCH",
@@ -246,6 +247,7 @@ function EventModal({
           facilities: "",
           studio: "",
           notes: "",
+          isTopMatch: false,
         }
   );
   const [saving, setSaving] = useState(false);
@@ -315,6 +317,7 @@ function EventModal({
         facilities: form.facilities?.trim() || null,
         studio: form.studio?.trim() || null,
         notes: form.notes?.trim() || null,
+        isTopMatch: form.isTopMatch ?? false,
       };
       if (event) {
         await updateEvent(event.id, payload);
@@ -372,7 +375,13 @@ function EventModal({
           {event ? "Edit event" : "New event"}
         </h3>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div
+            className={
+              form.category === "MATCH"
+                ? "grid grid-cols-3 gap-4"
+                : "grid grid-cols-2 gap-4"
+            }
+          >
             <div>
               <label className="mb-1 block text-xs text-pitch-gray">
                 Category
@@ -407,6 +416,21 @@ function EventModal({
                 ))}
               </select>
             </div>
+            {form.category === "MATCH" ? (
+              <div className="flex flex-col justify-end">
+                <label className="flex cursor-pointer items-center gap-2 text-sm text-pitch-white">
+                  <input
+                    type="checkbox"
+                    checked={form.isTopMatch ?? false}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, isTopMatch: e.target.checked }))
+                    }
+                    className="rounded border-pitch-gray-dark"
+                  />
+                  Top match
+                </label>
+              </div>
+            ) : null}
           </div>
           <div>
             <label className="mb-1 block text-xs text-pitch-gray">
@@ -852,8 +876,12 @@ export default function EventiPage() {
       <ImportEventsModal
         open={importModalOpen}
         onClose={() => setImportModalOpen(false)}
-        onImported={(n) => {
-          setImportFlash(`${n} matches imported`);
+        onImported={({ imported, zonaCreated }) => {
+          setImportFlash(
+            zonaCreated > 0
+              ? `${imported} matches imported, ${zonaCreated} Zona events created`
+              : `${imported} matches imported`
+          );
           window.setTimeout(() => setImportFlash(null), 5000);
           void loadEvents();
         }}
@@ -1101,7 +1129,14 @@ export default function EventiPage() {
                     className="cursor-pointer border-b border-pitch-gray-dark/50 hover:bg-pitch-gray-dark/30"
                   >
                     <td className="px-4 py-3 text-sm text-pitch-white">
-                      {match}
+                      <span className="inline-flex flex-wrap items-center gap-1">
+                        {event.isTopMatch ? (
+                          <span className="mr-1 rounded bg-yellow-400 px-1 text-xs font-bold text-black">
+                            TOP
+                          </span>
+                        ) : null}
+                        <span>{match}</span>
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-sm text-pitch-gray-light">
                       {event.competitionName}

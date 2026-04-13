@@ -1,4 +1,4 @@
-import { apiFetch } from "./apiFetch";
+import { apiFetch, apiUrl } from "./apiFetch";
 import type { ImportPreviewItem } from "@/lib/types";
 
 async function readErrorMessage(res: Response): Promise<string> {
@@ -30,9 +30,30 @@ export async function fetchImportPreview(params: {
   return data as ImportPreviewItem[];
 }
 
+export async function fetchPdfImportPreview(
+  file: File
+): Promise<ImportPreviewItem[]> {
+  const res = await fetch(apiUrl("/api/events/import/pdf-preview"), {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/pdf" },
+    body: file,
+  });
+  if (!res.ok) {
+    const err = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      message?: string;
+    };
+    throw new Error(err.error ?? err.message ?? `Error ${res.status}`);
+  }
+  const data = (await res.json()) as unknown;
+  if (!Array.isArray(data)) return [];
+  return data as ImportPreviewItem[];
+}
+
 export async function confirmImport(
   items: ImportPreviewItem[]
-): Promise<{ imported: number; skipped: number }> {
+): Promise<{ imported: number; skipped: number; zona_created: number }> {
   const res = await apiFetch("/api/events/import/confirm", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -42,9 +63,11 @@ export async function confirmImport(
   const data = (await res.json()) as {
     imported?: number;
     skipped?: number;
+    zona_created?: number;
   };
   return {
     imported: Number(data.imported ?? 0),
     skipped: Number(data.skipped ?? 0),
+    zona_created: Number(data.zona_created ?? 0),
   };
 }

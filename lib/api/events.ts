@@ -26,6 +26,7 @@ export interface EventItem {
   facilities?: string | null;
   studio?: string | null;
   notes?: string | null;
+  isTopMatch?: boolean;
 }
 
 function pickStr(
@@ -86,6 +87,7 @@ export function normalizeEventItem(raw: Record<string, unknown>): EventItem {
       raw.notes === undefined || raw.notes === null
         ? null
         : String(raw.notes),
+    isTopMatch: Boolean(raw.is_top_match ?? raw.isTopMatch),
   };
 }
 
@@ -131,6 +133,7 @@ export function eventPayloadToSnakeCase(
       payload.facilities === null ? null : payload.facilities || null;
   if (payload.studio !== undefined)
     out.studio = payload.studio === null ? null : payload.studio || null;
+  if (payload.isTopMatch !== undefined) out.is_top_match = payload.isTopMatch;
 
   return out;
 }
@@ -306,6 +309,7 @@ export interface CreateEventPayload {
   rightsHolder?: string | null;
   facilities?: string | null;
   studio?: string | null;
+  isTopMatch?: boolean;
 }
 
 export type UpdateEventPayload = Partial<CreateEventPayload>;

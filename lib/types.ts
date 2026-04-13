@@ -8,6 +8,8 @@ export interface AppliedRuleFields {
   show_name?: string;
   pre_duration_minutes?: number;
   standard_combo_id?: number;
+  is_top_match?: boolean;
+  rights_holder?: string;
 }
 
 export interface ImportPreviewItem {
@@ -22,6 +24,7 @@ export interface ImportPreviewItem {
   venue: string | null;
   already_exists: boolean;
   suggested_fields: AppliedRuleFields;
+  rights_holder?: string | null;
 }
 
 export interface EventRule {

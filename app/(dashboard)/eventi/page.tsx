@@ -1001,6 +1001,7 @@ export default function EventiPage() {
                       void (async () => {
                         setIsCreateModalOpen(false);
                         const full = await fetchEventById(event.id).catch(() => null);
+                        console.log("EVENT DATA:", JSON.stringify(full, null, 2));
                         setEditingEvent(full ?? event);
                       })()
                     }

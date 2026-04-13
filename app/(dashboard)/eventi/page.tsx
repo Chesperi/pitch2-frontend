@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { SearchBar } from "@/components/SearchBar";
 import {
   fetchEvents,
+  fetchEventById,
   createEvent,
   updateEvent,
   type EventItem,
@@ -22,15 +23,33 @@ import type { LookupValue } from "@/lib/types";
 
 function formatKoItaly(koItaly: string | null): string {
   if (!koItaly) return "—";
-  try {
-    const date = new Date(koItaly);
-    return new Intl.DateTimeFormat("it-IT", {
+  const direct = koItaly.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
+  if (direct) {
+    const [, y, m, d, hh, mm] = direct;
+    const parsed = new Date(Number(y), Number(m) - 1, Number(d), Number(hh), Number(mm));
+    return new Intl.DateTimeFormat("en-US", {
+      weekday: "short",
+      month: "short",
       day: "2-digit",
-      month: "2-digit",
-      year: "2-digit",
       hour: "2-digit",
       minute: "2-digit",
-    }).format(date);
+      hour12: false,
+    })
+      .format(parsed)
+      .replace(",", ", ");
+  }
+  try {
+    const date = new Date(koItaly);
+    return new Intl.DateTimeFormat("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    })
+      .format(date)
+      .replace(",", ", ");
   } catch {
     return koItaly;
   }
@@ -910,10 +929,10 @@ export default function EventiPage() {
           <table className="w-full min-w-[1080px] border-collapse">
             <thead>
               <tr className="border-b border-pitch-gray-dark">
-                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+                <th className="min-w-[140px] px-4 py-3 text-left text-sm font-medium text-pitch-gray">
                   Match
                 </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+                <th className="min-w-[100px] px-4 py-3 text-left text-sm font-medium text-pitch-gray">
                   Competition
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
@@ -922,7 +941,7 @@ export default function EventiPage() {
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
                   Rights
                 </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+                <th className="min-w-[130px] px-4 py-3 text-left text-sm font-medium text-pitch-gray">
                   KO
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
@@ -949,7 +968,16 @@ export default function EventiPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredEvents.map((event) => {
+              {(() => {
+                const isCancelled = (ev: EventItem) => {
+                  const s = (ev.status ?? "").toUpperCase().trim();
+                  return s === "CANCELED" || s === "CANCELLED";
+                };
+                const activeEvents = filteredEvents.filter((e) => !isCancelled(e));
+                const cancelledEvents = filteredEvents.filter((e) => isCancelled(e));
+                const orderedEvents = [...activeEvents, ...cancelledEvents];
+                return orderedEvents.flatMap((event, idx) => {
+                const rows = [];
                 const match =
                   event.homeTeamNameShort && event.awayTeamNameShort
                     ? `${event.homeTeamNameShort} vs ${event.awayTeamNameShort}`
@@ -957,13 +985,25 @@ export default function EventiPage() {
                       event.awayTeamNameShort ??
                       "—";
                 const rightsTrimmed = event.rightsHolder?.trim() ?? "";
-                return (
+                if (cancelledEvents.length > 0 && idx === activeEvents.length) {
+                  rows.push(
+                    <tr key="cancelled-separator" className="border-y border-pitch-gray-dark/80 bg-pitch-gray-dark/20">
+                      <td colSpan={12} className="px-4 py-2 text-xs font-medium uppercase tracking-wide text-pitch-gray">
+                        Cancelled events
+                      </td>
+                    </tr>
+                  );
+                }
+                rows.push(
                   <tr
                     key={event.id}
-                    onClick={() => {
-                      setEditingEvent(event);
-                      setIsCreateModalOpen(false);
-                    }}
+                    onClick={() =>
+                      void (async () => {
+                        setIsCreateModalOpen(false);
+                        const full = await fetchEventById(event.id).catch(() => null);
+                        setEditingEvent(full ?? event);
+                      })()
+                    }
                     className="cursor-pointer border-b border-pitch-gray-dark/50 hover:bg-pitch-gray-dark/30"
                   >
                     <td className="px-4 py-3 text-sm text-pitch-white">
@@ -1014,7 +1054,9 @@ export default function EventiPage() {
                     </td>
                   </tr>
                 );
-              })}
+                return rows;
+                });
+              })()}
             </tbody>
           </table>
         )}

@@ -44,12 +44,17 @@ function emptyForm(): CreateEventRulePayload {
   };
 }
 
+function defaultCompetitionName(options: LookupValue[]): string {
+  const found = options.find((o) => o.value === "Serie A");
+  return found ? found.value : "";
+}
+
 function ruleToForm(r: EventRule): CreateEventRulePayload {
   return {
     competition_name: r.competition_name ?? "",
     day_of_week: r.day_of_week,
     ko_time_from: r.ko_time_from ?? "",
-    ko_time_to: r.ko_time_to ?? "",
+    ko_time_to: r.ko_time_from ?? r.ko_time_to ?? "",
     standard_onsite: r.standard_onsite ?? "",
     standard_cologno: r.standard_cologno ?? "",
     facilities: r.facilities ?? "",
@@ -70,7 +75,7 @@ function payloadForApi(p: CreateEventRulePayload): CreateEventRulePayload {
         ? null
         : Number(dayRaw),
     ko_time_from: p.ko_time_from?.trim() || null,
-    ko_time_to: p.ko_time_to?.trim() || null,
+    ko_time_to: p.ko_time_from?.trim() || null,
     standard_onsite: p.standard_onsite?.trim() || null,
     standard_cologno: p.standard_cologno?.trim() || null,
     facilities: p.facilities?.trim() || null,
@@ -144,6 +149,7 @@ export function EventRulesSection() {
   const [lookupFacilities, setLookupFacilities] = useState<LookupValue[]>([]);
   const [lookupStudio, setLookupStudio] = useState<LookupValue[]>([]);
   const [lookupShow, setLookupShow] = useState<LookupValue[]>([]);
+  const [lookupCompetition, setLookupCompetition] = useState<LookupValue[]>([]);
 
   const loadRules = useCallback(async () => {
     setLoading(true);
@@ -169,12 +175,13 @@ export function EventRulesSection() {
     let cancelled = false;
     void (async () => {
       try {
-        const [a, b, c, d, e] = await Promise.all([
+        const [a, b, c, d, e, f] = await Promise.all([
           fetchLookupValues("standard_onsite"),
           fetchLookupValues("standard_cologno"),
           fetchLookupValues("facilities"),
           fetchLookupValues("studio"),
           fetchLookupValues("show"),
+          fetchLookupValues("competition"),
         ]);
         if (!cancelled) {
           setLookupOnsite(a);
@@ -182,6 +189,12 @@ export function EventRulesSection() {
           setLookupFacilities(c);
           setLookupStudio(d);
           setLookupShow(e);
+          setLookupCompetition(f);
+          setForm((prev) =>
+            prev.competition_name
+              ? prev
+              : { ...prev, competition_name: defaultCompetitionName(f) }
+          );
         }
       } catch {
         if (!cancelled) {
@@ -190,6 +203,7 @@ export function EventRulesSection() {
           setLookupFacilities([]);
           setLookupStudio([]);
           setLookupShow([]);
+          setLookupCompetition([]);
         }
       }
     })();
@@ -200,7 +214,10 @@ export function EventRulesSection() {
 
   const openNew = () => {
     setEditingId(null);
-    setForm(emptyForm());
+    setForm({
+      ...emptyForm(),
+      competition_name: defaultCompetitionName(lookupCompetition),
+    });
     setModalOpen(true);
   };
 
@@ -319,9 +336,7 @@ export function EventRulesSection() {
                       {dayLabel(r.day_of_week)}
                     </td>
                     <td className="px-3 py-2 text-pitch-gray-light">
-                      {r.ko_time_from || r.ko_time_to
-                        ? `${r.ko_time_from ?? "—"} – ${r.ko_time_to ?? "—"}`
-                        : "—"}
+                      {r.ko_time_from ?? r.ko_time_to ?? "—"}
                     </td>
                     <td className="max-w-[100px] truncate px-3 py-2 text-pitch-gray-light">
                       {r.standard_onsite ?? "—"}
@@ -379,14 +394,20 @@ export function EventRulesSection() {
                 <label className="mb-1 block text-xs text-pitch-gray">
                   Competition (optional, empty = any)
                 </label>
-                <input
-                  type="text"
+                <select
                   value={form.competition_name ?? ""}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, competition_name: e.target.value }))
                   }
                   className={inputClass}
-                />
+                >
+                  <option value="">— any —</option>
+                  {lookupCompetition.map((o) => (
+                    <option key={o.id} value={o.value}>
+                      {o.value}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="mb-1 block text-xs text-pitch-gray">
@@ -410,33 +431,18 @@ export function EventRulesSection() {
                   ))}
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="mb-1 block text-xs text-pitch-gray">
-                    KO from (HH:MM)
-                  </label>
-                  <input
-                    type="time"
-                    value={form.ko_time_from ?? ""}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, ko_time_from: e.target.value }))
-                    }
-                    className={inputClass}
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs text-pitch-gray">
-                    KO to (HH:MM)
-                  </label>
-                  <input
-                    type="time"
-                    value={form.ko_time_to ?? ""}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, ko_time_to: e.target.value }))
-                    }
-                    className={inputClass}
-                  />
-                </div>
+              <div>
+                <label className="mb-1 block text-xs text-pitch-gray">
+                  KO time (HH:MM)
+                </label>
+                <input
+                  type="time"
+                  value={form.ko_time_from ?? ""}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, ko_time_from: e.target.value }))
+                  }
+                  className={inputClass}
+                />
               </div>
               <LookupSelect
                 label="Standard onsite"

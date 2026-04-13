@@ -82,12 +82,12 @@ function toDatetimeLocalValueFromEvent(event: EventItem): string {
 
 function renderEventStatus(status: string | null): React.ReactNode {
   const value = status?.toUpperCase() ?? "";
-  const baseClass = "rounded-full px-2 py-0.5 text-xs font-medium";
+  const baseClass = "rounded-full px-2 py-0.5 text-xs font-medium bg-transparent";
   switch (value) {
     case "TBC":
     case "TBD":
       return (
-        <span className={`${baseClass} bg-yellow-900/50 text-yellow-300`}>
+        <span className={`${baseClass} border border-yellow-300 text-yellow-300`}>
           To confirm
         </span>
       );
@@ -97,8 +97,8 @@ function renderEventStatus(status: string | null): React.ReactNode {
         <span
           className={`${baseClass} ${
             value === "CONFIRMED"
-              ? "bg-orange-500 text-white"
-              : "bg-green-900/50 text-green-300"
+              ? "border border-orange-500 text-orange-500"
+              : "border border-green-300 text-green-300"
           }`}
         >
           {value === "OK" ? "OK" : "Confirmed"}
@@ -107,7 +107,7 @@ function renderEventStatus(status: string | null): React.ReactNode {
     case "CANCELLED":
     case "CANCELED":
       return (
-        <span className={`${baseClass} bg-red-900/50 text-red-300`}>
+        <span className={`${baseClass} border border-red-300 text-red-300`}>
           Cancelled
         </span>
       );
@@ -718,6 +718,8 @@ export default function EventiPage() {
     assignmentsStatus: undefined,
   });
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>(["ALL"]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(["ALL"]);
+  const [selectedAssignmentStatuses, setSelectedAssignmentStatuses] = useState<string[]>(["ALL"]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [editingEvent, setEditingEvent] = useState<EventItem | null>(null);
@@ -783,6 +785,24 @@ export default function EventiPage() {
           return st === s;
         });
       if (!statusMatch) return false;
+
+      const catRaw = (e.category ?? "").toUpperCase().trim();
+      const catNorm = catRaw.replace(/_/g, " ");
+      const categoryAll =
+        selectedCategories.length === 0 || selectedCategories.includes("ALL");
+      const categoryMatch =
+        categoryAll ||
+        selectedCategories.some((c) => catNorm === c || catRaw === c);
+      if (!categoryMatch) return false;
+
+      const asg = (e.assignmentsStatus ?? "").toUpperCase().trim();
+      const assignmentAll =
+        selectedAssignmentStatuses.length === 0 ||
+        selectedAssignmentStatuses.includes("ALL");
+      const assignmentMatch =
+        assignmentAll || selectedAssignmentStatuses.some((s) => s === asg);
+      if (!assignmentMatch) return false;
+
       if (!q) return true;
       return (
         e.competitionName?.toLowerCase().includes(q) ||
@@ -792,7 +812,7 @@ export default function EventiPage() {
       );
     });
     return list;
-  }, [events, search, selectedStatuses]);
+  }, [events, search, selectedStatuses, selectedCategories, selectedAssignmentStatuses]);
 
   const showModal = isCreateModalOpen || editingEvent !== null;
 
@@ -888,51 +908,76 @@ export default function EventiPage() {
             <label className="mb-1 block text-xs text-pitch-gray">
               Category
             </label>
-            <select
-              className={filterSelectClass}
-              value={filters.category ?? ""}
-              onChange={(e) => {
-                const v = e.target.value;
-                setFilters((f) => ({
-                  ...f,
-                  category:
-                    v === ""
-                      ? undefined
-                      : (v as EventFilters["category"]),
-                }));
-                setPage(0);
-              }}
-            >
-              <option value="">All</option>
-              <option value="MATCH">MATCH</option>
-              <option value="STUDIO SHOW">STUDIO SHOW</option>
-              <option value="MEDIA_CONTENT">MEDIA_CONTENT</option>
-            </select>
+            <div className="flex flex-wrap gap-1.5 rounded border border-pitch-gray-dark bg-pitch-gray-dark p-1.5">
+              {[
+                { id: "ALL", label: "All" },
+                { id: "MATCH", label: "MATCH" },
+                { id: "STUDIO SHOW", label: "STUDIO SHOW" },
+                { id: "MEDIA CONTENT", label: "MEDIA CONTENT" },
+                { id: "OTHER", label: "OTHER" },
+              ].map((opt) => {
+                const active = selectedCategories.includes(opt.id);
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedCategories((prev) => {
+                        if (opt.id === "ALL") return ["ALL"];
+                        const base = prev.filter((s) => s !== "ALL");
+                        const has = base.includes(opt.id);
+                        const next = has ? base.filter((s) => s !== opt.id) : [...base, opt.id];
+                        return next.length === 0 ? ["ALL"] : next;
+                      });
+                    }}
+                    className={`rounded px-2 py-1 text-xs ${
+                      active
+                        ? "bg-pitch-accent text-pitch-bg"
+                        : "text-pitch-gray-light hover:bg-pitch-gray-dark/50 hover:text-pitch-white"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
           <div>
             <label className="mb-1 block text-xs text-pitch-gray">
               Assignment status
             </label>
-            <select
-              className={filterSelectClass}
-              value={filters.assignmentsStatus ?? ""}
-              onChange={(e) => {
-                const v = e.target.value;
-                setFilters((f) => ({
-                  ...f,
-                  assignmentsStatus:
-                    v === ""
-                      ? undefined
-                      : (v as EventAssignmentsStatus),
-                }));
-                setPage(0);
-              }}
-            >
-              <option value="">All</option>
-              <option value="DRAFT">Draft</option>
-              <option value="READY_TO_SEND">Ready</option>
-              <option value="SENT">Sent</option>
-            </select>
+            <div className="flex flex-wrap gap-1.5 rounded border border-pitch-gray-dark bg-pitch-gray-dark p-1.5">
+              {[
+                { id: "ALL", label: "All" },
+                { id: "DRAFT", label: "Draft" },
+                { id: "READY_TO_SEND", label: "Ready" },
+                { id: "SENT", label: "Sent" },
+              ].map((opt) => {
+                const active = selectedAssignmentStatuses.includes(opt.id);
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedAssignmentStatuses((prev) => {
+                        if (opt.id === "ALL") return ["ALL"];
+                        const base = prev.filter((s) => s !== "ALL");
+                        const has = base.includes(opt.id);
+                        const next = has ? base.filter((s) => s !== opt.id) : [...base, opt.id];
+                        return next.length === 0 ? ["ALL"] : next;
+                      });
+                    }}
+                    className={`rounded px-2 py-1 text-xs ${
+                      active
+                        ? "bg-pitch-accent text-pitch-bg"
+                        : "text-pitch-gray-light hover:bg-pitch-gray-dark/50 hover:text-pitch-white"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>

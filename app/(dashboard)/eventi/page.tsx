@@ -93,7 +93,13 @@ function renderEventStatus(status: string | null): React.ReactNode {
     case "OK":
     case "CONFIRMED":
       return (
-        <span className="rounded-full bg-green-900/50 px-2 py-0.5 text-xs text-green-300">
+        <span
+          className={`rounded-full px-2 py-0.5 text-xs ${
+            value === "CONFIRMED"
+              ? "bg-orange-500 text-white"
+              : "bg-green-900/50 text-green-300"
+          }`}
+        >
           {value === "OK" ? "OK" : "Confirmed"}
         </span>
       );
@@ -1013,7 +1019,23 @@ export default function EventiPage() {
                       {formatKoItaly(event.koItaly)}
                     </td>
                     <td className="px-4 py-3 text-sm text-pitch-gray-light">
-                      {event.preDurationMinutes}
+                      <span
+                        className={
+                          event.preDurationMinutes === 75
+                            ? "text-red-400"
+                            : event.preDurationMinutes === 60
+                              ? "text-blue-400"
+                              : event.preDurationMinutes === 45
+                                ? "text-green-400"
+                                : event.preDurationMinutes === 30
+                                  ? "text-white"
+                                  : event.preDurationMinutes === 15
+                                    ? "text-yellow-300"
+                                    : ""
+                        }
+                      >
+                        {event.preDurationMinutes}
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-sm text-pitch-gray-light">
                       {event.standardOnsite ?? "—"}

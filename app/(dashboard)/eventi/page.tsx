@@ -1246,6 +1246,9 @@ export default function EventiPage() {
                   Facilities
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+                  Studio
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
                   Show
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
@@ -1279,7 +1282,7 @@ export default function EventiPage() {
                 if (cancelledEvents.length > 0 && idx === activeEvents.length) {
                   rows.push(
                     <tr key="cancelled-separator" className="border-y border-pitch-gray-dark/80 bg-pitch-gray-dark/20">
-                      <td colSpan={13} className="px-4 py-2 text-xs font-medium uppercase tracking-wide text-pitch-gray">
+                      <td colSpan={14} className="px-4 py-2 text-xs font-medium uppercase tracking-wide text-pitch-gray">
                         Cancelled events
                       </td>
                     </tr>
@@ -1370,6 +1373,9 @@ export default function EventiPage() {
                     </td>
                     <td className="px-4 py-3 text-sm text-pitch-gray-light">
                       {event.facilities ?? "—"}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-pitch-gray-light">
+                      {event.studio ?? "—"}
                     </td>
                     <td className="px-4 py-3 text-sm text-pitch-gray-light">
                       {event.showName ?? "—"}

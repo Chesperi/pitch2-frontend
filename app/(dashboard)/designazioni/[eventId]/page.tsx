@@ -1175,6 +1175,12 @@ export default function DesignazioniEventPage() {
             </span>
           </div>
           <div>
+            <span className="text-sm text-pitch-gray">Studio: </span>
+            <span className="text-pitch-white">
+              {event.studio ?? "—"}
+            </span>
+          </div>
+          <div>
             <span className="text-sm text-pitch-gray">Show: </span>
             <span className="text-pitch-white">{event.showName ?? "—"}</span>
           </div>

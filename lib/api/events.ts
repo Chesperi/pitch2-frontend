@@ -26,7 +26,7 @@ export interface EventItem {
   assignmentsStatus: EventAssignmentsStatus;
   rightsHolder?: string | null;
   facilities?: string | null;
-  studio?: string | null;
+  studio: string | null;
   notes?: string | null;
   isTopMatch?: boolean;
 }

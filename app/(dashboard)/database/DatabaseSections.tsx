@@ -32,6 +32,7 @@ import {
   updateStandardCombo,
 } from "@/lib/api/standardCombos";
 import { fetchAccreditationAreas } from "@/lib/api/accrediti";
+import { apiFetch } from "@/lib/api/apiFetch";
 import { LookupValuesSection } from "./LookupValuesSection";
 import { EventRulesSection } from "./EventRulesSection";
 import {
@@ -298,6 +299,12 @@ export function DatabaseSections({
   >([]);
   const [accreditationAreasLoading, setAccreditationAreasLoading] = useState(false);
   const [accreditationAreasError, setAccreditationAreasError] = useState<string | null>(null);
+  const [editingAccreditationRoleCode, setEditingAccreditationRoleCode] =
+    useState<string | null>(null);
+  const [editingAccreditationAreasValue, setEditingAccreditationAreasValue] =
+    useState("");
+  const [savingAccreditationRoleCode, setSavingAccreditationRoleCode] =
+    useState<string | null>(null);
 
   const [staff, setStaff] = useState<StaffItem[]>(initialStaff);
   const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
@@ -768,31 +775,29 @@ export function DatabaseSections({
     }
   };
 
-  useEffect(() => {
-    let cancelled = false;
-    async function run() {
-      setAccreditationAreasLoading(true);
-      setAccreditationAreasError(null);
-      try {
-        const payload = await fetchAccreditationAreas(accreditationOwnerCode);
-        if (cancelled) return;
-        setAccreditationAreaMappings(payload.mappings);
-        setAccreditationAreaLegends(payload.legends);
-      } catch (err) {
-        if (cancelled) return;
-        setAccreditationAreaMappings([]);
-        setAccreditationAreaLegends([]);
-        setAccreditationAreasError(
-          err instanceof Error ? err.message : "Error loading accreditation areas."
-        );
-      } finally {
-        if (!cancelled) setAccreditationAreasLoading(false);
-      }
+  const loadAccreditationAreas = async (ownerCode: string): Promise<void> => {
+    setAccreditationAreasLoading(true);
+    setAccreditationAreasError(null);
+    try {
+      const payload = await fetchAccreditationAreas(ownerCode);
+      setAccreditationAreaMappings(payload.mappings);
+      setAccreditationAreaLegends(payload.legends);
+    } catch (err) {
+      setAccreditationAreaMappings([]);
+      setAccreditationAreaLegends([]);
+      setAccreditationAreasError(
+        err instanceof Error ? err.message : "Error loading accreditation areas."
+      );
+    } finally {
+      setAccreditationAreasLoading(false);
     }
-    void run();
-    return () => {
-      cancelled = true;
-    };
+  };
+
+  useEffect(() => {
+    void loadAccreditationAreas(accreditationOwnerCode);
+    setEditingAccreditationRoleCode(null);
+    setEditingAccreditationAreasValue("");
+    setSavingAccreditationRoleCode(null);
   }, [accreditationOwnerCode]);
 
   return (
@@ -1512,18 +1517,19 @@ export function DatabaseSections({
               <tr className="border-b border-[#2a2a2a]">
                 <th className={DB_TH}>Ruolo</th>
                 <th className={DB_TH}>Aree assegnate</th>
+                <th className={DB_TH}>Azioni</th>
               </tr>
             </thead>
             <tbody>
               {accreditationAreasLoading ? (
                 <tr className={DB_TBODY_TR}>
-                  <td colSpan={2} className={DB_TD_EMPTY}>
+                  <td colSpan={3} className={DB_TD_EMPTY}>
                     Loading...
                   </td>
                 </tr>
               ) : accreditationAreaMappings.length === 0 ? (
                 <tr className={DB_TBODY_TR}>
-                  <td colSpan={2} className={DB_TD_EMPTY}>
+                  <td colSpan={3} className={DB_TD_EMPTY}>
                     Nessuna mappatura disponibile.
                   </td>
                 </tr>
@@ -1534,7 +1540,98 @@ export function DatabaseSections({
                     className={DB_TBODY_TR}
                   >
                     <td className={DB_TD}>{row.roleCode}</td>
-                    <td className={DB_TD}>{row.areas}</td>
+                    <td className={DB_TD}>
+                      {editingAccreditationRoleCode === row.roleCode ? (
+                        <input
+                          type="text"
+                          value={editingAccreditationAreasValue}
+                          onChange={(e) =>
+                            setEditingAccreditationAreasValue(e.target.value)
+                          }
+                          className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-2 py-1 text-xs text-pitch-white"
+                        />
+                      ) : (
+                        row.areas
+                      )}
+                    </td>
+                    <td className="px-3 py-2">
+                      {editingAccreditationRoleCode === row.roleCode ? (
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={savingAccreditationRoleCode === row.roleCode}
+                            className="text-xs text-pitch-accent underline-offset-2 hover:underline disabled:opacity-50"
+                            onClick={async () => {
+                              const nextAreas =
+                                editingAccreditationAreasValue.trim();
+                              if (!nextAreas) {
+                                setAccreditationAreasError(
+                                  "Il campo aree non puo essere vuoto."
+                                );
+                                return;
+                              }
+                              setSavingAccreditationRoleCode(row.roleCode);
+                              setAccreditationAreasError(null);
+                              try {
+                                const res = await apiFetch(
+                                  `/api/accreditation-areas/${encodeURIComponent(
+                                    accreditationOwnerCode
+                                  )}/${encodeURIComponent(row.roleCode)}`,
+                                  {
+                                    method: "PATCH",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ areas: nextAreas }),
+                                  }
+                                );
+                                if (!res.ok) {
+                                  throw new Error(
+                                    `Update failed with status ${res.status}`
+                                  );
+                                }
+                                setEditingAccreditationRoleCode(null);
+                                setEditingAccreditationAreasValue("");
+                                await loadAccreditationAreas(accreditationOwnerCode);
+                              } catch (err) {
+                                setAccreditationAreasError(
+                                  err instanceof Error
+                                    ? err.message
+                                    : "Errore salvataggio aree accredito."
+                                );
+                              } finally {
+                                setSavingAccreditationRoleCode(null);
+                              }
+                            }}
+                          >
+                            {savingAccreditationRoleCode === row.roleCode
+                              ? "Salvataggio..."
+                              : "Salva"}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={savingAccreditationRoleCode === row.roleCode}
+                            className="text-xs text-pitch-gray-light underline-offset-2 hover:underline disabled:opacity-50"
+                            onClick={() => {
+                              setEditingAccreditationRoleCode(null);
+                              setEditingAccreditationAreasValue("");
+                            }}
+                          >
+                            Annulla
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          className="text-xs text-pitch-accent underline-offset-2 hover:underline"
+                          onClick={() => {
+                            setEditingAccreditationRoleCode(row.roleCode);
+                            setEditingAccreditationAreasValue(row.areas);
+                            setAccreditationAreasError(null);
+                          }}
+                        >
+                          Modifica
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))
               )}

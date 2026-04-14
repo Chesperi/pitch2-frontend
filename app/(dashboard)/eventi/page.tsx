@@ -164,16 +164,22 @@ function EventFormLookupSelect({
   value,
   onChange,
   options,
+  prependOptions = [],
   inputClassName,
 }: {
   label: string;
   value: string | undefined;
   onChange: (v: string) => void;
   options: LookupValue[];
+  prependOptions?: string[];
   inputClassName: string;
 }) {
   const v = value ?? "";
-  const inList = options.some((o) => o.value === v);
+  const mergedOptions = [
+    ...prependOptions,
+    ...options.map((o) => o.value),
+  ].filter((value, idx, arr) => arr.indexOf(value) === idx);
+  const inList = mergedOptions.includes(v);
   return (
     <div>
       <label className="mb-1 block text-xs text-pitch-gray">{label}</label>
@@ -183,9 +189,9 @@ function EventFormLookupSelect({
         className={inputClassName}
       >
         <option value="">— select —</option>
-        {options.map((o) => (
-          <option key={o.id} value={o.value}>
-            {o.value}
+        {mergedOptions.map((opt) => (
+          <option key={opt} value={opt}>
+            {opt}
           </option>
         ))}
         {v && !inList ? (
@@ -632,6 +638,7 @@ function EventModal({
               value={form.studio ?? ""}
               onChange={(v) => setForm((f) => ({ ...f, studio: v }))}
               options={lookupStudio}
+              prependOptions={["-"]}
               inputClassName={inputClass}
             />
           </div>

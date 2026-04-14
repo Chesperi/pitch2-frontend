@@ -8,6 +8,7 @@ import {
   fetchEventById,
   createEvent,
   updateEvent,
+  bulkUpdateEventsStatus,
   type EventItem,
   type EventAssignmentsStatus,
   type CreateEventPayload,
@@ -756,6 +757,10 @@ export default function EventiPage() {
   const [userLevel, setUserLevel] = useState<string | null>(null);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [importFlash, setImportFlash] = useState<string | null>(null);
+  const [selectedEventIds, setSelectedEventIds] = useState<Set<string>>(
+    () => new Set()
+  );
+  const [bulkUpdating, setBulkUpdating] = useState(false);
 
   const canImportMatches =
     userLevel != null &&
@@ -842,6 +847,62 @@ export default function EventiPage() {
     });
     return list;
   }, [events, search, selectedStatuses, selectedCategories, selectedAssignmentStatuses]);
+
+  useEffect(() => {
+    setSelectedEventIds(new Set());
+  }, [events, page, search, selectedStatuses, selectedCategories, selectedAssignmentStatuses]);
+
+  const orderedEvents = useMemo(() => {
+    const isCancelled = (ev: EventItem) => {
+      const s = (ev.status ?? "").toUpperCase().trim();
+      return s === "CANCELED" || s === "CANCELLED";
+    };
+    const activeEvents = filteredEvents.filter((e) => !isCancelled(e));
+    const cancelledEvents = filteredEvents.filter((e) => isCancelled(e));
+    return [...activeEvents, ...cancelledEvents];
+  }, [filteredEvents]);
+
+  const allVisibleSelected =
+    orderedEvents.length > 0 &&
+    orderedEvents.every((e) => selectedEventIds.has(e.id));
+
+  const handleToggleSelectAllVisible = () => {
+    setSelectedEventIds((prev) => {
+      const next = new Set(prev);
+      if (allVisibleSelected) {
+        for (const e of orderedEvents) next.delete(e.id);
+      } else {
+        for (const e of orderedEvents) next.add(e.id);
+      }
+      return next;
+    });
+  };
+
+  const handleToggleRowSelection = (eventId: string) => {
+    setSelectedEventIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(eventId)) next.delete(eventId);
+      else next.add(eventId);
+      return next;
+    });
+  };
+
+  const handleBulkSetOk = async () => {
+    if (selectedEventIds.size === 0) return;
+    setBulkUpdating(true);
+    try {
+      await bulkUpdateEventsStatus({
+        eventIds: Array.from(selectedEventIds),
+        status: "OK",
+      });
+      setSelectedEventIds(new Set());
+      await loadEvents();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Bulk update failed");
+    } finally {
+      setBulkUpdating(false);
+    }
+  };
 
   const showModal = isCreateModalOpen || editingEvent !== null;
 
@@ -1053,6 +1114,15 @@ export default function EventiPage() {
           <table className="w-full min-w-[1080px] border-collapse">
             <thead>
               <tr className="border-b border-pitch-gray-dark">
+                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+                  <input
+                    type="checkbox"
+                    checked={allVisibleSelected}
+                    onChange={handleToggleSelectAllVisible}
+                    className="h-4 w-4 rounded border-pitch-gray-dark"
+                    aria-label="Seleziona tutti gli eventi visibili"
+                  />
+                </th>
                 <th className="min-w-[140px] px-4 py-3 text-left text-sm font-medium text-pitch-gray">
                   Match
                 </th>
@@ -1100,9 +1170,8 @@ export default function EventiPage() {
                   const s = (ev.status ?? "").toUpperCase().trim();
                   return s === "CANCELED" || s === "CANCELLED";
                 };
-                const activeEvents = filteredEvents.filter((e) => !isCancelled(e));
-                const cancelledEvents = filteredEvents.filter((e) => isCancelled(e));
-                const orderedEvents = [...activeEvents, ...cancelledEvents];
+                const activeEvents = orderedEvents.filter((e) => !isCancelled(e));
+                const cancelledEvents = orderedEvents.filter((e) => isCancelled(e));
                 return orderedEvents.flatMap((event, idx) => {
                 const rows = [];
                 const eventCategory = (event.category ?? "").toUpperCase().trim();
@@ -1136,6 +1205,18 @@ export default function EventiPage() {
                     }
                     className="cursor-pointer border-b border-pitch-gray-dark/50 hover:bg-pitch-gray-dark/30"
                   >
+                    <td
+                      className="px-4 py-3"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedEventIds.has(event.id)}
+                        onChange={() => handleToggleRowSelection(event.id)}
+                        className="h-4 w-4 rounded border-pitch-gray-dark"
+                        aria-label={`Seleziona evento ${event.id}`}
+                      />
+                    </td>
                     <td className="px-4 py-3 text-sm text-pitch-white">
                       <span className="inline-flex flex-wrap items-center gap-1">
                         {event.isTopMatch ? (
@@ -1219,6 +1300,22 @@ export default function EventiPage() {
           </table>
         )}
       </div>
+
+      {selectedEventIds.size > 0 ? (
+        <div className="mt-4 flex items-center justify-between rounded border border-pitch-gray-dark bg-pitch-gray-dark/40 px-4 py-3">
+          <span className="text-sm text-pitch-gray-light">
+            {selectedEventIds.size} eventi selezionati
+          </span>
+          <button
+            type="button"
+            disabled={bulkUpdating}
+            onClick={() => void handleBulkSetOk()}
+            className="rounded bg-pitch-accent px-3 py-1.5 text-sm font-medium text-pitch-bg hover:bg-yellow-200 disabled:opacity-50"
+          >
+            {bulkUpdating ? "Updating..." : "Imposta Standard OK"}
+          </button>
+        </div>
+      ) : null}
 
       {showModal && (
         <EventModal

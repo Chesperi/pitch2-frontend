@@ -16,6 +16,7 @@ import {
   updateDesignatorAssignment,
   deleteDesignatorAssignment,
   markAssignmentsReady,
+  fetchAssignmentConflicts,
   type AssignmentStatus,
   type AssignmentWithJoins,
 } from "@/lib/api/assignments";
@@ -200,6 +201,56 @@ function safeStandardQuantity(q: unknown): number {
   return Math.floor(n);
 }
 
+function eventDateForConflict(ev: EventItem | null): string | null {
+  const rawKo = String(ev?.koItaly ?? "").trim();
+  const koMatch = rawKo.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (koMatch) return koMatch[1];
+  const rawDate = String(ev?.date ?? "").trim();
+  const dateMatch = rawDate.match(/^(\d{4}-\d{2}-\d{2})/);
+  return dateMatch ? dateMatch[1] : null;
+}
+
+function ConfirmModal({
+  title,
+  body,
+  confirmLabel,
+  cancelLabel,
+  onConfirm,
+  onCancel,
+}: {
+  title: string;
+  body: ReactNode;
+  confirmLabel: string;
+  cancelLabel: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60">
+      <div className="w-full max-w-lg rounded-lg border border-pitch-gray-dark bg-pitch-bg p-4">
+        <h3 className="text-base font-semibold text-pitch-white">{title}</h3>
+        <div className="mt-2 text-sm text-pitch-gray-light">{body}</div>
+        <div className="mt-4 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded border border-pitch-gray px-3 py-1.5 text-xs text-pitch-gray-light hover:bg-pitch-gray-dark"
+          >
+            {cancelLabel}
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="rounded bg-pitch-accent px-3 py-1.5 text-xs font-semibold text-pitch-bg hover:bg-yellow-200"
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function normStd(s: string | null | undefined): string {
   return (s ?? "").trim();
 }
@@ -357,6 +408,7 @@ function StaffPicker({
   assignments,
   staffList,
   errorMessage,
+  staticWarning,
   onClose,
   onSelect,
 }: {
@@ -364,6 +416,7 @@ function StaffPicker({
   assignments: AssignmentWithJoins[];
   staffList: StaffItem[];
   errorMessage?: string | null;
+  staticWarning?: string | null;
   onClose: () => void;
   onSelect: (assignmentId: number, staffId: number) => void;
 }) {
@@ -387,6 +440,11 @@ function StaffPicker({
             className="mb-3 rounded border border-red-800/60 bg-red-950/50 px-3 py-2 text-xs text-red-200"
           >
             {errorMessage}
+          </p>
+        ) : null}
+        {staticWarning ? (
+          <p className="mb-3 rounded border border-amber-800/60 bg-amber-950/50 px-3 py-2 text-xs text-amber-200">
+            {staticWarning}
           </p>
         ) : null}
         <ul className="max-h-64 overflow-auto text-sm">
@@ -447,6 +505,19 @@ export default function DesignazioniEventPage() {
   const [standardRequirements, setStandardRequirements] = useState<
     StandardRequirementWithRole[]
   >([]);
+  const [standardBannerIgnored, setStandardBannerIgnored] = useState(false);
+  const [standardChanged, setStandardChanged] = useState(false);
+  const [conflictWarning, setConflictWarning] = useState<string | null>(null);
+  const [showRegenerateModal, setShowRegenerateModal] = useState(false);
+  const [regenerateMessage, setRegenerateMessage] = useState("");
+  const [showReadyEventModal, setShowReadyEventModal] = useState(false);
+  const [readyEventCoverage, setReadyEventCoverage] = useState<{
+    assignedIds: number[];
+    totalRequired: number;
+    covered: number;
+    missingRoles: string[];
+    simple: boolean;
+  } | null>(null);
 
   const loadAssignments = useCallback(async () => {
     const data = await fetchAssignmentsByEvent(eventId);
@@ -540,6 +611,69 @@ export default function DesignazioniEventPage() {
     setReadyMap(initialReady);
   }, [event?.id, assignments]);
 
+  useEffect(() => {
+    if (standardBannerIgnored) return;
+    if (!event?.standardComboId) {
+      setStandardChanged(false);
+      return;
+    }
+
+    const generatedCombo = assignments
+      .map((a) => a.generatedFromComboId ?? a.generated_from_combo_id ?? null)
+      .find((v): v is number => v != null);
+
+    if (generatedCombo != null) {
+      setStandardChanged(generatedCombo !== event.standardComboId);
+      return;
+    }
+
+    // Fallback legacy: nessun generated_from_combo_id sugli slot esistenti.
+    if (standardRequirements.length === 0) {
+      setStandardChanged(true);
+      return;
+    }
+
+    const reqMap = new Map<string, number>();
+    for (const req of standardRequirements) {
+      const key = `${String(req.roleCode ?? "").trim().toUpperCase()}__${String(
+        req.roleLocation ?? ""
+      )
+        .trim()
+        .toUpperCase()}`;
+      if (!key || key === "__") continue;
+      reqMap.set(key, (reqMap.get(key) ?? 0) + safeStandardQuantity(req.quantity));
+    }
+
+    const slotMap = new Map<string, number>();
+    for (const a of assignments) {
+      const key = assignmentRoleKey(a);
+      if (!key || key === "__") continue;
+      slotMap.set(key, (slotMap.get(key) ?? 0) + 1);
+    }
+
+    let mismatch = false;
+    for (const [k, required] of reqMap.entries()) {
+      if ((slotMap.get(k) ?? 0) !== required) {
+        mismatch = true;
+        break;
+      }
+    }
+    if (!mismatch) {
+      for (const [k, slots] of slotMap.entries()) {
+        if (!reqMap.has(k) && slots > 0) {
+          mismatch = true;
+          break;
+        }
+      }
+    }
+    setStandardChanged(mismatch);
+  }, [
+    event?.standardComboId,
+    standardRequirements,
+    assignments,
+    standardBannerIgnored,
+  ]);
+
   const hasAnyReady = assignments.some((a) => readyMap[a.id]);
 
   const roleSummaries = useMemo(
@@ -576,6 +710,32 @@ export default function DesignazioniEventPage() {
   const handleAssignStaff = async (assignmentId: number, staffId: number) => {
     setPickerError(null);
     try {
+      const date = eventDateForConflict(event);
+      if (date) {
+        try {
+          const conflicts = await fetchAssignmentConflicts({ staffId, date });
+          const conflictsExcludingCurrent = conflicts.filter(
+            (c) => c.assignmentId !== assignmentId
+          );
+          if (conflictsExcludingCurrent.length > 0) {
+            const first = conflictsExcludingCurrent[0];
+            const eventLabel =
+              first.homeTeamNameShort && first.awayTeamNameShort
+                ? `${first.homeTeamNameShort} vs ${first.awayTeamNameShort}`
+                : first.showName || first.competitionName || first.eventId;
+            const staff = staffList.find((s) => s.id === staffId);
+            const staffLabel = staff
+              ? `${staff.surname} ${staff.name}`.trim()
+              : `Staff ${staffId}`;
+            setConflictWarning(
+              `${staffLabel} è già assegnato in un altro evento in questa data: ${eventLabel}. Puoi comunque procedere.`
+            );
+          }
+        } catch {
+          // warning non bloccante: non interrompe assegnazione
+        }
+      }
+
       const row = assignments.find((x) => x.id === assignmentId);
       if (!row) {
         setPickerError("Slot not found.");
@@ -657,12 +817,25 @@ export default function DesignazioniEventPage() {
   const handleRegenerateFromStandard = async () => {
     if (!event?.standardOnsite || !event?.standardCologno) return;
 
+    const assignedCount = assignments.filter((a) => a.staffId != null).length;
+    const message =
+      assignedCount === 0
+        ? "Verranno generati i requirements dal nuovo standard."
+        : "Verranno aggiunti solo gli slot mancanti. Le assegnazioni esistenti non verranno toccate.";
+    setRegenerateMessage(message);
+    setShowRegenerateModal(true);
+  };
+
+  const confirmRegenerateFromStandard = async () => {
+    if (!event?.standardOnsite || !event?.standardCologno) return;
     setIsGeneratingFromStandard(true);
     try {
       await generateAssignmentsFromStandard(event.id);
       const freshAssignments = await fetchAssignmentsByEvent(event.id);
       setAssignments(freshAssignments);
       setReadyMap({});
+      setStandardBannerIgnored(false);
+      setShowRegenerateModal(false);
     } catch (err) {
       console.error(err);
       alert(err instanceof Error ? err.message : "Regeneration error");
@@ -671,7 +844,7 @@ export default function DesignazioniEventPage() {
     }
   };
 
-  const handleReadyToSend = async () => {
+  const handleReadySelected = async () => {
     const selectedIds = assignments
       .filter((a) => readyMap[a.id])
       .map((a) => a.id);
@@ -688,6 +861,82 @@ export default function DesignazioniEventPage() {
       await reloadAssignments();
     } catch (e) {
       alert(e instanceof Error ? e.message : "Failed to mark assignments ready");
+    }
+  };
+
+  const handleReadyToSendEvent = async () => {
+    if (!event) return;
+    const assignedIds = assignments
+      .filter((a) => (a.staffId ?? a.staff_id) != null)
+      .map((a) => a.id);
+    if (assignedIds.length === 0) {
+      alert("Nessuna assegnazione con persona selezionata.");
+      return;
+    }
+
+    const requiredByRole = new Map<string, number>();
+    for (const req of standardRequirements) {
+      const key = `${String(req.roleCode ?? "").trim().toUpperCase()}__${String(
+        req.roleLocation ?? ""
+      )
+        .trim()
+        .toUpperCase()}`;
+      if (!key || key === "__") continue;
+      requiredByRole.set(
+        key,
+        (requiredByRole.get(key) ?? 0) + safeStandardQuantity(req.quantity)
+      );
+    }
+
+    const assignedByRole = new Map<string, number>();
+    for (const a of assignments) {
+      const staff = a.staffId ?? a.staff_id;
+      if (staff == null) continue;
+      const key = assignmentRoleKey(a);
+      if (!key || key === "__") continue;
+      assignedByRole.set(key, (assignedByRole.get(key) ?? 0) + 1);
+    }
+
+    const totalRequired = Array.from(requiredByRole.values()).reduce(
+      (acc, n) => acc + n,
+      0
+    );
+    const covered = Array.from(requiredByRole.entries()).reduce((acc, [k, req]) => {
+      return acc + Math.min(req, assignedByRole.get(k) ?? 0);
+    }, 0);
+    const missingRoles: string[] = [];
+    for (const [k, req] of requiredByRole.entries()) {
+      const got = assignedByRole.get(k) ?? 0;
+      if (got < req) {
+        const [code, loc] = k.split("__");
+        missingRoles.push(`${code} (${loc}) x${req - got}`);
+      }
+    }
+
+    const simple = totalRequired === 0 || covered >= totalRequired;
+    setReadyEventCoverage({
+      assignedIds,
+      totalRequired,
+      covered,
+      missingRoles,
+      simple,
+    });
+    setShowReadyEventModal(true);
+  };
+
+  const confirmReadyToSendEvent = async () => {
+    if (!event || !readyEventCoverage) return;
+    try {
+      await markAssignmentsReady({
+        eventId: event.id,
+        assignmentIds: readyEventCoverage.assignedIds,
+      });
+      await loadEvent();
+      await reloadAssignments();
+      setShowReadyEventModal(false);
+      setReadyEventCoverage(null);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Failed to mark event ready");
     }
   };
 
@@ -728,6 +977,11 @@ export default function DesignazioniEventPage() {
     event?.homeTeamNameShort && event?.awayTeamNameShort
       ? `${event.homeTeamNameShort} vs ${event.awayTeamNameShort}`
       : event?.homeTeamNameShort ?? event?.awayTeamNameShort ?? "—";
+  const conflictDate = eventDateForConflict(event);
+  const pickerStaticWarning =
+    conflictDate == null
+      ? "Data evento non disponibile — verifica manualmente eventuali sovrapposizioni."
+      : null;
 
   return (
     <>
@@ -744,6 +998,41 @@ export default function DesignazioniEventPage() {
       />
 
       <section className="mt-4 space-y-2">
+        {conflictWarning ? (
+          <div className="rounded border border-amber-700/60 bg-amber-950/40 px-3 py-2 text-xs text-amber-200">
+            <div>{conflictWarning}</div>
+            <button
+              type="button"
+              className="mt-1 text-[11px] underline"
+              onClick={() => setConflictWarning(null)}
+            >
+              Chiudi
+            </button>
+          </div>
+        ) : null}
+        {standardChanged ? (
+          <div className="rounded border border-yellow-700/60 bg-yellow-950/40 px-3 py-2 text-xs text-yellow-200">
+            <div>
+              Lo standard di questo evento è cambiato. Vuoi rigenerare i requirements?
+            </div>
+            <div className="mt-2 flex gap-2">
+              <button
+                type="button"
+                onClick={handleRegenerateFromStandard}
+                className="rounded bg-pitch-accent px-2 py-1 font-medium text-pitch-bg hover:bg-yellow-200"
+              >
+                Rigenera
+              </button>
+              <button
+                type="button"
+                onClick={() => setStandardBannerIgnored(true)}
+                className="rounded border border-yellow-700/60 px-2 py-1 text-yellow-200 hover:bg-yellow-950/60"
+              >
+                Ignora per ora
+              </button>
+            </div>
+          </div>
+        ) : null}
         <h2 className="text-sm font-semibold text-pitch-white">
           Status legend
         </h2>
@@ -901,11 +1190,19 @@ export default function DesignazioniEventPage() {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={handleReadyToSend}
+              onClick={handleReadySelected}
               disabled={!hasAnyReady}
               className="rounded bg-pitch-accent px-3 py-1 text-xs font-semibold text-pitch-bg hover:bg-yellow-200 disabled:cursor-not-allowed disabled:bg-pitch-gray-dark disabled:text-pitch-gray"
             >
-              Ready to send
+              Ready selected
+            </button>
+            <button
+              type="button"
+              onClick={handleReadyToSendEvent}
+              disabled={assignments.every((a) => (a.staffId ?? a.staff_id) == null)}
+              className="rounded bg-yellow-700 px-3 py-1 text-xs font-semibold text-white hover:bg-yellow-600 disabled:cursor-not-allowed disabled:bg-pitch-gray-dark disabled:text-pitch-gray"
+            >
+              Ready to Send (event)
             </button>
             <button
               type="button"
@@ -1210,10 +1507,55 @@ export default function DesignazioniEventPage() {
           assignments={assignments}
           staffList={staffList}
           errorMessage={pickerError}
+          staticWarning={pickerStaticWarning}
           onClose={() => setStaffPickerForId(null)}
           onSelect={handleAssignStaff}
         />
       )}
+      {showRegenerateModal ? (
+        <ConfirmModal
+          title="Rigenera requirements"
+          body={<p>{regenerateMessage}</p>}
+          confirmLabel="Rigenera"
+          cancelLabel="Ignora per ora"
+          onConfirm={() => {
+            void confirmRegenerateFromStandard();
+          }}
+          onCancel={() => setShowRegenerateModal(false)}
+        />
+      ) : null}
+      {showReadyEventModal && readyEventCoverage ? (
+        <ConfirmModal
+          title="Ready to Send evento"
+          body={
+            readyEventCoverage.simple ? (
+              <p>Tutti i requirements risultano coperti.</p>
+            ) : (
+              <div className="space-y-2">
+                <p>
+                  {readyEventCoverage.covered} su {readyEventCoverage.totalRequired} requirements coperti.
+                </p>
+                <p>Posizioni ancora vuote:</p>
+                <ul className="list-disc pl-5">
+                  {readyEventCoverage.missingRoles.map((r) => (
+                    <li key={r}>{r}</li>
+                  ))}
+                </ul>
+                <p>Potrai assegnare le posizioni mancanti e inviarle separatamente.</p>
+              </div>
+            )
+          }
+          confirmLabel="Conferma comunque"
+          cancelLabel="Torna e completa"
+          onConfirm={() => {
+            void confirmReadyToSendEvent();
+          }}
+          onCancel={() => {
+            setShowReadyEventModal(false);
+            setReadyEventCoverage(null);
+          }}
+        />
+      ) : null}
     </>
   );
 }

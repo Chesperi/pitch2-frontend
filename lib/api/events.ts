@@ -4,6 +4,7 @@ export type EventAssignmentsStatus = "DRAFT" | "READY_TO_SEND" | "SENT";
 
 export interface EventItem {
   id: string;
+  date?: string | null;
   externalMatchId: string | null;
   category: string;
   competitionName: string;
@@ -21,6 +22,7 @@ export interface EventItem {
   areaProduzione: string | null;
   showName: string | null;
   status: string;
+  standardComboId?: number | null;
   assignmentsStatus: EventAssignmentsStatus;
   rightsHolder?: string | null;
   facilities?: string | null;
@@ -45,6 +47,10 @@ export function normalizeEventItem(raw: Record<string, unknown>): EventItem {
   const ext = raw.external_match_id ?? raw.externalMatchId;
   return {
     id: String(raw.id ?? ""),
+    date:
+      raw.date != null && String(raw.date).trim() !== ""
+        ? String(raw.date).slice(0, 10)
+        : null,
     externalMatchId:
       ext != null && ext !== "" ? String(ext) : null,
     category: String(raw.category ?? ""),
@@ -77,6 +83,12 @@ export function normalizeEventItem(raw: Record<string, unknown>): EventItem {
     ),
     showName: pickStr(raw, "show_name", "showName"),
     status: String(raw.status ?? ""),
+    standardComboId:
+      raw.standard_combo_id != null
+        ? Number(raw.standard_combo_id)
+        : raw.standardComboId != null
+          ? Number(raw.standardComboId)
+          : null,
     assignmentsStatus: (String(
       raw.assignments_status ?? raw.assignmentsStatus ?? "DRAFT"
     ).toUpperCase() as EventAssignmentsStatus) || "DRAFT",
@@ -358,4 +370,19 @@ export async function updateEventAssignmentsStatus(
     throw new Error(`Failed to update event assignments status: ${res.status}`);
   const data = (await res.json()) as Record<string, unknown>;
   return normalizeEventItem(data);
+}
+
+export async function bulkUpdateEventsStatus(params: {
+  eventIds: string[];
+  status: "TBC" | "TBD" | "OK" | "CONFIRMED" | "CANCELLED" | "CANCELED";
+}): Promise<{ updated: number; status: string }> {
+  const res = await apiFetch("/api/events/bulk-status", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to bulk update event status: ${res.status}`);
+  }
+  return res.json();
 }

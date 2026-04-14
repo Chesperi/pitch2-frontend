@@ -25,6 +25,7 @@ export type AssignmentWithJoins = {
   event_id: string;
   role_id: number;
   staff_id: number | null;
+  generated_from_combo_id?: number | null;
   status: AssignmentStatus;
   notes: string | null;
   event_external_match_id: string;
@@ -53,6 +54,7 @@ export type AssignmentWithJoins = {
   roleName?: string;
   roleLocation?: string;
   staffId?: number | null;
+  generatedFromComboId?: number | null;
   staffSurname?: string | null;
   staffName?: string | null;
   staffFee?: number | null;
@@ -67,6 +69,9 @@ function normalizeAssignment(item: Record<string, unknown>): AssignmentWithJoins
   const roleCode = String(item.role_code ?? item.roleCode ?? "");
   const roleName = String(item.role_name ?? item.roleName ?? "");
   const staffId = (item.staff_id ?? item.staffId ?? null) as number | null;
+  const generatedFromComboId = (item.generated_from_combo_id ??
+    item.generatedFromComboId ??
+    null) as number | null;
   const staffSurname = (item.staff_surname ?? item.staffSurname ?? null) as string | null;
   const staffName = (item.staff_name ?? item.staffName ?? null) as string | null;
 
@@ -77,6 +82,7 @@ function normalizeAssignment(item: Record<string, unknown>): AssignmentWithJoins
   base.roleLocation = roleLocation;
   const staffFee = (item.staff_fee ?? item.staffFee ?? null) as number | null;
   base.staff_id = staffId;
+  base.generated_from_combo_id = generatedFromComboId;
   base.staff_surname = staffSurname;
   base.staff_name = staffName;
   base.staff_fee = staffFee;
@@ -84,6 +90,7 @@ function normalizeAssignment(item: Record<string, unknown>): AssignmentWithJoins
   base.roleCode = roleCode;
   base.roleName = roleName;
   base.staffId = staffId;
+  base.generatedFromComboId = generatedFromComboId;
   base.staffSurname = staffSurname;
   base.staffName = staffName;
   base.staffFee = staffFee;
@@ -154,6 +161,38 @@ export async function fetchAssignmentsByPeriod(
   const data = await res.json();
   const items = Array.isArray(data) ? data : data.items ?? [];
   return items.map((item: Record<string, unknown>) => normalizeAssignment(item));
+}
+
+export type AssignmentConflictItem = {
+  assignmentId: number;
+  eventId: string;
+  roleCode: string;
+  roleLocation: string;
+  assignmentStatus: string;
+  date: string | null;
+  koItalyTime: string | null;
+  competitionName: string | null;
+  homeTeamNameShort: string | null;
+  awayTeamNameShort: string | null;
+  showName: string | null;
+};
+
+export async function fetchAssignmentConflicts(params: {
+  staffId: number;
+  date: string; // YYYY-MM-DD
+}): Promise<AssignmentConflictItem[]> {
+  const q = new URLSearchParams({
+    staffId: String(params.staffId),
+    date: params.date,
+  });
+  const res = await apiFetch(`/api/assignments/conflicts?${q.toString()}`, {
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to fetch assignment conflicts: ${res.status}`);
+  }
+  const data = (await res.json()) as { items?: AssignmentConflictItem[] };
+  return Array.isArray(data.items) ? data.items : [];
 }
 
 export async function sendDesignazioniForPerson(

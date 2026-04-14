@@ -806,6 +806,31 @@ export default function DesignazioniEventPage() {
     }
   };
 
+  const handleDeleteSlot = async (assignmentId: number) => {
+    const row = assignments.find((x) => x.id === assignmentId);
+    if (!row) return;
+
+    const hasStaff = (row.staffId ?? row.staff_id) != null;
+    const message = hasStaff
+      ? "Questo slot ha una persona assegnata. Eliminarlo rimuoverà anche l'assegnazione. Continuare?"
+      : "Eliminare questo slot? L'operazione non è reversibile.";
+
+    const ok = window.confirm(message);
+    if (!ok) return;
+
+    try {
+      await deleteDesignatorAssignment(assignmentId);
+      await reloadAssignments();
+      setReadyMap((prev) => {
+        const next = { ...prev };
+        delete next[assignmentId];
+        return next;
+      });
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Errore eliminazione slot");
+    }
+  };
+
   const handleNotesChange = async (
     assignmentId: number,
     notes: string | null
@@ -1023,6 +1048,15 @@ export default function DesignazioniEventPage() {
               Rimuovi
             </button>
           ) : null}
+          <button
+            type="button"
+            onClick={() => void handleDeleteSlot(a.id)}
+            className="rounded border border-red-700/70 px-2 py-1 text-xs font-semibold text-red-300 hover:bg-red-950/40"
+            title="Elimina slot"
+            aria-label="Elimina slot"
+          >
+            X
+          </button>
         </div>
       </div>
     );

@@ -1147,8 +1147,21 @@ export default function DesignazioniEventPage() {
               : [event, ...designableEvents];
             return options.map((ev) => (
               <option key={ev.id} value={ev.id}>
-                {formatKoItaly(ev.koItaly)} – {ev.homeTeamNameShort} vs{" "}
-                {ev.awayTeamNameShort}
+                {(() => {
+                  const home = ev.homeTeamNameShort?.trim() ?? "";
+                  const away = ev.awayTeamNameShort?.trim() ?? "";
+                  const show = ev.showName?.trim() ?? "";
+                  const competition = ev.competitionName?.trim() ?? "";
+                  const title =
+                    home && away
+                      ? `${home} vs ${away}`
+                      : show
+                        ? show
+                        : competition
+                          ? competition
+                          : "Evento senza titolo";
+                  return `${formatKoItaly(ev.koItaly)} – ${title}`;
+                })()}
               </option>
             ));
           })()}

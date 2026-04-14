@@ -31,6 +31,7 @@ import {
   fetchStandardCombos,
   updateStandardCombo,
 } from "@/lib/api/standardCombos";
+import { fetchAccreditationAreas } from "@/lib/api/accrediti";
 import { LookupValuesSection } from "./LookupValuesSection";
 import { EventRulesSection } from "./EventRulesSection";
 import {
@@ -287,6 +288,16 @@ export function DatabaseSections({
   const [staffOpen, setStaffOpen] = useState(true);
   const [rolesOpen, setRolesOpen] = useState(true);
   const [standardOpen, setStandardOpen] = useState(true);
+  const [accreditationAreasOpen, setAccreditationAreasOpen] = useState(false);
+  const [accreditationOwnerCode, setAccreditationOwnerCode] = useState("lega");
+  const [accreditationAreaMappings, setAccreditationAreaMappings] = useState<
+    { roleCode: string; areas: string }[]
+  >([]);
+  const [accreditationAreaLegends, setAccreditationAreaLegends] = useState<
+    { areaCode: string; description: string }[]
+  >([]);
+  const [accreditationAreasLoading, setAccreditationAreasLoading] = useState(false);
+  const [accreditationAreasError, setAccreditationAreasError] = useState<string | null>(null);
 
   const [staff, setStaff] = useState<StaffItem[]>(initialStaff);
   const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
@@ -756,6 +767,33 @@ export function DatabaseSections({
       setDeletingCombo(false);
     }
   };
+
+  useEffect(() => {
+    let cancelled = false;
+    async function run() {
+      setAccreditationAreasLoading(true);
+      setAccreditationAreasError(null);
+      try {
+        const payload = await fetchAccreditationAreas(accreditationOwnerCode);
+        if (cancelled) return;
+        setAccreditationAreaMappings(payload.mappings);
+        setAccreditationAreaLegends(payload.legends);
+      } catch (err) {
+        if (cancelled) return;
+        setAccreditationAreaMappings([]);
+        setAccreditationAreaLegends([]);
+        setAccreditationAreasError(
+          err instanceof Error ? err.message : "Error loading accreditation areas."
+        );
+      } finally {
+        if (!cancelled) setAccreditationAreasLoading(false);
+      }
+    }
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [accreditationOwnerCode]);
 
   return (
     <>
@@ -1438,6 +1476,106 @@ export function DatabaseSections({
               </table>
             </div>
           )}
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        title="Aree Accredito"
+        description="Mappatura read-only ruolo → aree e legenda aree per club owner."
+        open={accreditationAreasOpen}
+        onToggle={() => setAccreditationAreasOpen(!accreditationAreasOpen)}
+      >
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <label htmlFor="accreditation-owner" className="text-xs text-pitch-gray">
+            Club
+          </label>
+          <select
+            id="accreditation-owner"
+            value={accreditationOwnerCode}
+            onChange={(e) => setAccreditationOwnerCode(e.target.value)}
+            className="rounded border border-pitch-gray-dark bg-pitch-gray-dark px-2 py-1 text-xs text-pitch-white"
+          >
+            <option value="lega">lega</option>
+            <option value="inter">inter</option>
+            <option value="napoli">napoli</option>
+            <option value="milan">milan</option>
+          </select>
+        </div>
+
+        {accreditationAreasError ? (
+          <p className="mb-3 text-xs text-red-300">{accreditationAreasError}</p>
+        ) : null}
+
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[520px] border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-[#2a2a2a]">
+                <th className={DB_TH}>Ruolo</th>
+                <th className={DB_TH}>Aree assegnate</th>
+              </tr>
+            </thead>
+            <tbody>
+              {accreditationAreasLoading ? (
+                <tr className={DB_TBODY_TR}>
+                  <td colSpan={2} className={DB_TD_EMPTY}>
+                    Loading...
+                  </td>
+                </tr>
+              ) : accreditationAreaMappings.length === 0 ? (
+                <tr className={DB_TBODY_TR}>
+                  <td colSpan={2} className={DB_TD_EMPTY}>
+                    Nessuna mappatura disponibile.
+                  </td>
+                </tr>
+              ) : (
+                accreditationAreaMappings.map((row) => (
+                  <tr
+                    key={`${row.roleCode}-${row.areas}`}
+                    className={DB_TBODY_TR}
+                  >
+                    <td className={DB_TD}>{row.roleCode}</td>
+                    <td className={DB_TD}>{row.areas}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full min-w-[520px] border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-[#2a2a2a]">
+                <th className={DB_TH}>Area code</th>
+                <th className={DB_TH}>Descrizione</th>
+              </tr>
+            </thead>
+            <tbody>
+              {accreditationAreasLoading ? (
+                <tr className={DB_TBODY_TR}>
+                  <td colSpan={2} className={DB_TD_EMPTY}>
+                    Loading...
+                  </td>
+                </tr>
+              ) : accreditationAreaLegends.length === 0 ? (
+                <tr className={DB_TBODY_TR}>
+                  <td colSpan={2} className={DB_TD_EMPTY}>
+                    Nessuna legenda disponibile.
+                  </td>
+                </tr>
+              ) : (
+                accreditationAreaLegends.map((row) => (
+                  <tr
+                    key={`${row.areaCode}-${row.description}`}
+                    className={DB_TBODY_TR}
+                  >
+                    <td className={DB_TD}>{row.areaCode}</td>
+                    <td className={DB_TD}>{row.description}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </CollapsibleSection>
 

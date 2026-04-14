@@ -813,10 +813,12 @@ export default function EventiPage() {
   const [bulkUpdating, setBulkUpdating] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [autoMatchingCombos, setAutoMatchingCombos] = useState(false);
 
   const canImportMatches =
     userLevel != null &&
     ["MANAGER", "MASTER"].includes(userLevel.toUpperCase().trim());
+  const canAutoMatchCombos = canImportMatches;
 
   useEffect(() => {
     let cancelled = false;
@@ -978,6 +980,52 @@ export default function EventiPage() {
     }
   };
 
+  const handleAutoMatchCombos = async () => {
+    setAutoMatchingCombos(true);
+    try {
+      const res = await apiFetch("/api/events/auto-match-combos", {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as
+          | { error?: string }
+          | null;
+        throw new Error(body?.error ?? `HTTP ${res.status}`);
+      }
+      const payload = (await res.json()) as {
+        matched: number;
+        unmatched: number;
+        unmatchedEvents?: Array<{
+          id: string;
+          homeTeam: string | null;
+          awayTeam: string | null;
+          onsite: string | null;
+          cologno: string | null;
+          facilities: string | null;
+          studio: string | null;
+        }>;
+      };
+
+      let message = `${payload.matched} eventi collegati al combo standard. ${payload.unmatched} eventi senza corrispondenza.`;
+      if (payload.unmatched > 0 && Array.isArray(payload.unmatchedEvents)) {
+        const lines = payload.unmatchedEvents.map((e) => {
+          const match =
+            e.homeTeam || e.awayTeam
+              ? `${e.homeTeam ?? "—"} vs ${e.awayTeam ?? "—"}`
+              : "—";
+          return `- ${e.id} | ${match} | onsite=${e.onsite ?? "—"} | cologno=${e.cologno ?? "—"} | facilities=${e.facilities ?? "—"} | studio=${e.studio ?? "—"}`;
+        });
+        message += `\n\nEventi senza match:\n${lines.join("\n")}`;
+      }
+      alert(message);
+      await loadEvents();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Auto-match failed");
+    } finally {
+      setAutoMatchingCombos(false);
+    }
+  };
+
   const showModal = isCreateModalOpen || editingEvent !== null;
 
   return (
@@ -1033,6 +1081,18 @@ export default function EventiPage() {
             onSearchChange={setSearch}
           />
         </div>
+        {canAutoMatchCombos ? (
+          <div>
+            <button
+              type="button"
+              onClick={() => void handleAutoMatchCombos()}
+              disabled={autoMatchingCombos}
+              className="rounded border border-pitch-accent px-3 py-2 text-sm font-medium text-pitch-accent hover:bg-pitch-accent/10 disabled:opacity-50"
+            >
+              {autoMatchingCombos ? "Auto-matching..." : "Auto-match standards"}
+            </button>
+          </div>
+        ) : null}
         <div className="flex flex-wrap gap-4">
           <div>
             <label className="mb-1 block text-xs text-pitch-gray">Status</label>

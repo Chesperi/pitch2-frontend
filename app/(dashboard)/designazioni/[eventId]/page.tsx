@@ -714,6 +714,14 @@ export default function DesignazioniEventPage() {
     return { requirementAssignments: reqRows, extraAssignments: extraRows };
   }, [sortedAssignments, standardRequirements]);
 
+  const requirementAssignmentsSorted = useMemo(() => {
+    return [...requirementAssignments].sort((a, b) => {
+      const aCode = String(a.roleCode ?? a.role_code ?? "").toUpperCase();
+      const bCode = String(b.roleCode ?? b.role_code ?? "").toUpperCase();
+      return aCode.localeCompare(bCode, "it", { sensitivity: "base" });
+    });
+  }, [requirementAssignments]);
+
   const rolesForAddSlot = useMemo(() => {
     return [...roles].sort((a, b) => {
       const aName = (a.name ?? "").trim().toLocaleLowerCase();
@@ -788,6 +796,7 @@ export default function DesignazioniEventPage() {
       const row = assignments.find((x) => x.id === assignmentId);
       await updateDesignatorAssignment(assignmentId, {
         staffId: null,
+        status: "DRAFT",
         ...(row ? assignmentRoleForApi(row) : {}),
       });
       await reloadAssignments();
@@ -1192,6 +1201,12 @@ export default function DesignazioniEventPage() {
             <span className="text-sm text-pitch-gray">Assignment status: </span>
             {renderAssignmentsStatusBadge(event.assignmentsStatus)}
           </div>
+          <div>
+            <span className="text-sm text-pitch-gray">Combo ID: </span>
+            <span className="text-pitch-white">
+              {event.standardComboId != null ? String(event.standardComboId) : "—"}
+            </span>
+          </div>
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-2">
             <button
@@ -1231,12 +1246,12 @@ export default function DesignazioniEventPage() {
           Slot derivati dallo standard dell&apos;evento.
         </p>
         <div className="mt-3 space-y-2">
-          {requirementAssignments.length === 0 ? (
+          {requirementAssignmentsSorted.length === 0 ? (
             <div className="rounded border border-pitch-gray-dark/60 bg-pitch-gray-dark/20 px-3 py-2 text-sm text-pitch-gray">
               Nessuno slot standard disponibile.
             </div>
           ) : (
-            requirementAssignments.map((a) => renderAssignmentListRow(a))
+            requirementAssignmentsSorted.map((a) => renderAssignmentListRow(a))
           )}
         </div>
       </section>

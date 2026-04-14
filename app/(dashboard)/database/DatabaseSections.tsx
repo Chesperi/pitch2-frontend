@@ -1308,8 +1308,21 @@ export function DatabaseSections({
               No standard packages
             </div>
           ) : (
-            <ul className="space-y-2">
-              {standardCombos.map((combo) => {
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[860px] border-collapse text-sm">
+                <thead>
+                  <tr className="border-b border-[#2a2a2a]">
+                    <th className={DB_TH}>ID</th>
+                    <th className={DB_TH}>Standard onsite</th>
+                    <th className={DB_TH}>Standard Cologno</th>
+                    <th className={DB_TH}>Facilities</th>
+                    <th className={DB_TH}>Studio</th>
+                    <th className={DB_TH}>Roles</th>
+                    <th className={DB_TH}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {standardCombos.map((combo) => {
                 const expanded = expandedComboId === combo.id;
                 const facRaw = combo.facilities?.trim() ?? "";
                 const showFacilitiesBadge =
@@ -1318,94 +1331,60 @@ export function DatabaseSections({
                 const showStudioBadge =
                   Boolean(studioRaw) && studioRaw !== "-";
                 return (
-                  <li
-                    key={combo.id}
-                    className="overflow-hidden rounded-lg border border-[#2a2a2a]"
-                    style={{ background: "#1a1a1a" }}
-                  >
-                    <button
-                      type="button"
-                      className="flex w-full flex-wrap items-center gap-2 px-4 py-3 text-left transition hover:bg-black/30"
-                      onClick={() =>
-                        setExpandedComboId(expanded ? null : combo.id)
-                      }
+                  <>
+                    <tr
+                      key={combo.id}
+                      className={`${DB_TBODY_TR} bg-[#1a1a1a] hover:bg-black/30`}
                     >
-                      <span
-                        className="rounded px-2 py-0.5 text-xs"
-                        style={{
-                          background: "#FFFA00",
-                          color: "#000",
-                          fontWeight: 700,
-                        }}
-                      >
-                        {combo.standardOnsite}
-                      </span>
-                      <span
-                        className="rounded px-2 py-0.5 text-xs"
-                        style={{
-                          background: "#3F4547",
-                          color: "#fff",
-                          fontWeight: 700,
-                        }}
-                      >
-                        {combo.standardCologno}
-                      </span>
-                      {showFacilitiesBadge ? (
-                        <span
-                          className="rounded px-2 py-0.5 text-xs"
-                          style={{
-                            background: "#2a2a2a",
-                            color: "#868A8C",
-                            border: "1px solid #3F4547",
-                          }}
-                        >
-                          {combo.facilities}
-                        </span>
-                      ) : null}
-                      {showStudioBadge ? (
-                        <span
-                          className="rounded px-2 py-0.5 text-xs"
-                          style={{
-                            background: "#2a2a2a",
-                            color: "#868A8C",
-                            border: "1px solid #3F4547",
-                          }}
-                        >
-                          {combo.studio}
-                        </span>
-                      ) : null}
-                      <span className="ml-auto text-xs text-pitch-accent">
+                      <td className={DB_TD}>{combo.id}</td>
+                      <td className={DB_TD}>{combo.standardOnsite}</td>
+                      <td className={DB_TD}>{combo.standardCologno}</td>
+                      <td className={showFacilitiesBadge ? DB_TD : DB_TD_EMPTY}>
+                        {showFacilitiesBadge ? combo.facilities : "—"}
+                      </td>
+                      <td className={showStudioBadge ? DB_TD : DB_TD_EMPTY}>
+                        {showStudioBadge ? combo.studio : "—"}
+                      </td>
+                      <td className={DB_TD}>
                         {combo.requirements.length} role
                         {combo.requirements.length === 1 ? "" : "s"}
-                      </span>
-                      <span className="text-pitch-gray">{expanded ? "▼" : "▶"}</span>
-                    </button>
-                    {canEditDatabase ? (
-                      <div className="flex flex-wrap gap-2 border-t border-[#2a2a2a] px-4 py-2">
-                        <button
-                          type="button"
-                          className="text-xs text-pitch-accent underline-offset-2 hover:underline"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openEditComboModal(combo);
-                          }}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          className="text-xs text-red-400 underline-offset-2 hover:underline"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleteComboTarget(combo);
-                          }}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    ) : null}
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <button
+                            type="button"
+                            className="text-xs text-pitch-accent underline-offset-2 hover:underline"
+                            onClick={() =>
+                              setExpandedComboId(expanded ? null : combo.id)
+                            }
+                          >
+                            {expanded ? "Hide roles" : "Show roles"}
+                          </button>
+                          {canEditDatabase ? (
+                            <>
+                              <button
+                                type="button"
+                                className="text-xs text-pitch-accent underline-offset-2 hover:underline"
+                                onClick={() => openEditComboModal(combo)}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                className="text-xs text-red-400 underline-offset-2 hover:underline"
+                                onClick={() => setDeleteComboTarget(combo)}
+                              >
+                                Delete
+                              </button>
+                            </>
+                          ) : null}
+                        </div>
+                      </td>
+                    </tr>
                     {expanded ? (
-                      <div className="border-t border-[#2a2a2a] px-4 py-3">
+                      <tr className={DB_TBODY_TR}>
+                        <td colSpan={7} className="px-0 py-0">
+                          <div className="border-t border-[#2a2a2a] px-4 py-3">
                         <div className="mb-2 text-xs text-pitch-gray">
                           Requirement rows linked to this package
                         </div>
@@ -1448,12 +1427,16 @@ export function DatabaseSections({
                             </tbody>
                           </table>
                         </div>
-                      </div>
+                          </div>
+                        </td>
+                      </tr>
                     ) : null}
-                  </li>
+                  </>
                 );
               })}
-            </ul>
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       </CollapsibleSection>

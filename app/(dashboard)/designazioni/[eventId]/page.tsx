@@ -879,19 +879,26 @@ export default function DesignazioniEventPage() {
   };
 
   const handleRegenerateFromStandard = async () => {
-    if (!event?.standardOnsite || !event?.standardCologno) return;
+    if (!event?.id) return;
 
-    const assignedCount = assignments.filter((a) => a.staffId != null).length;
-    const message =
-      assignedCount === 0
-        ? "Verranno generati i requirements dal nuovo standard."
-        : "Verranno aggiunti solo gli slot mancanti. Le assegnazioni esistenti non verranno toccate.";
+    let message =
+      "Verranno aggiunti solo gli slot mancanti. Le assegnazioni esistenti non verranno toccate.";
+    try {
+      const assignedCount = assignments.filter(
+        (a) => (a.staffId ?? a.staff_id) != null
+      ).length;
+      if (assignedCount === 0) {
+        message = "Verranno generati i requirements dal nuovo standard.";
+      }
+    } catch {
+      // fallback: usa il messaggio generico richiesto
+    }
     setRegenerateMessage(message);
     setShowRegenerateModal(true);
   };
 
   const confirmRegenerateFromStandard = async () => {
-    if (!event?.standardOnsite || !event?.standardCologno) return;
+    if (!event?.id) return;
     setIsGeneratingFromStandard(true);
     try {
       await generateAssignmentsFromStandard(event.id);

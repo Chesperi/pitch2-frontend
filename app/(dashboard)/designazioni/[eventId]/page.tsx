@@ -423,9 +423,16 @@ function StaffPicker({
   const assignment = assignments.find((a) => a.id === assignmentId);
   if (!assignment) return null;
 
-  const roleCode = assignment.roleCode ?? "";
+  const roleCode = assignment.roleCode ?? assignment.role_code ?? "";
+  const roleLocation = (
+    assignment.roleLocation ??
+    assignment.role_location ??
+    ""
+  ).toUpperCase();
   const candidates = staffList.filter(
-    (s) => s.default_role_code === roleCode
+    (s) =>
+      (s.default_role_code ?? "") === roleCode &&
+      (s.default_location ?? "").toUpperCase() === roleLocation
   );
 
   return (
@@ -461,6 +468,7 @@ function StaffPicker({
                   {s.surname} {s.name}
                   {s.company ? ` – ${s.company}` : ""}
                   {s.default_role_code ? ` – ${s.default_role_code}` : ""}
+                  {s.default_location ? ` (${s.default_location})` : ""}
                 </button>
               </li>
             ))
@@ -595,7 +603,7 @@ export default function DesignazioniEventPage() {
   }, [staffPickerForId]);
 
   useEffect(() => {
-    fetchStaff({ limit: 200 })
+    fetchStaff({ limit: 1000 })
       .then((r) => setStaffList(r.items ?? []))
       .catch(console.error);
   }, []);
@@ -743,6 +751,20 @@ export default function DesignazioniEventPage() {
 
     return { requirementAssignments: reqRows, extraAssignments: extraRows };
   }, [sortedAssignments, standardRequirements]);
+
+  const rolesForAddSlot = useMemo(() => {
+    return [...roles].sort((a, b) => {
+      const aName = (a.name ?? "").trim().toLocaleLowerCase();
+      const bName = (b.name ?? "").trim().toLocaleLowerCase();
+      if (aName < bName) return -1;
+      if (aName > bName) return 1;
+      const aLoc = (a.location ?? "").trim().toLocaleLowerCase();
+      const bLoc = (b.location ?? "").trim().toLocaleLowerCase();
+      if (aLoc < bLoc) return -1;
+      if (aLoc > bLoc) return 1;
+      return 0;
+    });
+  }, [roles]);
 
   const reloadAssignments = useCallback(async () => {
     const data = await fetchAssignmentsByEvent(eventId);
@@ -1159,16 +1181,6 @@ export default function DesignazioniEventPage() {
       <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-6">
         <div className="flex flex-wrap items-center gap-4">
           <div>
-            <span className="text-sm text-pitch-gray">Date & KO: </span>
-            <span className="text-pitch-white">
-              {formatKoItaly(event.koItaly)}
-            </span>
-          </div>
-          <div>
-            <span className="text-sm text-pitch-gray">Match: </span>
-            <span className="text-pitch-white">{match}</span>
-          </div>
-          <div>
             <span className="text-sm text-pitch-gray">Competition: </span>
             <span className="text-pitch-white">
               {event.competitionName}
@@ -1176,9 +1188,21 @@ export default function DesignazioniEventPage() {
             </span>
           </div>
           <div>
-            <span className="text-sm text-pitch-gray">Production area: </span>
+            <span className="text-sm text-pitch-gray">Standard Onsite: </span>
             <span className="text-pitch-white">
-              {event.areaProduzione ?? "—"}
+              {event.standardOnsite ?? "—"}
+            </span>
+          </div>
+          <div>
+            <span className="text-sm text-pitch-gray">Standard Cologno: </span>
+            <span className="text-pitch-white">
+              {event.standardCologno ?? "—"}
+            </span>
+          </div>
+          <div>
+            <span className="text-sm text-pitch-gray">Facilities: </span>
+            <span className="text-pitch-white">
+              {event.facilities ?? "—"}
             </span>
           </div>
           <div>
@@ -1193,7 +1217,8 @@ export default function DesignazioniEventPage() {
             <span className="text-sm text-pitch-gray">Assignment status: </span>
             {renderAssignmentsStatusBadge(event.assignmentsStatus)}
           </div>
-          <div className="flex items-center gap-2">
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={handleReadySelected}
@@ -1222,7 +1247,6 @@ export default function DesignazioniEventPage() {
             >
               {isGeneratingFromStandard ? "Regenerating..." : "Regenerate from standard"}
             </button>
-          </div>
         </div>
       </div>
 
@@ -1275,9 +1299,9 @@ export default function DesignazioniEventPage() {
             className="rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
           >
             <option value="">Aggiungi slot...</option>
-            {roles.map((r) => (
+            {rolesForAddSlot.map((r) => (
               <option key={r.id} value={`${r.code}__${r.location}`}>
-                {r.code} - {r.name} ({r.location})
+                {r.name} ({r.location})
               </option>
             ))}
           </select>

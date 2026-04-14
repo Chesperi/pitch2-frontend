@@ -636,49 +636,11 @@ export default function DesignazioniEventPage() {
       return;
     }
 
-    // Fallback legacy: nessun generated_from_combo_id sugli slot esistenti.
-    if (standardRequirements.length === 0) {
-      setStandardChanged(true);
-      return;
-    }
-
-    const reqMap = new Map<string, number>();
-    for (const req of standardRequirements) {
-      const key = `${String(req.roleCode ?? "").trim().toUpperCase()}__${String(
-        req.roleLocation ?? ""
-      )
-        .trim()
-        .toUpperCase()}`;
-      if (!key || key === "__") continue;
-      reqMap.set(key, (reqMap.get(key) ?? 0) + safeStandardQuantity(req.quantity));
-    }
-
-    const slotMap = new Map<string, number>();
-    for (const a of assignments) {
-      const key = assignmentRoleKey(a);
-      if (!key || key === "__") continue;
-      slotMap.set(key, (slotMap.get(key) ?? 0) + 1);
-    }
-
-    let mismatch = false;
-    for (const [k, required] of reqMap.entries()) {
-      if ((slotMap.get(k) ?? 0) !== required) {
-        mismatch = true;
-        break;
-      }
-    }
-    if (!mismatch) {
-      for (const [k, slots] of slotMap.entries()) {
-        if (!reqMap.has(k) && slots > 0) {
-          mismatch = true;
-          break;
-        }
-      }
-    }
-    setStandardChanged(mismatch);
+    // Legacy pre-migration: se tutti i generated_from_combo_id sono null
+    // non mostriamo il banner (nessun mismatch certo rilevabile).
+    setStandardChanged(false);
   }, [
     event?.standardComboId,
-    standardRequirements,
     assignments,
     standardBannerIgnored,
   ]);

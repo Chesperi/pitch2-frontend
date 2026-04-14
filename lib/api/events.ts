@@ -386,3 +386,17 @@ export async function bulkUpdateEventsStatus(params: {
   }
   return res.json();
 }
+
+export async function bulkDeleteEvents(params: {
+  eventIds: string[];
+}): Promise<{ requested: number; updated: number }> {
+  const res = await apiFetch("/api/events/bulk-delete", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to bulk delete events: ${res.status}`);
+  }
+  return res.json();
+}

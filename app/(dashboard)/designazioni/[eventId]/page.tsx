@@ -518,6 +518,7 @@ export default function DesignazioniEventPage() {
     missingRoles: string[];
     simple: boolean;
   } | null>(null);
+  const [legendOpen, setLegendOpen] = useState(false);
 
   const loadAssignments = useCallback(async () => {
     const data = await fetchAssignmentsByEvent(eventId);
@@ -676,11 +677,6 @@ export default function DesignazioniEventPage() {
 
   const hasAnyReady = assignments.some((a) => readyMap[a.id]);
 
-  const roleSummaries = useMemo(
-    () => buildRoleSummaries(standardRequirements, assignments),
-    [standardRequirements, assignments]
-  );
-
   const sortedAssignments = useMemo(() => {
     return [...assignments].sort((a, b) => {
       const locA = (a.roleLocation ?? a.role_location ?? "").toUpperCase();
@@ -701,6 +697,52 @@ export default function DesignazioniEventPage() {
       return 0;
     });
   }, [assignments]);
+
+  const { requirementAssignments, extraAssignments } = useMemo(() => {
+    const requiredByRole = new Map<string, number>();
+    for (const req of standardRequirements) {
+      const key = `${String(req.roleCode ?? "").trim().toUpperCase()}__${String(
+        req.roleLocation ?? ""
+      )
+        .trim()
+        .toUpperCase()}`;
+      if (!key || key === "__") continue;
+      requiredByRole.set(
+        key,
+        (requiredByRole.get(key) ?? 0) + safeStandardQuantity(req.quantity)
+      );
+    }
+
+    if (requiredByRole.size === 0) {
+      return {
+        requirementAssignments: [] as AssignmentWithJoins[],
+        extraAssignments: sortedAssignments,
+      };
+    }
+
+    const byRole = new Map<string, AssignmentWithJoins[]>();
+    for (const a of sortedAssignments) {
+      const key = assignmentRoleKey(a);
+      if (!byRole.has(key)) byRole.set(key, []);
+      byRole.get(key)!.push(a);
+    }
+
+    const reqRows: AssignmentWithJoins[] = [];
+    const extraRows: AssignmentWithJoins[] = [];
+
+    for (const [key, requiredCount] of requiredByRole.entries()) {
+      const rows = byRole.get(key) ?? [];
+      reqRows.push(...rows.slice(0, requiredCount));
+      extraRows.push(...rows.slice(requiredCount));
+      byRole.delete(key);
+    }
+
+    for (const rows of byRole.values()) {
+      extraRows.push(...rows);
+    }
+
+    return { requirementAssignments: reqRows, extraAssignments: extraRows };
+  }, [sortedAssignments, standardRequirements]);
 
   const reloadAssignments = useCallback(async () => {
     const data = await fetchAssignmentsByEvent(eventId);
@@ -940,6 +982,52 @@ export default function DesignazioniEventPage() {
     }
   };
 
+  const renderAssignmentListRow = (a: AssignmentWithJoins) => {
+    const isAssigned = (a.staffId ?? a.staff_id) != null;
+    const roleCode = a.roleCode ?? a.role_code ?? "—";
+    const roleLocation = a.roleLocation ?? a.role_location ?? "—";
+    return (
+      <div
+        key={a.id}
+        className="flex flex-col gap-2 rounded border border-pitch-gray-dark/60 bg-pitch-gray-dark/20 px-3 py-2 md:flex-row md:items-center md:justify-between"
+      >
+        <div className="min-w-0">
+          <div className="text-sm font-medium text-pitch-white">
+            {roleCode} <span className="text-pitch-gray">({roleLocation})</span>
+          </div>
+          <div className="text-xs text-pitch-gray-light">
+            {isAssigned
+              ? `${a.staffSurname ?? a.staff_surname ?? ""} ${a.staffName ?? a.staff_name ?? ""}`.trim()
+              : "Non assegnato"}
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span
+            className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getAssignmentStatusClasses(a.status)}`}
+          >
+            {getAssignmentStatusLabel(a.status)}
+          </span>
+          <button
+            type="button"
+            onClick={() => setStaffPickerForId(a.id)}
+            className={btnSmallYellow}
+          >
+            {isAssigned ? "Cambia persona" : "Assegna persona"}
+          </button>
+          {isAssigned ? (
+            <button
+              type="button"
+              onClick={() => void handleClearStaff(a.id)}
+              className={btnSmallGrey}
+            >
+              Rimuovi
+            </button>
+          ) : null}
+        </div>
+      </div>
+    );
+  };
+
   if (loading && assignments.length === 0) {
     return (
       <>
@@ -1033,88 +1121,6 @@ export default function DesignazioniEventPage() {
             </div>
           </div>
         ) : null}
-        <h2 className="text-sm font-semibold text-pitch-white">
-          Status legend
-        </h2>
-        <p className="text-[11px] leading-snug text-pitch-gray">
-          Enum{" "}
-          <code className="rounded bg-pitch-gray-dark px-1 font-mono text-[10px] text-pitch-accent">
-            EventAssignmentsStatus
-          </code>{" "}
-          → field{" "}
-          <code className="rounded bg-pitch-gray-dark px-1 font-mono text-[10px] text-pitch-gray-light">
-            assignments_status
-          </code>
-          ; enum{" "}
-          <code className="rounded bg-pitch-gray-dark px-1 font-mono text-[10px] text-pitch-accent">
-            AssignmentStatus
-          </code>{" "}
-          → field{" "}
-          <code className="rounded bg-pitch-gray-dark px-1 font-mono text-[10px] text-pitch-gray-light">
-            status
-          </code>{" "}
-          on each row.
-        </p>
-        <div className="grid gap-2 md:grid-cols-2">
-          <div className="rounded-md border border-pitch-gray-dark bg-pitch-gray-dark/20 p-2 text-xs">
-            <div className="mb-1.5 font-semibold text-pitch-gray-light">
-              Assignment status (event)
-            </div>
-            {(
-              Object.entries(EVENT_ASSIGNMENTS_STATUS_INFO) as [
-                EventAssignmentsStatus,
-                { label: string; description: string },
-              ][]
-            ).map(([key, info]) => (
-              <div
-                key={key}
-                className="mb-1.5 flex flex-wrap items-start gap-x-2 gap-y-0.5"
-              >
-                <code className="shrink-0 pt-0.5 font-mono text-[10px] text-pitch-accent">
-                  {key}
-                </code>
-                <span className="inline-flex shrink-0 items-center rounded-full bg-pitch-gray-dark px-2 py-0.5 text-[11px] font-medium text-pitch-gray-light">
-                  {info.label}
-                </span>
-                <span className="min-w-0 flex-1 text-[11px] leading-snug text-pitch-gray-light">
-                  {info.description}
-                </span>
-              </div>
-            ))}
-          </div>
-          <div className="rounded-md border border-pitch-gray-dark bg-pitch-gray-dark/20 p-2 text-xs">
-            <div className="mb-1.5 font-semibold text-pitch-gray-light">
-              Individual assignment status
-            </div>
-            {(
-              Object.entries(ASSIGNMENT_STATUS_INFO) as [
-                AssignmentStatus,
-                { label: string; description: string },
-              ][]
-            ).map(([key, info]) => (
-              <div
-                key={key}
-                className="mb-1.5 flex flex-wrap items-start gap-x-2 gap-y-0.5"
-              >
-                <code className="shrink-0 pt-0.5 font-mono text-[10px] text-pitch-accent">
-                  {key}
-                </code>
-                <span className="inline-flex shrink-0 items-center rounded-full bg-pitch-gray-dark px-2 py-0.5 text-[11px] font-medium text-pitch-gray-light">
-                  {info.label}
-                </span>
-                <span className="min-w-0 flex-1 text-[11px] leading-snug text-pitch-gray-light">
-                  {info.description}
-                </span>
-              </div>
-            ))}
-            <p className="mt-1.5 border-t border-pitch-gray-dark/60 pt-1.5 text-[10px] leading-snug text-pitch-gray">
-              <code className="font-mono text-pitch-gray-light">ACCEPTED</code> /{" "}
-              <code className="font-mono text-pitch-gray-light">DECLINED</code>
-              : legacy in data/UI only, shown with Confirmed / Declined colors in the
-              table.
-            </p>
-          </div>
-        </div>
       </section>
 
       {/* Select evento */}
@@ -1220,116 +1226,37 @@ export default function DesignazioniEventPage() {
         </div>
       </div>
 
-      {/* Standard vs assegnato (riepilogo per ruolo) */}
-      <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/20 p-5">
-        <h3 className="text-base font-semibold text-pitch-white">
-          Standard vs assigned by role
-        </h3>
+      <section className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/20 p-5">
+        <h3 className="text-base font-semibold text-pitch-white">Requirements</h3>
         <p className="mt-1 text-xs text-pitch-gray">
-          Comparison of FTE required by standards vs current slots/assignments
-          per <code className="text-pitch-gray-light">roleId</code>.
+          Slot derivati dallo standard dell&apos;evento.
         </p>
-        {standardRequirements.length === 0 ? (
-          <p className="mt-4 text-sm text-pitch-gray">
-            No standard requirements found for this event (missing standard onsite/cologno or no rows in the database).
-          </p>
-        ) : (
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[640px] border-collapse text-sm">
-              <thead>
-                <tr className="border-b border-pitch-gray-dark text-left text-pitch-gray">
-                  <th className="px-3 py-2 font-medium">Role</th>
-                  <th className="px-3 py-2 font-medium text-right">Required</th>
-                  <th className="px-3 py-2 font-medium text-right">Slot</th>
-                  <th className="px-3 py-2 font-medium text-right">Assigned</th>
-                  <th className="px-3 py-2 font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {roleSummaries.map((row) => {
-                  const lackSlots = row.required > row.slots;
-                  const extraSlots = row.slots > row.required && row.required > 0;
-                  const extraOnly = row.required === 0 && row.slots > 0;
+        <div className="mt-3 space-y-2">
+          {requirementAssignments.length === 0 ? (
+            <div className="rounded border border-pitch-gray-dark/60 bg-pitch-gray-dark/20 px-3 py-2 text-sm text-pitch-gray">
+              Nessuno slot standard disponibile.
+            </div>
+          ) : (
+            requirementAssignments.map((a) => renderAssignmentListRow(a))
+          )}
+        </div>
+      </section>
 
-                  let situation: ReactNode = (
-                    <span className="text-pitch-gray">—</span>
-                  );
-                  if (lackSlots) {
-                    situation = (
-                      <span className="rounded-full bg-amber-900/40 px-2 py-0.5 text-xs text-amber-200">
-                        {row.required - row.slots} slots missing
-                      </span>
-                    );
-                  } else if (extraSlots) {
-                    situation = (
-                      <span className="rounded-full bg-sky-900/40 px-2 py-0.5 text-xs text-sky-200">
-                        +{row.slots - row.required} above standard
-                      </span>
-                    );
-                  } else if (extraOnly) {
-                    situation = (
-                      <span className="rounded-full bg-slate-700/60 px-2 py-0.5 text-xs text-pitch-gray-light">
-                        Extra only (not in standard)
-                      </span>
-                    );
-                  } else if (row.required > 0) {
-                    situation = (
-                      <span className="rounded-full bg-emerald-900/30 px-2 py-0.5 text-xs text-emerald-200">
-                        Slots aligned
-                      </span>
-                    );
-                  }
-
-                  return (
-                    <tr
-                      key={row.roleKey}
-                      className="border-b border-pitch-gray-dark/40"
-                    >
-                      <td className="px-3 py-2 text-pitch-white">
-                        <span className="font-medium">{row.roleCode}</span>
-                        {row.description ? (
-                          <span className="ml-2 text-xs text-pitch-gray">
-                            {row.description}
-                          </span>
-                        ) : null}
-                        <span className="mt-0.5 block text-[10px] text-pitch-gray">
-                          {row.roleLocation}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2 text-right text-pitch-gray-light">
-                        {row.required}
-                      </td>
-                      <td
-                        className={`px-3 py-2 text-right tabular-nums ${
-                          lackSlots ? "text-amber-200" : "text-pitch-gray-light"
-                        }`}
-                      >
-                        {row.slots}
-                      </td>
-                      <td className="px-3 py-2 text-right text-pitch-gray-light tabular-nums">
-                        {row.assigned}
-                        {row.slots > 0 && row.assigned < row.slots ? (
-                          <span className="ml-1 text-[10px] text-amber-300">
-                            ({row.slots - row.assigned} free)
-                          </span>
-                        ) : null}
-                      </td>
-                      <td className="px-3 py-2">{situation}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Tabella Assegnazioni */}
-      <div className="mt-6 flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-pitch-white">
-          Assignments
-        </h3>
-        <div className="flex items-center gap-2">
+      <section className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/20 p-5">
+        <h3 className="text-base font-semibold text-pitch-white">Extra crew</h3>
+        <p className="mt-1 text-xs text-pitch-gray">
+          Slot aggiunti manualmente oltre ai requirements standard.
+        </p>
+        <div className="mt-3 space-y-2">
+          {extraAssignments.length === 0 ? (
+            <div className="rounded border border-pitch-gray-dark/60 bg-pitch-gray-dark/20 px-3 py-2 text-sm text-pitch-gray">
+              Nessuno slot extra.
+            </div>
+          ) : (
+            extraAssignments.map((a) => renderAssignmentListRow(a))
+          )}
+        </div>
+        <div className="mt-4 flex items-center gap-2">
           <select
             onChange={(e) => {
               const v = e.target.value;
@@ -1347,7 +1274,7 @@ export default function DesignazioniEventPage() {
             disabled={addingSlot}
             className="rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
           >
-            <option value="">Add slot...</option>
+            <option value="">Aggiungi slot...</option>
             {roles.map((r) => (
               <option key={r.id} value={`${r.code}__${r.location}`}>
                 {r.code} - {r.name} ({r.location})
@@ -1355,151 +1282,76 @@ export default function DesignazioniEventPage() {
             ))}
           </select>
         </div>
-      </div>
+      </section>
 
-      <div className="mt-4 overflow-x-auto">
-        {assignments.length === 0 ? (
-          <div className="rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-8 text-center text-pitch-gray">
-            No assignments. Add a slot.
+      <section className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/20 p-5">
+        <button
+          type="button"
+          onClick={() => setLegendOpen((v) => !v)}
+          className="flex w-full items-center justify-between text-left"
+        >
+          <h3 className="text-base font-semibold text-pitch-white">Legenda status</h3>
+          <span className="text-xs text-pitch-gray">
+            {legendOpen ? "Nascondi" : "Mostra"}
+          </span>
+        </button>
+        {legendOpen ? (
+          <div className="mt-3 grid gap-2 md:grid-cols-2">
+            <div className="rounded-md border border-pitch-gray-dark bg-pitch-gray-dark/20 p-2 text-xs">
+              <div className="mb-1.5 font-semibold text-pitch-gray-light">
+                Assignment status (event)
+              </div>
+              {(
+                Object.entries(EVENT_ASSIGNMENTS_STATUS_INFO) as [
+                  EventAssignmentsStatus,
+                  { label: string; description: string },
+                ][]
+              ).map(([key, info]) => (
+                <div
+                  key={key}
+                  className="mb-1.5 flex flex-wrap items-start gap-x-2 gap-y-0.5"
+                >
+                  <code className="shrink-0 pt-0.5 font-mono text-[10px] text-pitch-accent">
+                    {key}
+                  </code>
+                  <span className="inline-flex shrink-0 items-center rounded-full bg-pitch-gray-dark px-2 py-0.5 text-[11px] font-medium text-pitch-gray-light">
+                    {info.label}
+                  </span>
+                  <span className="min-w-0 flex-1 text-[11px] leading-snug text-pitch-gray-light">
+                    {info.description}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="rounded-md border border-pitch-gray-dark bg-pitch-gray-dark/20 p-2 text-xs">
+              <div className="mb-1.5 font-semibold text-pitch-gray-light">
+                Individual assignment status
+              </div>
+              {(
+                Object.entries(ASSIGNMENT_STATUS_INFO) as [
+                  AssignmentStatus,
+                  { label: string; description: string },
+                ][]
+              ).map(([key, info]) => (
+                <div
+                  key={key}
+                  className="mb-1.5 flex flex-wrap items-start gap-x-2 gap-y-0.5"
+                >
+                  <code className="shrink-0 pt-0.5 font-mono text-[10px] text-pitch-accent">
+                    {key}
+                  </code>
+                  <span className="inline-flex shrink-0 items-center rounded-full bg-pitch-gray-dark px-2 py-0.5 text-[11px] font-medium text-pitch-gray-light">
+                    {info.label}
+                  </span>
+                  <span className="min-w-0 flex-1 text-[11px] leading-snug text-pitch-gray-light">
+                    {info.description}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
-        ) : (
-          <table className="w-full min-w-[800px] border-collapse">
-            <thead>
-              <tr className="border-b border-pitch-gray-dark">
-                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Role
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Person
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Fee
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Status
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Note
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  OK
-                </th>
-                <th className="px-4 py-3 text-right text-sm font-medium text-pitch-gray">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedAssignments.map((a) => {
-                const isAssigned = a.staffId != null;
-                const roleCode = a.roleCode || "—";
-
-                return (
-                  <tr
-                    key={a.id}
-                    className="border-b border-pitch-gray-dark/50 hover:bg-pitch-gray-dark/30"
-                  >
-                    <td className="px-4 py-2 text-xs text-pitch-gray-light">
-                      {roleCode}
-                    </td>
-                    <td className="px-4 py-2">
-                      {isAssigned ? (
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setStaffPickerForId(a.id)}
-                            className={btnSmallYellow}
-                          >
-                            {a.staffSurname} {a.staffName}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleClearStaff(a.id)}
-                            className={btnSmallGrey}
-                          >
-                            Clear
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => setStaffPickerForId(a.id)}
-                          className={btnSmallYellow}
-                        >
-                          Assign
-                        </button>
-                      )}
-                    </td>
-                    <td className="px-4 py-2 text-right text-xs text-pitch-gray-light">
-                      {a.staffFee != null ? a.staffFee : "—"}
-                    </td>
-                    <td className="px-4 py-2">
-                      <span
-                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getAssignmentStatusClasses(a.status)}`}
-                      >
-                        {getAssignmentStatusLabel(a.status)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <input
-                        type="text"
-                        defaultValue={a.notes ?? ""}
-                        onBlur={(e) => {
-                          const v = e.target.value.trim() || null;
-                          if (v !== (a.notes ?? "")) {
-                            handleNotesChange(a.id, v);
-                          }
-                        }}
-                        className="w-32 rounded border border-pitch-gray-dark bg-pitch-gray-dark px-2 py-1 text-sm text-pitch-white"
-                        placeholder="Notes..."
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <input
-                        type="checkbox"
-                        checked={!!readyMap[a.id]}
-                        disabled={!isAssigned}
-                        onChange={(e) => {
-                          setReadyMap((prev) => ({
-                            ...prev,
-                            [a.id]: e.target.checked,
-                          }));
-                        }}
-                        className="h-4 w-4 rounded border-pitch-gray-dark"
-                        title={
-                          !isAssigned
-                            ? "Select a person first"
-                            : "Assignment ready"
-                        }
-                      />
-                    </td>
-                    <td className="px-4 py-2 text-right">
-                      <button
-                        type="button"
-                        className="text-xs text-red-400 hover:text-red-300"
-                        onClick={async () => {
-                          const confirmDelete = window.confirm(
-                            "Delete this slot?"
-                          );
-                          if (!confirmDelete) return;
-                          try {
-                            await deleteDesignatorAssignment(a.id);
-                            await reloadAssignments();
-                          } catch (err) {
-                            console.error(err);
-                          }
-                        }}
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
+        ) : null}
+      </section>
 
       {staffPickerForId && (
         <StaffPicker

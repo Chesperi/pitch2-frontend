@@ -9,6 +9,7 @@ import {
   createEvent,
   updateEvent,
   bulkUpdateEventsStatus,
+  bulkDeleteEvents,
   type EventItem,
   type EventAssignmentsStatus,
   type CreateEventPayload,
@@ -706,6 +707,48 @@ function EventModal({
   );
 }
 
+function BulkDeleteModal({
+  count,
+  deleting,
+  onCancel,
+  onConfirm,
+}: {
+  count: number;
+  deleting: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+      <div className="w-full max-w-md rounded-lg border border-pitch-gray-dark bg-pitch-bg p-5">
+        <h3 className="text-base font-semibold text-pitch-white">
+          Conferma eliminazione
+        </h3>
+        <p className="mt-2 text-sm text-pitch-gray-light">
+          Eliminare {count} eventi selezionati? L&apos;operazione non è reversibile.
+        </p>
+        <div className="mt-4 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded border border-pitch-gray-dark px-3 py-1.5 text-xs text-pitch-gray-light hover:bg-pitch-gray-dark"
+          >
+            Annulla
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={deleting}
+            className="rounded border border-red-700 px-3 py-1.5 text-xs font-semibold text-red-300 hover:bg-red-900/30 disabled:opacity-50"
+          >
+            {deleting ? "Eliminazione..." : "Elimina selezionati"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const PAGE_SIZE = 50;
 
 const filterSelectClass =
@@ -761,6 +804,8 @@ export default function EventiPage() {
     () => new Set()
   );
   const [bulkUpdating, setBulkUpdating] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
 
   const canImportMatches =
     userLevel != null &&
@@ -901,6 +946,28 @@ export default function EventiPage() {
       alert(err instanceof Error ? err.message : "Bulk update failed");
     } finally {
       setBulkUpdating(false);
+    }
+  };
+
+  const handleOpenBulkDeleteModal = () => {
+    if (selectedEventIds.size === 0) return;
+    setShowBulkDeleteModal(true);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedEventIds.size === 0) return;
+    setBulkDeleting(true);
+    try {
+      await bulkDeleteEvents({
+        eventIds: Array.from(selectedEventIds),
+      });
+      setSelectedEventIds(new Set());
+      setShowBulkDeleteModal(false);
+      await loadEvents();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Bulk delete failed");
+    } finally {
+      setBulkDeleting(false);
     }
   };
 
@@ -1075,6 +1142,31 @@ export default function EventiPage() {
           </div>
         </div>
       </div>
+      {selectedEventIds.size > 0 ? (
+        <div className="mt-4 flex items-center justify-between rounded border border-pitch-gray-dark bg-pitch-gray-dark/40 px-4 py-3">
+          <span className="text-sm text-pitch-gray-light">
+            {selectedEventIds.size} eventi selezionati
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={bulkUpdating}
+              onClick={() => void handleBulkSetOk()}
+              className="rounded bg-pitch-accent px-3 py-1.5 text-sm font-medium text-pitch-bg hover:bg-yellow-200 disabled:opacity-50"
+            >
+              {bulkUpdating ? "Updating..." : "Imposta Standard OK"}
+            </button>
+            <button
+              type="button"
+              disabled={bulkDeleting}
+              onClick={handleOpenBulkDeleteModal}
+              className="rounded border border-red-700 px-3 py-1.5 text-sm font-medium text-red-300 hover:bg-red-900/30 disabled:opacity-50"
+            >
+              Elimina selezionati
+            </button>
+          </div>
+        </div>
+      ) : null}
       {total > PAGE_SIZE && (
         <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-pitch-gray-light">
           <span>
@@ -1301,22 +1393,6 @@ export default function EventiPage() {
         )}
       </div>
 
-      {selectedEventIds.size > 0 ? (
-        <div className="mt-4 flex items-center justify-between rounded border border-pitch-gray-dark bg-pitch-gray-dark/40 px-4 py-3">
-          <span className="text-sm text-pitch-gray-light">
-            {selectedEventIds.size} eventi selezionati
-          </span>
-          <button
-            type="button"
-            disabled={bulkUpdating}
-            onClick={() => void handleBulkSetOk()}
-            className="rounded bg-pitch-accent px-3 py-1.5 text-sm font-medium text-pitch-bg hover:bg-yellow-200 disabled:opacity-50"
-          >
-            {bulkUpdating ? "Updating..." : "Imposta Standard OK"}
-          </button>
-        </div>
-      ) : null}
-
       {showModal && (
         <EventModal
           event={editingEvent}
@@ -1327,6 +1403,14 @@ export default function EventiPage() {
           onSaved={loadEvents}
         />
       )}
+      {showBulkDeleteModal ? (
+        <BulkDeleteModal
+          count={selectedEventIds.size}
+          deleting={bulkDeleting}
+          onCancel={() => setShowBulkDeleteModal(false)}
+          onConfirm={() => void handleBulkDelete()}
+        />
+      ) : null}
     </>
   );
 }

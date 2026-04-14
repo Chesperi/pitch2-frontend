@@ -29,29 +29,25 @@ function formatKoItaly(koItaly: string | null): string {
   if (direct) {
     const [, y, m, d, hh, mm] = direct;
     const parsed = new Date(Number(y), Number(m) - 1, Number(d), Number(hh), Number(mm));
-    return new Intl.DateTimeFormat("en-US", {
-      weekday: "short",
-      month: "short",
+    return new Intl.DateTimeFormat("it-IT", {
       day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
       hour12: false,
-    })
-      .format(parsed)
-      .replace(",", ", ");
+    }).format(parsed);
   }
   try {
     const date = new Date(koItaly);
-    return new Intl.DateTimeFormat("en-US", {
-      weekday: "short",
-      month: "short",
+    return new Intl.DateTimeFormat("it-IT", {
       day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
       hour12: false,
-    })
-      .format(date)
-      .replace(",", ", ");
+    }).format(date);
   } catch {
     return koItaly;
   }

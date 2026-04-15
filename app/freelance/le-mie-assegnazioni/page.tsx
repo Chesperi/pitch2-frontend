@@ -150,21 +150,25 @@ function formatDateKoWithYear(
   date: string | null,
   koTime: string | null
 ): string {
-  if (!date && !koTime) return "—";
-  if (date) {
-    const iso = koTime ? `${date}T${koTime}` : `${date}T12:00:00`;
-    const d = new Date(iso);
-    if (!Number.isNaN(d.getTime())) {
-      const datePart = new Intl.DateTimeFormat("it-IT", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      }).format(d);
-      if (koTime) return `${datePart}, ${koTime}`;
-      return datePart;
-    }
+  if (!date) return "—";
+  const iso = koTime ? `${date}T${koTime}` : `${date}T12:00:00`;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return [date, koTime].filter(Boolean).join(", ") || "—";
+  if (!koTime) {
+    return new Intl.DateTimeFormat("it-IT", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }).format(d);
   }
-  return [date, koTime].filter(Boolean).join(", ") || "—";
+  return new Intl.DateTimeFormat("it-IT", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(d);
 }
 
 function formatDateTimeLabel(
@@ -192,7 +196,7 @@ function statusBucketLabel(item: AssignmentItem): string {
   if (isPastEventDateTime(item.date, item.koTime, new Date())) return "PASSATA";
   const s = item.status.toUpperCase();
   if (s === "PENDING" || s === "SENT") return "DA CONFERMARE";
-  if (s === "REJECTED") return "DECLINATA";
+  if (s === "REJECTED" || s === "DECLINATA") return "DECLINATA";
   if (s === "CONFIRMED") return "CONFERMATA";
   return s || "—";
 }
@@ -346,9 +350,14 @@ export default function FreelanceLeMieAssegnazioniPage() {
     const map = new Map<string, AssignmentItem[]>();
     for (const item of items) {
       if (!item.date) continue;
-      const arr = map.get(item.date) ?? [];
+    const normalizedDate = toIsoDate(new Date(`${item.date}T12:00:00`));
+    const key =
+      Number.isNaN(new Date(`${item.date}T12:00:00`).getTime())
+        ? item.date
+        : normalizedDate;
+    const arr = map.get(key) ?? [];
       arr.push(item);
-      map.set(item.date, arr);
+    map.set(key, arr);
     }
     return map;
   }, [items]);
@@ -510,9 +519,9 @@ export default function FreelanceLeMieAssegnazioniPage() {
         <span
           className="rounded-full border px-2 py-1 text-[10px] font-bold"
           style={{
-            color: "#c9a227",
-            borderColor: "#c9a22744",
-            background: "#c9a22722",
+            color: "#E24B4A",
+            borderColor: "#E24B4A44",
+            background: "#E24B4A22",
           }}
         >
           DECLINATA
@@ -861,8 +870,12 @@ export default function FreelanceLeMieAssegnazioniPage() {
                 <div className="mt-2 grid grid-cols-7 gap-1">
                   {monthCells.map((cell) => {
                     const dayEvents = eventsByDate.get(cell.isoDate) ?? [];
+                    const hasAny = dayEvents.length > 0;
                     const hasPending = dayEvents.some((e) => isPendingStatus(e.status));
                     const hasConfirmed = dayEvents.some((e) => isConfirmedStatus(e.status));
+                    const hasRejected = dayEvents.some(
+                      (e) => e.status.toUpperCase() === "REJECTED"
+                    );
                     return (
                       <button
                         key={cell.isoDate}
@@ -871,17 +884,29 @@ export default function FreelanceLeMieAssegnazioniPage() {
                         className="min-h-16 rounded border p-1 text-left"
                         style={{
                           borderColor: "#2a2a2a",
-                          background: cell.inCurrentMonth ? "#1a1a1a" : "#0f0f0f",
+                          background: hasAny
+                            ? cell.inCurrentMonth
+                              ? "#222"
+                              : "#171717"
+                            : cell.inCurrentMonth
+                              ? "#1a1a1a"
+                              : "#0f0f0f",
                           color: cell.inCurrentMonth ? "#fff" : "#666",
                         }}
                       >
                         <div className="text-xs">{cell.day}</div>
                         <div className="mt-1 flex gap-1">
+                          {hasAny ? (
+                            <span className="h-2 w-2 rounded-full" style={{ background: "#888" }} />
+                          ) : null}
                           {hasPending ? (
                             <span className="h-2 w-2 rounded-full" style={{ background: "#E24B4A" }} />
                           ) : null}
                           {hasConfirmed ? (
                             <span className="h-2 w-2 rounded-full" style={{ background: "#639922" }} />
+                          ) : null}
+                          {hasRejected ? (
+                            <span className="h-2 w-2 rounded-full" style={{ background: "#E24B4A" }} />
                           ) : null}
                         </div>
                       </button>

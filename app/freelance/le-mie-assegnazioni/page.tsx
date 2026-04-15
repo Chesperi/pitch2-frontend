@@ -42,6 +42,7 @@ type CalendarCell = {
 };
 
 function toIsoDate(date: Date): string {
+  if (Number.isNaN(date.getTime())) return "";
   return new Intl.DateTimeFormat("en-CA", {
     year: "numeric",
     month: "2-digit",
@@ -178,7 +179,9 @@ function formatDateTimeLabel(
   if (!date) return "—";
   const iso = koTime ? `${date}T${koTime}` : `${date}T12:00:00`;
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return formatDateKoWithYear(date, koTime);
+  if (Number.isNaN(d.getTime())) {
+    return [date, koTime].filter(Boolean).join(", ") || "—";
+  }
   const datePart = new Intl.DateTimeFormat("it-IT", {
     day: "2-digit",
     month: "2-digit",
@@ -350,14 +353,13 @@ export default function FreelanceLeMieAssegnazioniPage() {
     const map = new Map<string, AssignmentItem[]>();
     for (const item of items) {
       if (!item.date) continue;
-    const normalizedDate = toIsoDate(new Date(`${item.date}T12:00:00`));
-    const key =
-      Number.isNaN(new Date(`${item.date}T12:00:00`).getTime())
+      const parsedDate = new Date(`${item.date}T12:00:00`);
+      const key = Number.isNaN(parsedDate.getTime())
         ? item.date
-        : normalizedDate;
-    const arr = map.get(key) ?? [];
+        : toIsoDate(parsedDate);
+      const arr = map.get(key) ?? [];
       arr.push(item);
-    map.set(key, arr);
+      map.set(key, arr);
     }
     return map;
   }, [items]);

@@ -133,7 +133,13 @@ export default function DesignazioniPage() {
   const [startDate, setStartDate] = useState<string | null>(null);
   const [endDate, setEndDate] = useState<string | null>(null);
   const [staffGroups, setStaffGroups] = useState<
-    { staffId: number; staffName: string; assignments: AssignmentWithJoins[] }[]
+    {
+      staffId: number;
+      staffName: string;
+      assignments: AssignmentWithJoins[];
+      roles: string[];
+      distinctEventCount: number;
+    }[]
   >([]);
   const [expandedStaffId, setExpandedStaffId] = useState<number | null>(null);
 
@@ -173,10 +179,14 @@ export default function DesignazioniPage() {
       staffId: number;
       staffName: string;
       assignments: AssignmentWithJoins[];
+      roles: string[];
+      distinctEventCount: number;
     }) => {
       const ids = group.assignments.map((a) => a.id);
       await sendDesignazioniForPerson(group.staffId, ids);
-      alert(`Email sent to ${group.staffName} (${ids.length} events)`);
+      alert(
+        `Email sent to ${group.staffName} (${group.distinctEventCount} events)`
+      );
     },
     []
   );
@@ -202,7 +212,8 @@ export default function DesignazioniPage() {
 
       for (const a of list) {
         if (a.staffId == null && a.staff_id == null) continue;
-        const id = (a.staffId ?? a.staff_id) as number;
+        const id = Number(a.staffId ?? a.staff_id);
+        if (!Number.isFinite(id) || id <= 0) continue;
         const existing = groupsMap.get(id) ?? [];
         existing.push(a);
         groupsMap.set(id, existing);
@@ -213,10 +224,30 @@ export default function DesignazioniPage() {
           const first = assignments[0];
           const fullName = `${first.staffSurname ?? first.staff_surname ?? ""} ${first.staffName ?? first.staff_name ?? ""}`.trim();
 
+          const roleLabels = assignments
+            .map((a) =>
+              String(
+                a.roleName ??
+                  a.role_name ??
+                  a.roleCode ??
+                  a.role_code ??
+                  ""
+              ).trim()
+            )
+            .filter((r) => r.length > 0);
+
           return {
             staffId,
             staffName: fullName || `ID ${staffId}`,
             assignments,
+            roles: Array.from(new Set(roleLabels)).sort((x, y) =>
+              x.localeCompare(y, "it")
+            ),
+            distinctEventCount: new Set(
+              assignments
+                .map((a) => String(a.event_id ?? "").trim())
+                .filter((eid) => eid.length > 0)
+            ).size,
           };
         }
       );
@@ -458,10 +489,11 @@ export default function DesignazioniPage() {
                 : "Select a period and click Filter period"}
             </div>
           ) : (
-            <table className="w-full min-w-[400px] border-collapse text-xs">
+            <table className="w-full min-w-[640px] border-collapse text-xs">
               <thead>
                 <tr className="border-b border-pitch-gray-dark text-left text-pitch-gray">
                   <th className="px-4 py-2">Person</th>
+                  <th className="px-4 py-2">Ruoli</th>
                   <th className="px-4 py-2">N. events</th>
                   <th className="px-4 py-2"></th>
                 </tr>
@@ -483,7 +515,10 @@ export default function DesignazioniPage() {
                         {group.staffName}
                       </td>
                       <td className="px-4 py-2 text-pitch-gray-light">
-                        {group.assignments.length}
+                        {group.roles.length > 0 ? group.roles.join(", ") : "—"}
+                      </td>
+                      <td className="px-4 py-2 text-pitch-gray-light">
+                        {group.distinctEventCount}
                       </td>
                       <td className="px-4 py-2 text-right">
                         <button
@@ -501,7 +536,7 @@ export default function DesignazioniPage() {
 
                     {expandedStaffId === group.staffId && (
                       <tr>
-                        <td colSpan={3} className="pb-2 pt-0">
+                        <td colSpan={4} className="pb-2 pt-0">
                           <table className="mt-1 w-full text-[11px]">
                             <thead>
                               <tr className="text-pitch-gray">

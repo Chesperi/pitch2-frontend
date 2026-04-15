@@ -10,6 +10,7 @@ type AppNavbarProps = {
   userInitials: string;
   pendingCount: number;
   centerContent?: ReactNode;
+  onBellClick?: () => void;
 };
 
 export default function AppNavbar({
@@ -18,6 +19,7 @@ export default function AppNavbar({
   userInitials,
   pendingCount,
   centerContent,
+  onBellClick,
 }: AppNavbarProps) {
   const router = useRouter();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -96,21 +98,28 @@ export default function AppNavbar({
 
         <div className="flex items-center gap-3">
           <div className="relative">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              className="h-5 w-5"
-              style={{ color: "#fff" }}
+            <button
+              type="button"
+              onClick={onBellClick}
+              className="rounded-full p-1 transition hover:bg-white/10"
+              aria-label="Vai alle azioni richieste"
             >
-              <path
-                d="M15 17h5l-1.4-1.4a2 2 0 0 1-.6-1.4V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5m6 0a3 3 0 1 1-6 0m6 0H9"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                className="h-5 w-5"
+                style={{ color: "#fff" }}
+              >
+                <path
+                  d="M15 17h5l-1.4-1.4a2 2 0 0 1-.6-1.4V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5m6 0a3 3 0 1 1-6 0m6 0H9"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
             {pendingCount > 0 ? (
               <span
                 className="absolute -right-2 -top-2 min-w-5 rounded-full px-1 text-center text-[10px] font-bold"

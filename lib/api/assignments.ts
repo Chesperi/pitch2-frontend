@@ -68,7 +68,12 @@ function normalizeAssignment(item: Record<string, unknown>): AssignmentWithJoins
   base.event_id = String(item.event_id ?? item.eventId ?? "");
   const roleCode = String(item.role_code ?? item.roleCode ?? "");
   const roleName = String(item.role_name ?? item.roleName ?? "");
-  const staffId = (item.staff_id ?? item.staffId ?? null) as number | null;
+  const staffRaw = item.staff_id ?? item.staffId ?? null;
+  let staffId: number | null = null;
+  if (staffRaw != null && staffRaw !== "") {
+    const n = Number(staffRaw);
+    if (Number.isFinite(n) && n > 0) staffId = n;
+  }
   const generatedFromComboId = (item.generated_from_combo_id ??
     item.generatedFromComboId ??
     null) as number | null;

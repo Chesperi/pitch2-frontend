@@ -10,7 +10,11 @@ export type UserProfile = {
 
 export type MyAssignmentListItem = {
   id: number;
+  event_id?: string;
   competition_name: string;
+  show_name?: string | null;
+  home_team_name_short?: string | null;
+  away_team_name_short?: string | null;
   /** YYYY-MM-DD */
   date: string | null;
   weekday?: string | null;
@@ -35,6 +39,7 @@ export type MyAssignmentDetail = {
   assignmentId: number;
   eventId: string;
   competition_name: string;
+  show_name?: string | null;
   competition_code?: string | null;
   matchday?: number | null;
   date: string;
@@ -133,6 +138,7 @@ export function normalizeMyAssignmentDetail(
     eventId: eid,
     competition_name:
       pickStr(raw, "competition_name", "competitionName") ?? "",
+    show_name: pickStr(raw, "show_name", "showName"),
     competition_code: pickStr(raw, "competition_code", "competitionCode"),
     matchday: (() => {
       const md = raw.matchday ?? raw.matchDay;
@@ -172,7 +178,19 @@ export function normalizeMyAssignment(
   const id = Number(raw.id ?? raw.assignmentId);
   return {
     id: Number.isFinite(id) ? id : 0,
+    event_id: pickStr(raw, "event_id", "eventId") ?? undefined,
     competition_name: pickStr(raw, "competition_name", "competitionName") ?? "",
+    show_name: pickStr(raw, "show_name", "showName"),
+    home_team_name_short: pickStr(
+      raw,
+      "home_team_name_short",
+      "homeTeamNameShort"
+    ),
+    away_team_name_short: pickStr(
+      raw,
+      "away_team_name_short",
+      "awayTeamNameShort"
+    ),
     date: pickStr(raw, "date", "ko_date", "event_date", "assignment_date"),
     weekday: pickStr(raw, "weekday", "weekday_label", "weekdayLabel"),
     ko_time: pickStr(raw, "ko_time", "koTime"),

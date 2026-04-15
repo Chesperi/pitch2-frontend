@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api/apiFetch";
 import AppNavbar from "@/components/AppNavbar";
 
@@ -17,6 +17,9 @@ type AssignmentItem = {
   id: number;
   eventId: string;
   competitionName: string;
+  showName: string | null;
+  homeTeamNameShort: string | null;
+  awayTeamNameShort: string | null;
   date: string | null;
   koTime: string | null;
   roleName: string;
@@ -64,6 +67,22 @@ function normalizeAssignments(raw: unknown): AssignmentItem[] {
       competitionName: String(
         row.competition_name ?? row.competitionName ?? "EVENTO"
       ).trim(),
+      showName:
+        row.show_name != null && String(row.show_name).trim() !== ""
+          ? String(row.show_name).trim()
+          : null,
+      homeTeamNameShort:
+        (row.home_team_name_short != null &&
+          String(row.home_team_name_short).trim() !== "") ||
+        (row.home_team_name != null && String(row.home_team_name).trim() !== "")
+          ? String(row.home_team_name_short ?? row.home_team_name).trim()
+          : null,
+      awayTeamNameShort:
+        (row.away_team_name_short != null &&
+          String(row.away_team_name_short).trim() !== "") ||
+        (row.away_team_name != null && String(row.away_team_name).trim() !== "")
+          ? String(row.away_team_name_short ?? row.away_team_name).trim()
+          : null,
       date:
         row.date != null && String(row.date).trim() !== ""
           ? String(row.date).slice(0, 10)
@@ -74,9 +93,11 @@ function normalizeAssignments(raw: unknown): AssignmentItem[] {
           : null,
       roleName: String(row.role_name ?? row.roleName ?? "—").trim(),
       location:
-        row.location != null && String(row.location).trim() !== ""
-          ? String(row.location).trim()
-          : null,
+        row.role_location != null && String(row.role_location).trim() !== ""
+          ? String(row.role_location).trim()
+          : row.location != null && String(row.location).trim() !== ""
+            ? String(row.location).trim()
+            : null,
       status: String(row.status ?? "").trim().toUpperCase(),
       plateSelected:
         row.plate_selected != null && String(row.plate_selected).trim() !== ""
@@ -98,6 +119,82 @@ function isConfirmedStatus(status: string): boolean {
 function isPastDate(isoDate: string | null, todayIso: string): boolean {
   if (!isoDate) return false;
   return isoDate < todayIso;
+}
+
+function isPastEventDateTime(
+  isoDate: string | null,
+  koTime: string | null,
+  now: Date
+): boolean {
+  if (!isoDate) return false;
+  const eventIso = koTime ? `${isoDate}T${koTime}` : `${isoDate}T23:59:59`;
+  const eventDate = new Date(eventIso);
+  if (Number.isNaN(eventDate.getTime())) {
+    return isPastDate(isoDate, toIsoDate(now));
+  }
+  return eventDate.getTime() < now.getTime();
+}
+
+function eventTitle(item: AssignmentItem): string {
+  const home = item.homeTeamNameShort?.trim() ?? "";
+  const away = item.awayTeamNameShort?.trim() ?? "";
+  if (home && away) return `${home} vs ${away}`;
+  return (
+    item.showName?.trim() ||
+    item.competitionName?.trim() ||
+    "Evento senza titolo"
+  );
+}
+
+function formatDateKoWithYear(
+  date: string | null,
+  koTime: string | null
+): string {
+  if (!date && !koTime) return "—";
+  if (date) {
+    const iso = koTime ? `${date}T${koTime}` : `${date}T12:00:00`;
+    const d = new Date(iso);
+    if (!Number.isNaN(d.getTime())) {
+      const datePart = new Intl.DateTimeFormat("it-IT", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }).format(d);
+      if (koTime) return `${datePart}, ${koTime}`;
+      return datePart;
+    }
+  }
+  return [date, koTime].filter(Boolean).join(", ") || "—";
+}
+
+function formatDateTimeLabel(
+  date: string | null,
+  koTime: string | null
+): string {
+  if (!date) return "—";
+  const iso = koTime ? `${date}T${koTime}` : `${date}T12:00:00`;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return formatDateKoWithYear(date, koTime);
+  const datePart = new Intl.DateTimeFormat("it-IT", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(d);
+  const timePart = new Intl.DateTimeFormat("it-IT", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(d);
+  return `${datePart}, ${timePart}`;
+}
+
+function statusBucketLabel(item: AssignmentItem): string {
+  if (isPastEventDateTime(item.date, item.koTime, new Date())) return "PASSATA";
+  const s = item.status.toUpperCase();
+  if (s === "PENDING" || s === "SENT") return "DA CONFERMARE";
+  if (s === "REJECTED") return "DECLINATA";
+  if (s === "CONFIRMED") return "CONFERMATA";
+  return s || "—";
 }
 
 function buildMonthGrid(currentMonth: Date): CalendarCell[] {
@@ -128,6 +225,7 @@ function getInitials(name: string, surname: string): string {
 
 export default function FreelanceLeMieAssegnazioniPage() {
   const router = useRouter();
+  const actionSectionRef = useRef<HTMLElement | null>(null);
   const [tab, setTab] = useState<"LISTA" | "CALENDARIO">("LISTA");
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [items, setItems] = useState<AssignmentItem[]>([]);
@@ -137,6 +235,8 @@ export default function FreelanceLeMieAssegnazioniPage() {
   const [showPast, setShowPast] = useState(false);
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
   const [savingPlateId, setSavingPlateId] = useState<number | null>(null);
+  const [confirmingAll, setConfirmingAll] = useState(false);
+  const [highlightActionSection, setHighlightActionSection] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
   const [modalCols, setModalCols] = useState<ColleagueItem[]>([]);
@@ -148,8 +248,6 @@ export default function FreelanceLeMieAssegnazioniPage() {
   const [selectedCalendarDay, setSelectedCalendarDay] = useState<string | null>(
     null
   );
-  const todayIso = useMemo(() => toIsoDate(new Date()), []);
-
   async function loadAll(): Promise<void> {
     setLoading(true);
     setError(null);
@@ -206,24 +304,42 @@ export default function FreelanceLeMieAssegnazioniPage() {
   }, []);
 
   const pendingCount = useMemo(
-    () => items.filter((i) => isPendingStatus(i.status)).length,
+    () =>
+      items.filter(
+        (i) => isPendingStatus(i.status) && !isPastEventDateTime(i.date, i.koTime, new Date())
+      ).length,
     [items]
   );
 
   const sections = useMemo(() => {
+    const now = new Date();
     const pendingFuture = items
-      .filter((i) => isPendingStatus(i.status) && !isPastDate(i.date, todayIso))
-      .sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""));
+      .filter((i) => isPendingStatus(i.status) && !isPastEventDateTime(i.date, i.koTime, now))
+      .sort((a, b) =>
+        `${a.date ?? ""} ${a.koTime ?? ""}`.localeCompare(
+          `${b.date ?? ""} ${b.koTime ?? ""}`
+        )
+      );
     const confirmedFuture = items
-      .filter(
-        (i) => isConfirmedStatus(i.status) && !isPastDate(i.date, todayIso)
-      )
-      .sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""));
+      .filter((i) => {
+        if (isPastEventDateTime(i.date, i.koTime, now)) return false;
+        const s = i.status.toUpperCase();
+        return s === "CONFIRMED" || s === "REJECTED";
+      })
+      .sort((a, b) =>
+        `${a.date ?? ""} ${a.koTime ?? ""}`.localeCompare(
+          `${b.date ?? ""} ${b.koTime ?? ""}`
+        )
+      );
     const past = items
-      .filter((i) => isPastDate(i.date, todayIso))
-      .sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
+      .filter((i) => isPastEventDateTime(i.date, i.koTime, now))
+      .sort((a, b) =>
+        `${b.date ?? ""} ${b.koTime ?? ""}`.localeCompare(
+          `${a.date ?? ""} ${a.koTime ?? ""}`
+        )
+      );
     return { pendingFuture, confirmedFuture, past };
-  }, [items, todayIso]);
+  }, [items]);
 
   const monthCells = useMemo(() => buildMonthGrid(monthDate), [monthDate]);
   const eventsByDate = useMemo(() => {
@@ -259,6 +375,48 @@ export default function FreelanceLeMieAssegnazioniPage() {
     }
   }
 
+  async function handleDecline(id: number): Promise<void> {
+    setConfirmingId(id);
+    try {
+      const res = await apiFetch(`/api/my-assignments/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "REJECTED" }),
+      });
+      if (!res.ok) throw new Error("Rifiuto non riuscito");
+      setItems((prev) =>
+        prev.map((it) => (it.id === id ? { ...it, status: "REJECTED" } : it))
+      );
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Errore rifiuto");
+    } finally {
+      setConfirmingId(null);
+    }
+  }
+
+  async function handleConfirmAll(): Promise<void> {
+    if (sections.pendingFuture.length <= 1) return;
+    setConfirmingAll(true);
+    try {
+      const res = await apiFetch("/api/my-assignments/confirm-all", {
+        method: "POST",
+      });
+      if (!res.ok) throw new Error("Conferma multipla non riuscita");
+      await loadAll();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Errore conferma multipla");
+    } finally {
+      setConfirmingAll(false);
+    }
+  }
+
+  function handleBellClick(): void {
+    setTab("LISTA");
+    actionSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    setHighlightActionSection(true);
+    window.setTimeout(() => setHighlightActionSection(false), 1200);
+  }
+
   async function handlePlateChange(
     assignmentId: number,
     value: string
@@ -287,7 +445,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
   }
 
   async function openColleaguesModal(item: AssignmentItem): Promise<void> {
-    setModalTitle(item.competitionName || "Evento");
+    setModalTitle(eventTitle(item));
     setModalOpen(true);
     setModalLoading(true);
     setModalCols([]);
@@ -317,8 +475,9 @@ export default function FreelanceLeMieAssegnazioniPage() {
     }
   }
 
-  function renderStatusBadge(status: string): React.ReactNode {
-    if (isPendingStatus(status)) {
+  function renderStatusBadge(item: AssignmentItem): React.ReactNode {
+    const label = statusBucketLabel(item);
+    if (label === "DA CONFERMARE") {
       return (
         <span
           className="rounded-full border px-2 py-1 text-[10px] font-bold"
@@ -329,6 +488,34 @@ export default function FreelanceLeMieAssegnazioniPage() {
           }}
         >
           DA CONFERMARE
+        </span>
+      );
+    }
+    if (label === "PASSATA") {
+      return (
+        <span
+          className="rounded-full border px-2 py-1 text-[10px] font-bold"
+          style={{
+            color: "#888",
+            borderColor: "#444",
+            background: "#222",
+          }}
+        >
+          PASSATA
+        </span>
+      );
+    }
+    if (label === "DECLINATA") {
+      return (
+        <span
+          className="rounded-full border px-2 py-1 text-[10px] font-bold"
+          style={{
+            color: "#c9a227",
+            borderColor: "#c9a22744",
+            background: "#c9a22722",
+          }}
+        >
+          DECLINATA
         </span>
       );
     }
@@ -372,18 +559,24 @@ export default function FreelanceLeMieAssegnazioniPage() {
               className="mt-1 text-[20px] uppercase leading-tight"
               style={{ color: "#fff", fontWeight: 900 }}
             >
-              {item.competitionName || "EVENTO"}
+              {eventTitle(item)}
             </h3>
           </div>
-          {renderStatusBadge(item.status)}
+          {renderStatusBadge(item)}
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-3">
           {[
-            { label: "DATA", value: item.date ?? "—" },
-            { label: "ORA", value: item.koTime ?? "—" },
+            {
+              label: "DATA KO",
+              value: formatDateKoWithYear(item.date, item.koTime),
+            },
             { label: "RUOLO", value: item.roleName || "—" },
             { label: "SEDE", value: item.location || "—" },
+            {
+              label: "STATUS",
+              value: statusBucketLabel(item),
+            },
           ].map((box) => (
             <div key={box.label}>
               <div
@@ -404,24 +597,38 @@ export default function FreelanceLeMieAssegnazioniPage() {
           style={{ borderColor: "#2a2a2a" }}
         >
           {isPending ? (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                void handleConfirm(item.id);
-              }}
-              disabled={confirmingId === item.id}
-              className="inline-flex items-center gap-2"
-              style={{ color: "#FFFA00", fontWeight: 700 }}
-            >
-              CONFERMA ORA
-              <span
-                className="inline-flex h-6 w-6 items-center justify-center rounded-full"
-                style={{ background: "#FFFA00", color: "#111" }}
+            <div className="inline-flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void handleConfirm(item.id);
+                }}
+                disabled={confirmingId === item.id}
+                className="inline-flex items-center gap-2"
+                style={{ color: "#FFFA00", fontWeight: 700 }}
               >
-                →
-              </span>
-            </button>
+                ACCETTA
+                <span
+                  className="inline-flex h-6 w-6 items-center justify-center rounded-full text-xs"
+                  style={{ background: "#FFFA00", color: "#111" }}
+                >
+                  ✓
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void handleDecline(item.id);
+                }}
+                disabled={confirmingId === item.id}
+                className="text-xs font-bold"
+                style={{ color: "#E24B4A" }}
+              >
+                DECLINA
+              </button>
+            </div>
           ) : null}
 
           {isStadio ? (
@@ -483,6 +690,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
         userEmail={profile?.email ?? "Email non disponibile"}
         userInitials={profile ? getInitials(profile.name, profile.surname) : "?"}
         pendingCount={pendingCount}
+        onBellClick={handleBellClick}
         centerContent={
           <>
             <button
@@ -533,16 +741,36 @@ export default function FreelanceLeMieAssegnazioniPage() {
             {tab === "LISTA" ? (
               <div className="mt-6 space-y-6">
                 <section
+                  ref={actionSectionRef}
                   className="rounded-xl border p-4"
-                  style={{ background: "#111", borderColor: "#2a2a2a", borderLeft: "4px solid #E24B4A" }}
+                  style={{
+                    background: "#111",
+                    borderColor: highlightActionSection ? "#E24B4A" : "#2a2a2a",
+                    borderLeft: "4px solid #E24B4A",
+                    boxShadow: highlightActionSection ? "0 0 0 2px rgba(226,75,74,0.25)" : "none",
+                    transition: "border-color 180ms ease, box-shadow 180ms ease",
+                  }}
                 >
                   <div className="mb-3 flex items-center justify-between">
                     <h2 className="text-sm font-bold uppercase text-white">AZIONE RICHIESTA</h2>
-                    <span className="rounded-full px-2 py-1 text-xs font-bold" style={{ background: "#E24B4A", color: "#fff" }}>
-                      {sections.pendingFuture.length}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      {sections.pendingFuture.length > 1 ? (
+                        <button
+                          type="button"
+                          onClick={() => void handleConfirmAll()}
+                          disabled={confirmingAll}
+                          className="rounded-md px-3 py-1 text-xs font-bold uppercase disabled:cursor-not-allowed disabled:opacity-60"
+                          style={{ background: "#FFFA00", color: "#111" }}
+                        >
+                          {confirmingAll ? "Conferma..." : "Conferma tutte"}
+                        </button>
+                      ) : null}
+                      <span className="rounded-full px-2 py-1 text-xs font-bold" style={{ background: "#E24B4A", color: "#fff" }}>
+                        {sections.pendingFuture.length}
+                      </span>
+                    </div>
                   </div>
-                  <div className="space-y-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {sections.pendingFuture.length === 0 ? (
                       <p className="text-sm" style={{ color: "#888" }}>Nessuna assegnazione da confermare.</p>
                     ) : (
@@ -561,7 +789,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
                       {sections.confirmedFuture.length}
                     </span>
                   </div>
-                  <div className="space-y-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {sections.confirmedFuture.length === 0 ? (
                       <p className="text-sm" style={{ color: "#888" }}>Nessuna confermata futura.</p>
                     ) : (
@@ -582,7 +810,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
                     </span>
                   </button>
                   {showPast ? (
-                    <div className="mt-3 space-y-3">
+                    <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                       {sections.past.length === 0 ? (
                         <p className="text-sm" style={{ color: "#888" }}>Nessun evento passato.</p>
                       ) : (
@@ -664,7 +892,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
                 {selectedCalendarDay ? (
                   <div className="mt-5 rounded-lg border p-3" style={{ borderColor: "#2a2a2a", background: "#1a1a1a" }}>
                     <div className="text-sm font-bold text-white">
-                      Eventi del {selectedCalendarDay}
+                      Eventi del {formatDateTimeLabel(selectedCalendarDay, null).split(",")[0]}
                     </div>
                     <div className="mt-2 space-y-2">
                       {selectedDayEvents.length === 0 ? (
@@ -678,7 +906,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
                             className="w-full rounded border px-3 py-2 text-left"
                             style={{ borderColor: "#2a2a2a", background: "#111", color: "#fff" }}
                           >
-                            {item.competitionName} - {item.koTime ?? "--:--"}
+                            {eventTitle(item)} — {item.koTime ?? "--:--"}
                           </button>
                         ))
                       )}
@@ -701,7 +929,12 @@ export default function FreelanceLeMieAssegnazioniPage() {
           />
           <aside
             className="absolute right-0 top-0 h-full w-full max-w-[400px] border-l p-4"
-            style={{ background: "#111", borderColor: "#2a2a2a" }}
+            style={{
+              background: "#111",
+              borderColor: "#2a2a2a",
+              overflowY: "auto",
+              maxHeight: "100vh",
+            }}
           >
             <div className="flex items-start justify-between gap-2">
               <h3 className="text-lg font-bold text-white">{modalTitle}</h3>

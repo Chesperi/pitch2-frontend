@@ -78,6 +78,16 @@ function normalizeAssignments(raw: unknown): AssignmentItem[] {
     : [];
   return list.map((row) => {
     const idRaw = row.assignmentId ?? row.id;
+    const rawDate = row.date ?? row.event_date ?? null;
+    let isoDate: string | null = null;
+    if (rawDate != null && String(rawDate).trim() !== "") {
+      const parsed = new Date(String(rawDate));
+      if (!Number.isNaN(parsed.getTime())) {
+        isoDate = parsed.toISOString().slice(0, 10);
+      } else {
+        isoDate = String(rawDate).slice(0, 10);
+      }
+    }
     return {
       id: Number(idRaw ?? 0),
       eventId: String(row.eventId ?? row.event_id ?? ""),
@@ -100,10 +110,7 @@ function normalizeAssignments(raw: unknown): AssignmentItem[] {
         (row.away_team_name != null && String(row.away_team_name).trim() !== "")
           ? String(row.away_team_name_short ?? row.away_team_name).trim()
           : null,
-      date:
-        row.date != null && String(row.date).trim() !== ""
-          ? String(row.date).slice(0, 10)
-          : null,
+      date: isoDate,
       koTime:
         row.ko_time != null && String(row.ko_time).trim() !== ""
           ? String(row.ko_time).slice(0, 5)
@@ -302,7 +309,14 @@ export default function FreelanceLeMieAssegnazioniPage() {
       });
 
       const assignmentsData = await assignmentsRes.json();
-      setItems(normalizeAssignments(assignmentsData));
+      const normalizedItems = normalizeAssignments(assignmentsData);
+      console.log(
+        "items[0].date raw:",
+        normalizedItems[0]?.date,
+        "items[0] full:",
+        JSON.stringify(normalizedItems[0])
+      );
+      setItems(normalizedItems);
 
       if (platesRes.ok) {
         const platesData = (await platesRes.json()) as { plates?: unknown };

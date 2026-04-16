@@ -989,6 +989,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
                               eventTitle(item),
                               item.roleName?.trim() || null,
                               item.location?.trim() || null,
+                              item.koTime?.trim() || null,
                             ].filter((part): part is string => Boolean(part && part.length > 0));
                             return (
                           <button

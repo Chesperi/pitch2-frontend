@@ -1,6 +1,6 @@
 import { apiFetch } from "./apiFetch";
 
-export type EventAssignmentsStatus = "DRAFT" | "READY_TO_SEND" | "SENT";
+export type EventAssignmentsStatus = "DRAFT" | "READY_TO_SEND" | "SENT" | "CONFIRMED";
 
 export interface EventItem {
   id: string;
@@ -387,16 +387,16 @@ export async function bulkUpdateEventsStatus(params: {
   return res.json();
 }
 
-export async function bulkDeleteEvents(params: {
+export async function bulkPermanentDeleteEvents(params: {
   eventIds: string[];
-}): Promise<{ requested: number; updated: number }> {
-  const res = await apiFetch("/api/events/bulk-delete", {
-    method: "PATCH",
+}): Promise<{ requested: number; deleted: number }> {
+  const res = await apiFetch("/api/events/bulk-permanent-delete", {
+    method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(params),
   });
   if (!res.ok) {
-    throw new Error(`Failed to bulk delete events: ${res.status}`);
+    throw new Error(`Failed to bulk permanently delete events: ${res.status}`);
   }
   return res.json();
 }

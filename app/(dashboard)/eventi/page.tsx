@@ -9,7 +9,7 @@ import {
   createEvent,
   updateEvent,
   bulkUpdateEventsStatus,
-  bulkDeleteEvents,
+  bulkPermanentDeleteEvents,
   type EventItem,
   type EventAssignmentsStatus,
   type CreateEventPayload,
@@ -728,7 +728,7 @@ function BulkDeleteModal({
           Conferma eliminazione
         </h3>
         <p className="mt-2 text-sm text-pitch-gray-light">
-          Eliminare {count} eventi selezionati? L&apos;operazione non è reversibile.
+          Eliminare definitivamente {count} eventi? Questa operazione non è reversibile.
         </p>
         <div className="mt-4 flex justify-end gap-2">
           <button
@@ -963,7 +963,7 @@ export default function EventiPage() {
     if (selectedEventIds.size === 0) return;
     setBulkDeleting(true);
     try {
-      await bulkDeleteEvents({
+      await bulkPermanentDeleteEvents({
         eventIds: Array.from(selectedEventIds),
       });
       setSelectedEventIds(new Set());

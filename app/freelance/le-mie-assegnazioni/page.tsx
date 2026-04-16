@@ -49,6 +49,23 @@ function toIsoDate(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+function normalizeDateKey(rawDate: string | null): string {
+  if (!rawDate) return "";
+  const value = rawDate.trim();
+  if (!value) return "";
+
+  if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
+    return value.slice(0, 10);
+  }
+
+  const parsed = new Date(value);
+  if (!Number.isNaN(parsed.getTime())) {
+    return toIsoDate(parsed);
+  }
+
+  return value;
+}
+
 function parseIsoDate(iso: string | null): Date | null {
   if (!iso) return null;
   const d = new Date(`${iso}T12:00:00`);
@@ -362,7 +379,8 @@ export default function FreelanceLeMieAssegnazioniPage() {
     const map = new Map<string, AssignmentItem[]>();
     for (const item of items) {
       if (!item.date) continue;
-      const key = item.date;
+      const key = normalizeDateKey(item.date);
+      if (!key) continue;
       const arr = map.get(key) ?? [];
       arr.push(item);
       map.set(key, arr);

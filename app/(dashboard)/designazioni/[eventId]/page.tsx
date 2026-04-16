@@ -149,6 +149,10 @@ const EVENT_ASSIGNMENTS_STATUS_INFO = {
     description:
       "Extended UI/API use: emails sent; outcome on individual rows (AssignmentStatus).",
   },
+  CONFIRMED: {
+    label: "Confirmed",
+    description: "All freelancers confirmed their assignments.",
+  },
 } satisfies Record<
   EventAssignmentsStatus,
   { label: string; description: string }

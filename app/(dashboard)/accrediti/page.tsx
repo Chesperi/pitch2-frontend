@@ -402,10 +402,15 @@ export default function AccreditiPage() {
                 {eventTitle(selectedEvent)}
               </h3>
               <div className="text-sm text-pitch-gray-light">
-                KO: {formatKo(selectedEvent.koItaly)} • Stadio: {selectedEvent.facilities ?? "—"}
+                KO: {formatKo(selectedEvent.koItaly)} •{" "}
+                {selectedEvent.venueName
+                  ? `Stadio ${selectedEvent.venueName}${
+                      selectedEvent.venueCity ? `, ${selectedEvent.venueCity}` : ""
+                    }`
+                  : selectedEvent.facilities ?? "—"}
               </div>
               <div className="text-sm text-pitch-gray-light">
-                Competition: {selectedEvent.competitionName ?? "—"} • Owner: {ownerCode}
+                Competition: {selectedEvent.competitionName ?? "—"}
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">

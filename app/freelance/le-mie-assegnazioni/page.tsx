@@ -43,11 +43,10 @@ type CalendarCell = {
 
 function toIsoDate(date: Date): string {
   if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat("en-CA", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function parseIsoDate(iso: string | null): Date | null {
@@ -330,8 +329,18 @@ export default function FreelanceLeMieAssegnazioniPage() {
     const confirmedFuture = items
       .filter((i) => {
         if (isPastEventDateTime(i.date, i.koTime, now)) return false;
+        return i.status.toUpperCase() === "CONFIRMED";
+      })
+      .sort((a, b) =>
+        `${a.date ?? ""} ${a.koTime ?? ""}`.localeCompare(
+          `${b.date ?? ""} ${b.koTime ?? ""}`
+        )
+      );
+    const declinedFuture = items
+      .filter((i) => {
+        if (isPastEventDateTime(i.date, i.koTime, now)) return false;
         const s = i.status.toUpperCase();
-        return s === "CONFIRMED" || s === "REJECTED";
+        return s === "REJECTED" || s === "DECLINATA";
       })
       .sort((a, b) =>
         `${a.date ?? ""} ${a.koTime ?? ""}`.localeCompare(
@@ -345,7 +354,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
           `${a.date ?? ""} ${a.koTime ?? ""}`
         )
       );
-    return { pendingFuture, confirmedFuture, past };
+    return { pendingFuture, confirmedFuture, declinedFuture, past };
   }, [items]);
 
   const monthCells = useMemo(() => buildMonthGrid(monthDate), [monthDate]);
@@ -353,16 +362,18 @@ export default function FreelanceLeMieAssegnazioniPage() {
     const map = new Map<string, AssignmentItem[]>();
     for (const item of items) {
       if (!item.date) continue;
-      const parsedDate = new Date(`${item.date}T12:00:00`);
-      const key = Number.isNaN(parsedDate.getTime())
-        ? item.date
-        : toIsoDate(parsedDate);
+      const key = item.date;
       const arr = map.get(key) ?? [];
       arr.push(item);
       map.set(key, arr);
     }
+    console.log("eventsByDate keys:", Array.from(map.keys()));
     return map;
   }, [items]);
+
+  useEffect(() => {
+    console.log("monthCells sample:", monthCells[0]);
+  }, [monthCells]);
 
   const selectedDayEvents = useMemo(() => {
     if (!selectedCalendarDay) return [];
@@ -805,6 +816,25 @@ export default function FreelanceLeMieAssegnazioniPage() {
                       <p className="text-sm" style={{ color: "#888" }}>Nessuna confermata futura.</p>
                     ) : (
                       sections.confirmedFuture.map((item) => renderCard(item))
+                    )}
+                  </div>
+                </section>
+
+                <section
+                  className="rounded-xl border p-4"
+                  style={{ background: "#111", borderColor: "#2a2a2a", borderLeft: "4px solid #E24B4A" }}
+                >
+                  <div className="mb-3 flex items-center justify-between">
+                    <h2 className="text-sm font-bold uppercase text-white">DECLINATE</h2>
+                    <span className="rounded-full bg-[#2a2a2a] px-2 py-1 text-xs font-bold text-[#ccc]">
+                      {sections.declinedFuture.length}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {sections.declinedFuture.length === 0 ? (
+                      <p className="text-sm" style={{ color: "#888" }}>Nessuna declinata futura.</p>
+                    ) : (
+                      sections.declinedFuture.map((item) => renderCard(item))
                     )}
                   </div>
                 </section>

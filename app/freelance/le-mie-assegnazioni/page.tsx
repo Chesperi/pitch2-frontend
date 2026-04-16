@@ -940,6 +940,11 @@ export default function FreelanceLeMieAssegnazioniPage() {
                     const hasRejected = dayEvents.some(
                       (e) => e.status.toUpperCase() === "REJECTED"
                     );
+                    let dotColor: string | null = null;
+                    if (hasPending) dotColor = "#E24B4A";
+                    else if (hasConfirmed) dotColor = "#639922";
+                    else if (hasRejected) dotColor = "#555";
+                    else if (hasAny) dotColor = "#888";
                     return (
                       <button
                         key={cell.isoDate}
@@ -960,17 +965,8 @@ export default function FreelanceLeMieAssegnazioniPage() {
                       >
                         <div className="text-xs">{cell.day}</div>
                         <div className="mt-1 flex gap-1">
-                          {hasAny ? (
-                            <span className="h-2 w-2 rounded-full" style={{ background: "#888" }} />
-                          ) : null}
-                          {hasPending ? (
-                            <span className="h-2 w-2 rounded-full" style={{ background: "#E24B4A" }} />
-                          ) : null}
-                          {hasConfirmed ? (
-                            <span className="h-2 w-2 rounded-full" style={{ background: "#639922" }} />
-                          ) : null}
-                          {hasRejected ? (
-                            <span className="h-2 w-2 rounded-full" style={{ background: "#E24B4A" }} />
+                          {dotColor ? (
+                            <span className="h-2 w-2 rounded-full" style={{ background: dotColor }} />
                           ) : null}
                         </div>
                       </button>
@@ -988,6 +984,13 @@ export default function FreelanceLeMieAssegnazioniPage() {
                         <p className="text-sm" style={{ color: "#888" }}>Nessun evento.</p>
                       ) : (
                         selectedDayEvents.map((item) => (
+                          (() => {
+                            const parts = [
+                              eventTitle(item),
+                              item.roleName?.trim() || null,
+                              item.location?.trim() || null,
+                            ].filter((part): part is string => Boolean(part && part.length > 0));
+                            return (
                           <button
                             key={item.id}
                             type="button"
@@ -995,8 +998,10 @@ export default function FreelanceLeMieAssegnazioniPage() {
                             className="w-full rounded border px-3 py-2 text-left"
                             style={{ borderColor: "#2a2a2a", background: "#111", color: "#fff" }}
                           >
-                            {eventTitle(item)} — {item.koTime ?? "--:--"}
+                            {parts.join(" — ")}
                           </button>
+                            );
+                          })()
                         ))
                       )}
                     </div>

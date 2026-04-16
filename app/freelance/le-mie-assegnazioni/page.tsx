@@ -800,7 +800,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
                   style={{
                     background: "#111",
                     borderColor: highlightActionSection ? "#E24B4A" : "#2a2a2a",
-                    borderLeft: "4px solid #E24B4A",
+                    borderLeft: "4px solid #FFFA00",
                     boxShadow: highlightActionSection ? "0 0 0 2px rgba(226,75,74,0.25)" : "none",
                     transition: "border-color 180ms ease, box-shadow 180ms ease",
                   }}
@@ -819,7 +819,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
                           {confirmingAll ? "Conferma..." : "Conferma tutte"}
                         </button>
                       ) : null}
-                      <span className="rounded-full px-2 py-1 text-xs font-bold" style={{ background: "#E24B4A", color: "#fff" }}>
+                      <span className="rounded-full px-2 py-1 text-xs font-bold" style={{ background: "#FFFA00", color: "#111" }}>
                         {sections.pendingFuture.length}
                       </span>
                     </div>
@@ -941,7 +941,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
                       (e) => e.status.toUpperCase() === "REJECTED"
                     );
                     let dotColor: string | null = null;
-                    if (hasPending) dotColor = "#E24B4A";
+                    if (hasPending) dotColor = "#FFFA00";
                     else if (hasConfirmed) dotColor = "#639922";
                     else if (hasRejected) dotColor = "#555";
                     else if (hasAny) dotColor = "#888";

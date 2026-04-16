@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { SearchBar } from "@/components/SearchBar";
 import { apiFetch } from "@/lib/api/apiFetch";
@@ -65,6 +65,24 @@ function eventTitle(event: AccreditoEvent): string {
   if (home || away) return `${home ?? "—"} vs ${away ?? "—"}`;
   if (show) return show;
   return event.competitionName || event.id;
+}
+
+function requirementsCoverageLine(event: AccreditoEvent): ReactNode {
+  const covered = event.coveredAssignments;
+  const total = event.totalAssignments;
+  if (covered == null || total == null || total <= 0) return null;
+  if (covered === total) {
+    return (
+      <div className="mt-0.5 text-xs text-green-400">
+        ✓ Tutti i requirements coperti
+      </div>
+    );
+  }
+  return (
+    <div className="mt-0.5 text-xs text-amber-400">
+      {covered}/{total} requirements coperti
+    </div>
+  );
 }
 
 function normalizeOwnerCode(team: string | null | undefined): string {
@@ -349,7 +367,10 @@ export default function AccreditiPage() {
                 filteredEvents.map((event) => (
                   <tr key={event.id} className="border-b border-pitch-gray-dark/50">
                     <td className="px-3 py-2 text-pitch-gray-light">{formatKo(event.koItaly)}</td>
-                    <td className="px-3 py-2 text-pitch-gray-light">{eventTitle(event)}</td>
+                    <td className="px-3 py-2 text-pitch-gray-light">
+                      <div>{eventTitle(event)}</div>
+                      {requirementsCoverageLine(event)}
+                    </td>
                     <td className="px-3 py-2 text-pitch-gray-light">
                       {event.competitionName || "—"}
                     </td>

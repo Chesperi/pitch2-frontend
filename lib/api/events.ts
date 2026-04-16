@@ -29,6 +29,9 @@ export interface EventItem {
   studio: string | null;
   notes?: string | null;
   isTopMatch?: boolean;
+  /** Opzionale: da GET /api/accrediti/events-ready */
+  coveredAssignments?: number | null;
+  totalAssignments?: number | null;
 }
 
 function pickStr(
@@ -44,6 +47,15 @@ function pickStr(
 
 /** Normalizza una risposta API (snake_case o camelCase) in EventItem. */
 export function normalizeEventItem(raw: Record<string, unknown>): EventItem {
+  const pickOptionalCount = (...keys: string[]): number | null => {
+    for (const k of keys) {
+      const v = raw[k];
+      if (v == null || v === "") continue;
+      const n = Number(v);
+      if (Number.isFinite(n)) return n;
+    }
+    return null;
+  };
   const ext = raw.external_match_id ?? raw.externalMatchId;
   return {
     id: String(raw.id ?? ""),
@@ -100,6 +112,14 @@ export function normalizeEventItem(raw: Record<string, unknown>): EventItem {
         ? null
         : String(raw.notes),
     isTopMatch: Boolean(raw.is_top_match ?? raw.isTopMatch),
+    coveredAssignments: pickOptionalCount(
+      "covered_assignments",
+      "coveredAssignments"
+    ),
+    totalAssignments: pickOptionalCount(
+      "total_assignments",
+      "totalAssignments"
+    ),
   };
 }
 

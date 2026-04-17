@@ -7,8 +7,6 @@ import { apiFetch } from "@/lib/api/apiFetch";
 import {
   createAccredito,
   deactivateAccredito,
-  exportAccreditiPdf,
-  exportAccreditiXlsx,
   fetchAccreditationAreas,
   fetchAccreditiStaffOnsite,
   fetchAccreditiEvents,
@@ -313,8 +311,13 @@ export default function AccreditiPage() {
     if (!selectedEventId) return;
     setExporting("pdf");
     try {
-      const blob = await exportAccreditiPdf(selectedEventId);
-      await downloadBlob(blob, `accrediti-${selectedEventId}.pdf`);
+      const res = await apiFetch(`/api/accrediti/${encodeURIComponent(selectedEventId)}/pdf`);
+      if (!res.ok) throw new Error(`Failed to export PDF: ${res.status}`);
+      const disposition = res.headers.get("Content-Disposition") ?? "";
+      const match = disposition.match(/filename="([^"]+)"/);
+      const fileName = match?.[1] ?? `accrediti-${selectedEventId}.pdf`;
+      const blob = await res.blob();
+      await downloadBlob(blob, fileName);
     } finally {
       setExporting(null);
     }
@@ -324,8 +327,15 @@ export default function AccreditiPage() {
     if (!selectedEventId) return;
     setExporting("xlsx");
     try {
-      const blob = await exportAccreditiXlsx(selectedEventId);
-      await downloadBlob(blob, `accrediti-${selectedEventId}.xlsx`);
+      const res = await apiFetch(
+        `/api/accrediti/${encodeURIComponent(selectedEventId)}/export-xlsx`
+      );
+      if (!res.ok) throw new Error(`Failed to export XLSX: ${res.status}`);
+      const disposition = res.headers.get("Content-Disposition") ?? "";
+      const match = disposition.match(/filename="([^"]+)"/);
+      const fileName = match?.[1] ?? `accrediti-${selectedEventId}.xlsx`;
+      const blob = await res.blob();
+      await downloadBlob(blob, fileName);
     } finally {
       setExporting(null);
     }

@@ -58,6 +58,17 @@ function formatKo(ko: string | null | undefined): string {
   return Number.isNaN(d.getTime()) ? ko : d.toLocaleString("it-IT");
 }
 
+function formatDate(raw: string | null | undefined): string {
+  if (!raw) return "—";
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return raw;
+  return new Intl.DateTimeFormat("it-IT", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(d);
+}
+
 function eventTitle(event: AccreditoEvent): string {
   const home = event.homeTeamNameShort?.trim();
   const away = event.awayTeamNameShort?.trim();
@@ -570,7 +581,7 @@ export default function AccreditiPage() {
                         {row.placeOfBirth ?? "—"}
                       </td>
                       <td className="px-3 py-2 text-pitch-gray-light">
-                        {row.dateOfBirth ?? "—"}
+                        {formatDate(row.dateOfBirth)}
                       </td>
                       <td className="px-3 py-2 text-pitch-gray-light">{row.areas ?? "—"}</td>
                       <td className="px-3 py-2 text-pitch-gray-light">{row.roleCode ?? "—"}</td>

@@ -15,6 +15,8 @@ type StaffPermissionsItem = {
   staffId: number;
   name: string;
   email: string;
+  userLevel: string;
+  financeVisibility: "HIDDEN" | "VISIBLE";
   permissions: StaffPagePermission[];
 };
 
@@ -22,36 +24,22 @@ type StaffPagePermissionsResponse = {
   items: StaffPermissionsItem[];
 };
 
-type FinanceSelectValue = "default" | "allow" | "deny";
-
-const PAGE_LABELS: Record<string, string> = {
+const PAGE_KEY_LABELS: Record<string, string> = {
   le_mie_assegnazioni: "My assignments",
   eventi: "Events",
-  designazioni: "Assignments",
+  designazioni: "Designations",
   accrediti: "Accreditations",
   call_sheet: "Call sheet",
   database: "Database",
   cookies_jar: "Cookies jar",
-  consuntivo: "Summary",
+  consuntivo: "Scorecard",
   cronologia: "History",
   master: "Master",
 };
 
 function pageColumnLabel(pageKey: string): string {
-  return PAGE_LABELS[pageKey] ?? pageKey;
+  return PAGE_KEY_LABELS[pageKey] ?? pageKey;
 }
-
-const ACCESS_OPTIONS: { value: AccessLevel; label: string }[] = [
-  { value: "none", label: "None" },
-  { value: "view", label: "View" },
-  { value: "edit", label: "Edit" },
-];
-
-const FILTER_SELECT_CLASS =
-  "min-w-[100px] rounded border border-pitch-gray-dark bg-pitch-gray-dark px-2 py-1.5 text-xs text-pitch-white focus:border-pitch-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-50";
-
-const FINANCE_SELECT_CLASS =
-  "min-w-[130px] rounded border border-pitch-gray-dark bg-pitch-gray-dark px-2 py-1.5 text-xs text-pitch-white focus:border-pitch-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-50";
 
 async function readErrorMessage(res: Response): Promise<string> {
   try {
@@ -68,10 +56,6 @@ export default function MasterPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [savingKeys, setSavingKeys] = useState<Set<string>>(() => new Set());
-  const [financeByStaff, setFinanceByStaff] = useState<
-    Record<number, FinanceSelectValue>
-  >({});
-
   const setSaving = useCallback((key: string, on: boolean) => {
     setSavingKeys((prev) => {
       const next = new Set(prev);
@@ -112,8 +96,14 @@ export default function MasterPage() {
     return items[0].permissions.map((p) => p.pageKey);
   }, [items]);
 
-  const getFinanceValue = (staffId: number): FinanceSelectValue =>
-    financeByStaff[staffId] ?? "default";
+  const isSystemMaster = (item: StaffPermissionsItem): boolean =>
+    item.userLevel === "MASTER" && item.name.trim().toUpperCase() === "ANDRISANO ANDREA";
+
+  const nextAccessLevel = (value: AccessLevel): AccessLevel => {
+    if (value === "none") return "view";
+    if (value === "view") return "edit";
+    return "none";
+  };
 
   const handlePermissionChange = async (
     staffId: number,
@@ -165,33 +155,38 @@ export default function MasterPage() {
     }
   };
 
-  const handleFinanceChange = async (
+  const handleFinanceToggle = async (
     staffId: number,
-    value: FinanceSelectValue
+    currentVisibility: "HIDDEN" | "VISIBLE"
   ) => {
-    const current = getFinanceValue(staffId);
-    if (current === value) return;
+    const nextVisibility = currentVisibility === "VISIBLE" ? "HIDDEN" : "VISIBLE";
 
     const savingKey = `finance:${staffId}`;
     setActionError(null);
     setSaving(savingKey, true);
 
-    const financeAccessOverride =
-      value === "default" ? null : value === "allow" ? "allow" : "deny";
-
-    setFinanceByStaff((prev) => ({ ...prev, [staffId]: value }));
+    const prevItems = items;
+    setItems((current) =>
+      current.map((row) =>
+        row.staffId === staffId
+          ? { ...row, financeVisibility: nextVisibility }
+          : row
+      )
+    );
 
     try {
       const res = await apiFetch(`/api/staff/${staffId}/finance-access`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ financeAccessOverride }),
+        body: JSON.stringify({
+          financeAccessOverride: nextVisibility === "VISIBLE" ? "allow" : "deny",
+        }),
       });
       if (!res.ok) {
         throw new Error(await readErrorMessage(res));
       }
     } catch (e) {
-      setFinanceByStaff((prev) => ({ ...prev, [staffId]: "default" }));
+      setItems(prevItems);
       setActionError(
         e instanceof Error
           ? e.message
@@ -200,6 +195,43 @@ export default function MasterPage() {
     } finally {
       setSaving(savingKey, false);
     }
+  };
+
+  const levelRank: Record<string, number> = {
+    MASTER: 0,
+    MANAGER: 1,
+    STAFF: 2,
+    FREELANCE: 3,
+    PROVIDER: 4,
+  };
+
+  const sortedItems = useMemo(() => {
+    return [...items].sort((a, b) => {
+      const ra = levelRank[a.userLevel] ?? 99;
+      const rb = levelRank[b.userLevel] ?? 99;
+      if (ra !== rb) return ra - rb;
+      return a.name.localeCompare(b.name, "it");
+    });
+  }, [items]);
+
+  const userLevelBadgeClass = (level: string): string => {
+    const up = level.toUpperCase();
+    if (up === "MASTER") return "bg-[#FFFA00] text-black";
+    if (up === "MANAGER") return "bg-orange-500 text-black";
+    if (up === "STAFF") return "bg-gray-300 text-black";
+    if (up === "FREELANCE") return "bg-gray-700 text-white";
+    if (up === "PROVIDER") return "bg-blue-500 text-white";
+    return "bg-pitch-gray-dark text-pitch-white";
+  };
+
+  const accessCellClass = (value: AccessLevel): string => {
+    if (value === "edit") {
+      return "border-pitch-accent bg-pitch-accent/20 text-pitch-accent";
+    }
+    if (value === "view") {
+      return "border-blue-400/60 bg-blue-500/10 text-blue-300";
+    }
+    return "border-pitch-gray-dark bg-pitch-gray-dark/30 text-pitch-gray";
   };
 
   return (
@@ -231,11 +263,14 @@ export default function MasterPage() {
           <table className="w-full min-w-max border-collapse text-xs">
             <thead>
               <tr className="border-b border-pitch-gray-dark bg-pitch-gray-dark/30">
-                <th className="sticky left-0 z-10 min-w-[200px] bg-pitch-gray-dark/40 px-3 py-2 text-left font-medium text-pitch-gray">
-                  User
+                <th className="sticky left-0 z-10 min-w-[220px] bg-pitch-gray-dark/40 px-3 py-2 text-left font-medium text-pitch-gray">
+                  Full name
                 </th>
-                <th className="min-w-[140px] px-3 py-2 text-left font-medium text-pitch-gray">
-                  Financial access
+                <th className="min-w-[120px] px-3 py-2 text-left font-medium text-pitch-gray">
+                  User level
+                </th>
+                <th className="min-w-[160px] px-3 py-2 text-left font-medium text-pitch-gray">
+                  Finance visibility
                 </th>
                 {pageKeysOrdered.map((pk) => (
                   <th
@@ -248,7 +283,7 @@ export default function MasterPage() {
               </tr>
             </thead>
             <tbody>
-              {items.map((row) => (
+              {sortedItems.map((row) => (
                 <tr
                   key={row.staffId}
                   className="border-b border-pitch-gray-dark/50 hover:bg-pitch-gray-dark/10"
@@ -262,44 +297,61 @@ export default function MasterPage() {
                     </div>
                   </td>
                   <td className="px-4 py-2 text-xs">
-                    <select
-                      className={FINANCE_SELECT_CLASS}
-                      value={getFinanceValue(row.staffId)}
-                      onChange={(e) =>
-                        handleFinanceChange(
-                          row.staffId,
-                          e.target.value as FinanceSelectValue
-                        )
-                      }
-                      disabled={savingKeys.has(`finance:${row.staffId}`)}
+                    <span
+                      className={`inline-flex rounded-full px-2 py-1 text-[11px] font-semibold ${userLevelBadgeClass(
+                        row.userLevel
+                      )}`}
                     >
-                      <option value="default">Default</option>
-                      <option value="allow">Allow</option>
-                      <option value="deny">Deny</option>
-                    </select>
+                      {row.userLevel}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2 text-xs">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleFinanceToggle(row.staffId, row.financeVisibility)
+                      }
+                      disabled={
+                        isSystemMaster(row) || savingKeys.has(`finance:${row.staffId}`)
+                      }
+                      className={`inline-flex min-w-[120px] items-center justify-center rounded border px-2 py-1.5 text-xs font-semibold transition ${
+                        row.financeVisibility === "VISIBLE"
+                          ? "border-pitch-accent bg-pitch-accent/20 text-pitch-accent"
+                          : "border-pitch-gray-dark bg-pitch-gray-dark/30 text-pitch-gray"
+                      } ${
+                        isSystemMaster(row)
+                          ? "cursor-not-allowed opacity-50"
+                          : "hover:opacity-90"
+                      }`}
+                    >
+                      {row.financeVisibility}
+                    </button>
                   </td>
                   {row.permissions.map((perm) => (
                     <td key={perm.pageKey} className="px-4 py-2 text-xs">
-                      <select
-                        className={FILTER_SELECT_CLASS}
-                        value={perm.accessLevel}
-                        onChange={(e) =>
+                      <button
+                        type="button"
+                        onClick={() =>
                           handlePermissionChange(
                             row.staffId,
                             perm.pageKey,
-                            e.target.value as AccessLevel
+                            nextAccessLevel(perm.accessLevel)
                           )
                         }
-                        disabled={savingKeys.has(
-                          `${row.staffId}:${perm.pageKey}`
-                        )}
+                        disabled={
+                          isSystemMaster(row) ||
+                          savingKeys.has(`${row.staffId}:${perm.pageKey}`)
+                        }
+                        className={`inline-flex min-w-[90px] items-center justify-center rounded border px-2 py-1.5 text-xs font-semibold transition ${accessCellClass(
+                          perm.accessLevel
+                        )} ${
+                          isSystemMaster(row)
+                            ? "cursor-not-allowed opacity-50"
+                            : "hover:opacity-90"
+                        }`}
                       >
-                        {ACCESS_OPTIONS.map((opt) => (
-                          <option key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </option>
-                        ))}
-                      </select>
+                        {perm.accessLevel === "none" ? "—" : perm.accessLevel}
+                      </button>
                     </td>
                   ))}
                 </tr>

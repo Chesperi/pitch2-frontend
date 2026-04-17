@@ -69,7 +69,7 @@ const NAV_ITEMS: NavItem[] = [
   },
   {
     href: "/consuntivo",
-    label: "Summary",
+    label: "Scorecard",
     icon: BarChart2,
     pageKey: "consuntivo",
   },

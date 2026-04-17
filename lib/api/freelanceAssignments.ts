@@ -5,6 +5,7 @@ export type UserProfile = {
   name: string;
   surname: string;
   user_level: string;
+  finance_visibility: "HIDDEN" | "VISIBLE";
   email?: string | null;
 };
 
@@ -219,6 +220,8 @@ export async function fetchAuthMe(): Promise<UserProfile> {
     name: String(data.name ?? ""),
     surname: String(data.surname ?? ""),
     user_level: String(data.user_level ?? data.userLevel ?? ""),
+    finance_visibility:
+      data.finance_visibility === "VISIBLE" ? "VISIBLE" : "HIDDEN",
     email: data.email != null ? String(data.email) : null,
   };
 }

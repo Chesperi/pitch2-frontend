@@ -12,6 +12,8 @@ import {
   fetchMyAssignmentsStaff,
   rejectMyAssignmentStaff,
 } from "@/lib/api/myAssignmentsStaff";
+import { fetchAuthMe } from "@/lib/api/freelanceAssignments";
+import { canSeeFinance } from "@/lib/auth/financeAccess";
 
 function formatKoItaly(koItaly: string | null): string {
   if (!koItaly) return "—";
@@ -92,6 +94,7 @@ export default function LeMieAssegnazioniPage() {
   const [actionId, setActionId] = useState<number | null>(null);
   const [confirmingAll, setConfirmingAll] = useState(false);
   const [carPass, setCarPass] = useState<Record<number, boolean>>({});
+  const [showFinance, setShowFinance] = useState(false);
 
   const [plates, setPlates] = useState<string[]>([]);
 
@@ -127,6 +130,21 @@ export default function LeMieAssegnazioniPage() {
   useEffect(() => {
     loadAssignments();
   }, [loadAssignments]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const me = await fetchAuthMe();
+        if (!cancelled) setShowFinance(canSeeFinance(me));
+      } catch {
+        if (!cancelled) setShowFinance(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const filteredItems = useMemo(
     () => filterAssignments(items, search),
@@ -297,9 +315,11 @@ export default function LeMieAssegnazioniPage() {
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
                   Role
                 </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Fee
-                </th>
+                {showFinance ? (
+                  <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+                    Fee
+                  </th>
+                ) : null}
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
                   Status
                 </th>
@@ -352,9 +372,11 @@ export default function LeMieAssegnazioniPage() {
                     <td className="px-4 py-3 text-sm text-pitch-gray-light">
                       {assignment.role_code}
                     </td>
-                    <td className="px-4 py-3 text-sm text-pitch-gray-light">
-                      {assignment.fee ?? "—"}
-                    </td>
+                    {showFinance ? (
+                      <td className="px-4 py-3 text-sm text-pitch-gray-light">
+                        {assignment.fee ?? "—"}
+                      </td>
+                    ) : null}
                     <td className="px-4 py-3">
                       {renderStatusBadge(assignment.status)}
                     </td>

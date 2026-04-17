@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { apiFetch } from "@/lib/api/apiFetch";
+import { fetchAuthMe } from "@/lib/api/freelanceAssignments";
+import { canSeeFinance } from "@/lib/auth/financeAccess";
 
 type ConsuntivoRow = {
   eventId: string;
@@ -10,11 +12,16 @@ type ConsuntivoRow = {
   matchday: number | null;
   staffId: number;
   staffName: string;
-  roleId: number;
+  providerId: number | null;
+  providerName: string | null;
+  providerSurname: string | null;
+  providerCompany: string | null;
   roleCode: string;
   roleName: string;
   location: string | null;
   fee: number;
+  extraFee: number;
+  invoicedAmount: number | null;
   assignmentStatus: string;
 };
 
@@ -22,6 +29,13 @@ type ConsuntivoResponse = {
   items: ConsuntivoRow[];
   total: number;
   totalAmount: number;
+};
+
+type ProviderOption = {
+  id: number;
+  name: string;
+  surname: string;
+  company: string | null;
 };
 
 const INPUT_CLASS =
@@ -68,14 +82,18 @@ async function readFetchError(res: Response): Promise<string> {
 }
 
 export default function ConsuntivoPage() {
+  const [showFinance, setShowFinance] = useState(false);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [eventId, setEventId] = useState("");
   const [staffId, setStaffId] = useState("");
-  const [roleId, setRoleId] = useState("");
+  const [roleCode, setRoleCode] = useState("");
+  const [providerId, setProviderId] = useState("");
+  const [matchday, setMatchday] = useState("");
   const [staffNameContains, setStaffNameContains] = useState("");
   const [roleCodeContains, setRoleCodeContains] = useState("");
   const [status, setStatus] = useState("");
+  const [providerOptions, setProviderOptions] = useState<ProviderOption[]>([]);
 
   const [rawItems, setRawItems] = useState<ConsuntivoRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,7 +105,9 @@ export default function ConsuntivoPage() {
       to: string;
       eventId: string;
       staffId: string;
-      roleId: string;
+      roleCode: string;
+      providerId: string;
+      matchday: string;
       status: string;
     }) => {
       setLoading(true);
@@ -100,8 +120,12 @@ export default function ConsuntivoPage() {
         if (ev) q.set("eventId", ev);
         const sid = params.staffId.trim();
         if (sid) q.set("staffId", sid);
-        const rid = params.roleId.trim();
-        if (rid) q.set("roleId", rid);
+        const roleCodeVal = params.roleCode.trim();
+        if (roleCodeVal) q.set("roleCode", roleCodeVal);
+        const providerIdVal = params.providerId.trim();
+        if (providerIdVal) q.set("providerId", providerIdVal);
+        const matchdayVal = params.matchday.trim();
+        if (matchdayVal) q.set("matchday", matchdayVal);
         if (params.status.trim()) {
           q.set("status", params.status.trim());
         }
@@ -128,16 +152,62 @@ export default function ConsuntivoPage() {
     []
   );
 
+  const fetchProviders = useCallback(async () => {
+    try {
+      const res = await apiFetch("/api/providers", { cache: "no-store" });
+      if (!res.ok) throw new Error(await readFetchError(res));
+      const items = (await res.json()) as Array<Record<string, unknown>>;
+      setProviderOptions(
+        items
+          .map((p) => ({
+            id: Number(p.id ?? 0),
+            name: String(p.name ?? ""),
+            surname: String(p.surname ?? ""),
+            company:
+              p.company != null && String(p.company).trim() !== ""
+                ? String(p.company)
+                : null,
+          }))
+          .filter((p) => Number.isFinite(p.id) && p.id > 0)
+      );
+    } catch {
+      setProviderOptions([]);
+    }
+  }, []);
+
   useEffect(() => {
     void fetchConsuntivo({
       from: "",
       to: "",
       eventId: "",
       staffId: "",
-      roleId: "",
+      roleCode: "",
+      providerId: "",
+      matchday: "",
       status: "",
     });
   }, [fetchConsuntivo]);
+
+  useEffect(() => {
+    void fetchProviders();
+  }, [fetchProviders]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const me = await fetchAuthMe();
+        if (!cancelled) {
+          setShowFinance(canSeeFinance(me));
+        }
+      } catch {
+        if (!cancelled) setShowFinance(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const filteredItems = useMemo(() => {
     const sn = staffNameContains.trim().toLowerCase();
@@ -155,12 +225,21 @@ export default function ConsuntivoPage() {
   );
 
   const handleApplyFilters = () => {
-    void fetchConsuntivo({ from, to, eventId, staffId, roleId, status });
+    void fetchConsuntivo({
+      from,
+      to,
+      eventId,
+      staffId,
+      roleCode,
+      providerId,
+      matchday,
+      status,
+    });
   };
 
   return (
     <>
-      <PageHeader title="Summary" />
+      <PageHeader title="Scorecard" />
 
       <div className="mt-4 space-y-4 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/10 p-4">
         <div className="flex flex-wrap items-end gap-4">
@@ -213,14 +292,47 @@ export default function ConsuntivoPage() {
           </div>
           <div>
             <label className="mb-1 block text-xs text-pitch-gray">
-              Role ID
+              Role code
             </label>
             <input
               type="text"
-              inputMode="numeric"
+              placeholder="e.g. TALENT"
               className={`${INPUT_CLASS} w-24`}
-              value={roleId}
-              onChange={(e) => setRoleId(e.target.value)}
+              value={roleCode}
+              onChange={(e) => setRoleCode(e.target.value)}
+              disabled={loading}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-pitch-gray">Provider</label>
+            <select
+              className={`${INPUT_CLASS} min-w-[200px]`}
+              value={providerId}
+              onChange={(e) => setProviderId(e.target.value)}
+              disabled={loading}
+            >
+              <option value="">Tutti i provider</option>
+              {providerOptions.map((provider) => {
+                const fallbackName =
+                  `${provider.name} ${provider.surname}`.trim() || `#${provider.id}`;
+                const label = provider.company?.trim() || fallbackName;
+                return (
+                  <option key={provider.id} value={String(provider.id)}>
+                    {label}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-pitch-gray">Matchday</label>
+            <input
+              type="number"
+              min={1}
+              max={38}
+              className={`${INPUT_CLASS} w-24`}
+              value={matchday}
+              onChange={(e) => setMatchday(e.target.value)}
               disabled={loading}
             />
           </div>
@@ -283,6 +395,12 @@ export default function ConsuntivoPage() {
         </p>
       ) : null}
 
+      {!showFinance ? (
+        <p className="mt-4 rounded border border-pitch-gray-dark bg-pitch-gray-dark/30 px-3 py-2 text-sm text-pitch-gray-light">
+          I dati economici non sono visibili con il tuo profilo.
+        </p>
+      ) : null}
+
       {loading ? (
         <p className="mt-4 text-sm text-pitch-gray">Loading…</p>
       ) : null}
@@ -291,12 +409,14 @@ export default function ConsuntivoPage() {
         <span>
           Rows: <strong className="text-pitch-white">{filteredItems.length}</strong>
         </span>
-        <span>
-          Total fee (visible rows):{" "}
-          <strong className="text-pitch-white">
-            {eur.format(visibleTotalFee)}
-          </strong>
-        </span>
+        {showFinance ? (
+          <span>
+            Total fee (visible rows):{" "}
+            <strong className="text-pitch-white">
+              {eur.format(visibleTotalFee)}
+            </strong>
+          </span>
+        ) : null}
       </div>
 
       {!loading && !error && filteredItems.length === 0 ? (
@@ -323,6 +443,9 @@ export default function ConsuntivoPage() {
                   Staff
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-pitch-gray">
+                  Provider
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-pitch-gray">
                   Role
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-pitch-gray">
@@ -331,15 +454,17 @@ export default function ConsuntivoPage() {
                 <th className="px-4 py-3 text-left font-medium text-pitch-gray">
                   Status
                 </th>
-                <th className="px-4 py-3 text-right font-medium text-pitch-gray">
-                  Fee
-                </th>
+                {showFinance ? (
+                  <th className="px-4 py-3 text-right font-medium text-pitch-gray">
+                    Fee
+                  </th>
+                ) : null}
               </tr>
             </thead>
             <tbody>
               {filteredItems.map((row, idx) => (
                 <tr
-                  key={`${row.eventId}-${row.staffId}-${row.roleId}-${row.assignmentStatus}-${idx}`}
+                  key={`${row.eventId}-${row.staffId}-${row.roleCode}-${row.assignmentStatus}-${idx}`}
                   className="border-b border-pitch-gray-dark/50 hover:bg-pitch-gray-dark/10"
                 >
                   <td className="whitespace-nowrap px-4 py-3 text-pitch-gray-light">
@@ -356,6 +481,12 @@ export default function ConsuntivoPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-pitch-gray-light">
+                    {row.providerCompany?.trim()
+                      ? row.providerCompany
+                      : `${row.providerName ?? ""} ${row.providerSurname ?? ""}`.trim() ||
+                        "—"}
+                  </td>
+                  <td className="px-4 py-3 text-pitch-gray-light">
                     <span className="font-mono text-xs text-pitch-white">
                       {row.roleCode}
                     </span>
@@ -367,9 +498,11 @@ export default function ConsuntivoPage() {
                   <td className="px-4 py-3 text-pitch-gray-light">
                     {row.assignmentStatus}
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right text-pitch-white">
-                    {eur.format(Number(row.fee) || 0)}
-                  </td>
+                  {showFinance ? (
+                    <td className="whitespace-nowrap px-4 py-3 text-right text-pitch-white">
+                      {eur.format(Number(row.fee) || 0)}
+                    </td>
+                  ) : null}
                 </tr>
               ))}
             </tbody>

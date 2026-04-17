@@ -21,7 +21,7 @@ const TOPBAR_LINKS: { href: string; label: string; pageKey: string }[] = [
   { href: "/accrediti", label: "Accrediti", pageKey: "accrediti" },
   { href: "/database", label: "Database", pageKey: "database" },
   { href: "/call-sheet", label: "Call sheet", pageKey: "call_sheet" },
-  { href: "/consuntivo", label: "Consuntivo", pageKey: "consuntivo" },
+  { href: "/consuntivo", label: "Scorecard", pageKey: "consuntivo" },
   { href: "/cronologia", label: "Cronologia", pageKey: "cronologia" },
   { href: "/master", label: "Master", pageKey: "master" },
 ];

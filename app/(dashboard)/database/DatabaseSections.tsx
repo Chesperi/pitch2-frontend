@@ -35,6 +35,8 @@ import { fetchAccreditationAreas } from "@/lib/api/accrediti";
 import { apiFetch } from "@/lib/api/apiFetch";
 import { LookupValuesSection } from "./LookupValuesSection";
 import { EventRulesSection } from "./EventRulesSection";
+import { fetchAuthMe } from "@/lib/api/freelanceAssignments";
+import { canSeeFinance } from "@/lib/auth/financeAccess";
 import {
   DB_TH,
   DB_TBODY_TR,
@@ -286,6 +288,7 @@ export function DatabaseSections({
   standardCombos: initialStandardCombos,
   roleMap,
 }: DatabaseSectionsProps) {
+  const [showFinance, setShowFinance] = useState(false);
   const [staffOpen, setStaffOpen] = useState(true);
   const [rolesOpen, setRolesOpen] = useState(true);
   const [standardOpen, setStandardOpen] = useState(true);
@@ -305,6 +308,21 @@ export function DatabaseSections({
     useState("");
   const [savingAccreditationRoleCode, setSavingAccreditationRoleCode] =
     useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const me = await fetchAuthMe();
+        if (!cancelled) setShowFinance(canSeeFinance(me));
+      } catch {
+        if (!cancelled) setShowFinance(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const [staff, setStaff] = useState<StaffItem[]>(initialStaff);
   const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
@@ -540,13 +558,16 @@ export function DatabaseSections({
       dateOfBirth: staffFormValues.dateOfBirth.trim() || null,
       residentialAddress: staffFormValues.residentialAddress.trim() || null,
       idNumber: staffFormValues.idNumber.trim() || null,
-      extraFee: staffFormValues.extraFee.trim() || null,
+      extraFee: showFinance ? (staffFormValues.extraFee.trim() || null) : undefined,
       teamDazn: staffFormValues.teamDazn.trim() || null,
       notes: staffFormValues.staffNotes.trim() || null,
       financeVisibility: staffFormValues.financeVisibility
         ? ("VISIBLE" as const)
         : ("HIDDEN" as const),
     };
+
+    const financeFieldsForEdit = showFinance ? { fee: feeForEdit } : {};
+    const financeFieldsForCreate = showFinance ? { fee: feeForCreate } : {};
 
     const platesJoined = joinPlatesFromThree(
       staffFormValues.plate1,
@@ -567,7 +588,7 @@ export function DatabaseSections({
           active: staffFormValues.active,
           phone: staffFormValues.phone.trim() || undefined,
           company: staffFormValues.company.trim() || undefined,
-          fee: feeForEdit,
+          ...financeFieldsForEdit,
           plates: platesJoined ?? null,
           ...extraStaffFields,
         });
@@ -583,7 +604,7 @@ export function DatabaseSections({
           active: staffFormValues.active,
           phone: staffFormValues.phone.trim() || undefined,
           company: staffFormValues.company.trim() || undefined,
-          fee: feeForCreate,
+          ...financeFieldsForCreate,
           plates: platesJoined,
           ...extraStaffFields,
         });
@@ -860,10 +881,10 @@ export function DatabaseSections({
                   <th className={DB_TH}>Company</th>
                   <th className={DB_TH}>Role</th>
                   <th className={DB_TH}>Location</th>
-                  <th className={DB_TH}>Fee</th>
+                  {showFinance ? <th className={DB_TH}>Fee</th> : null}
                   <th className={DB_TH}>Plate(s)</th>
                   <th className={DB_TH}>User level</th>
-                  <th className={DB_TH}>Extra fee</th>
+                  {showFinance ? <th className={DB_TH}>Extra fee</th> : null}
                   <th className={DB_TH}>DAZN Team</th>
                   <th className={DB_TH}>Notes</th>
                   <th className={DB_TH}>Place of birth</th>
@@ -916,30 +937,32 @@ export function DatabaseSections({
                     >
                       {s.default_location ?? "—"}
                     </td>
-                    <td
-                      className={
-                        s.fee != null && String(s.fee) !== ""
-                          ? DB_TD
-                          : DB_TD_EMPTY
-                      }
-                    >
-                      {s.fee != null && String(s.fee) !== ""
-                        ? String(s.fee)
-                        : "—"}
-                    </td>
+                    {showFinance ? (
+                      <td
+                        className={
+                          s.fee != null && String(s.fee) !== ""
+                            ? DB_TD
+                            : DB_TD_EMPTY
+                        }
+                      >
+                        {s.fee != null && String(s.fee) !== ""
+                          ? String(s.fee)
+                          : "—"}
+                      </td>
+                    ) : null}
                     <td
                       className={platesDisp.empty ? DB_TD_EMPTY : DB_TD}
                     >
                       {platesDisp.text}
                     </td>
                     <td className={DB_TD}>{s.user_level}</td>
-                    <td
-                      className={
-                        s.extra_fee ? DB_TD : DB_TD_EMPTY
-                      }
-                    >
-                      {s.extra_fee ?? "—"}
-                    </td>
+                    {showFinance ? (
+                      <td
+                        className={s.extra_fee ? DB_TD : DB_TD_EMPTY}
+                      >
+                        {s.extra_fee ?? "—"}
+                      </td>
+                    ) : null}
                     <td
                       className={
                         s.team_dazn ? DB_TD : DB_TD_EMPTY
@@ -2235,26 +2258,28 @@ export function DatabaseSections({
                   Contract details
                 </p>
                 <div className="space-y-2">
-                  <div>
-                    <label
-                      htmlFor="staff-extra-fee"
-                      className="mb-1 block text-xs text-pitch-gray"
-                    >
-                      Extra fee
-                    </label>
-                    <input
-                      id="staff-extra-fee"
-                      type="text"
-                      value={staffFormValues.extraFee}
-                      onChange={(e) =>
-                        setStaffFormValues((v) => ({
-                          ...v,
-                          extraFee: e.target.value,
-                        }))
-                      }
-                      className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
-                    />
-                  </div>
+                  {showFinance ? (
+                    <div>
+                      <label
+                        htmlFor="staff-extra-fee"
+                        className="mb-1 block text-xs text-pitch-gray"
+                      >
+                        Extra fee
+                      </label>
+                      <input
+                        id="staff-extra-fee"
+                        type="text"
+                        value={staffFormValues.extraFee}
+                        onChange={(e) =>
+                          setStaffFormValues((v) => ({
+                            ...v,
+                            extraFee: e.target.value,
+                          }))
+                        }
+                        className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+                      />
+                    </div>
+                  ) : null}
                   <div>
                     <label
                       htmlFor="staff-team-dazn"
@@ -2522,23 +2547,25 @@ export function DatabaseSections({
                   ))}
                 </select>
               </div>
-              <div>
-                <label
-                  htmlFor="staff-fee"
-                  className="mb-1 block text-xs text-pitch-gray"
-                >
-                  Fee
-                </label>
-                <input
-                  id="staff-fee"
-                  type="number"
-                  value={staffFormValues.fee}
-                  onChange={(e) =>
-                    setStaffFormValues((v) => ({ ...v, fee: e.target.value }))
-                  }
-                  className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
-                />
-              </div>
+              {showFinance ? (
+                <div>
+                  <label
+                    htmlFor="staff-fee"
+                    className="mb-1 block text-xs text-pitch-gray"
+                  >
+                    Fee
+                  </label>
+                  <input
+                    id="staff-fee"
+                    type="number"
+                    value={staffFormValues.fee}
+                    onChange={(e) =>
+                      setStaffFormValues((v) => ({ ...v, fee: e.target.value }))
+                    }
+                    className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+                  />
+                </div>
+              ) : null}
               <div className="grid gap-3 sm:grid-cols-3">
                 <div>
                   <label

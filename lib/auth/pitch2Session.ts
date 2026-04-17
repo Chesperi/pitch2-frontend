@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabaseClient";
 export type Pitch2MeResponse = {
   user_level?: string;
   userLevel?: string;
+  finance_visibility?: "HIDDEN" | "VISIBLE";
 };
 
 export function assignmentsHomeForUserLevel(levelRaw: string | undefined): string {

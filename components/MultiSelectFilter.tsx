@@ -22,7 +22,7 @@ export default function MultiSelectFilter({
   options,
   selected,
   onChange,
-  placeholder = "Seleziona...",
+  placeholder = "Select...",
   disabled = false,
 }: MultiSelectFilterProps) {
   const [open, setOpen] = useState(false);
@@ -100,7 +100,7 @@ export default function MultiSelectFilter({
               className="text-xs font-semibold"
               style={{ color: DAZN_COLORS.yellow }}
             >
-              Seleziona tutti
+              Select all
             </button>
             <button
               type="button"
@@ -108,7 +108,7 @@ export default function MultiSelectFilter({
               className="text-xs font-semibold"
               style={{ color: DAZN_COLORS.yellow }}
             >
-              Deseleziona tutti
+              Clear all
             </button>
           </div>
           <div className="space-y-1">

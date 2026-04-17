@@ -84,6 +84,27 @@ type AppliedFilters = {
   statuses: string[];
 };
 
+async function fetchFilterOptions(
+  filters: AppliedFilters
+): Promise<FilterOptionsResponse> {
+  const q = new URLSearchParams();
+  if (filters.from.trim()) q.set("from", filters.from.trim());
+  if (filters.to.trim()) q.set("to", filters.to.trim());
+  filters.matchdays.forEach((v) => q.append("matchdays", v));
+  filters.competitions.forEach((v) => q.append("competitions", v));
+  filters.staffIds.forEach((v) => q.append("staffIds", v));
+  filters.roleCodes.forEach((v) => q.append("roleCodes", v));
+  filters.providerIds.forEach((v) => q.append("providerIds", v));
+  filters.statuses.forEach((v) => q.append("statuses", v));
+  const qs = q.toString();
+  const res = await apiFetch(
+    `/api/consuntivo/filter-options${qs ? `?${qs}` : ""}`,
+    { cache: "no-store" }
+  );
+  if (!res.ok) throw new Error(await readFetchError(res));
+  return (await res.json()) as FilterOptionsResponse;
+}
+
 const INPUT_CLASS =
   "rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none";
 
@@ -189,26 +210,10 @@ export default function ConsuntivoPage() {
     []
   );
 
-  const loadFilterOptions = useCallback(async (filters: AppliedFilters) => {
+  const loadFilterOptions = async (filters: AppliedFilters) => {
     setLoadingOptions(true);
     try {
-      const q = new URLSearchParams();
-      if (filters.from.trim()) q.set("from", filters.from.trim());
-      if (filters.to.trim()) q.set("to", filters.to.trim());
-      filters.matchdays.forEach((value) => q.append("matchdays", value));
-      filters.competitions.forEach((value) => q.append("competitions", value));
-      filters.staffIds.forEach((value) => q.append("staffIds", value));
-      filters.roleCodes.forEach((value) => q.append("roleCodes", value));
-      filters.providerIds.forEach((value) => q.append("providerIds", value));
-      filters.statuses.forEach((value) => q.append("statuses", value));
-
-      const qs = q.toString();
-      const res = await apiFetch(
-        `/api/consuntivo/filter-options${qs ? `?${qs}` : ""}`,
-        { cache: "no-store" }
-      );
-      if (!res.ok) throw new Error(await readFetchError(res));
-      const data = (await res.json()) as FilterOptionsResponse;
+      const data = await fetchFilterOptions(filters);
 
       const nextOptions: FilterOptionsState = {
         matchdays: (data.matchdays ?? [])
@@ -238,7 +243,7 @@ export default function ConsuntivoPage() {
           .map((role) => ({
             value: role.code,
             label: role.description?.trim()
-              ? `${role.code} · ${role.description}`
+              ? `${role.description}${role.location ? ` – ${role.location}` : ""}`
               : role.code,
             location: String(role.location ?? ""),
           }))
@@ -254,7 +259,8 @@ export default function ConsuntivoPage() {
             value: String(provider.id),
             label:
               provider.label?.trim() ||
-              `${provider.name ?? ""} ${provider.surname ?? ""}`.trim() ||
+              provider.company?.trim() ||
+              `${provider.surname ?? ""} ${provider.name ?? ""}`.trim() ||
               `#${provider.id}`,
           }))
           .filter((provider) => provider.value !== "0")
@@ -267,19 +273,12 @@ export default function ConsuntivoPage() {
       };
 
       setFilterOptions(nextOptions);
-    } catch {
-      setFilterOptions({
-        matchdays: [],
-        staff: [],
-        roles: [],
-        providers: [],
-        competitions: [],
-        statuses: [],
-      });
+    } catch (err) {
+      console.error("filter-options error:", err);
     } finally {
       setLoadingOptions(false);
     }
-  }, []);
+  };
 
   useEffect(() => {
     void fetchConsuntivo({
@@ -328,7 +327,8 @@ export default function ConsuntivoPage() {
       providerIds: [],
       statuses: [],
     });
-  }, [from, to, loadFilterOptions]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [from, to]);
 
   const filteredItems = useMemo(() => rawItems, [rawItems]);
 
@@ -337,62 +337,88 @@ export default function ConsuntivoPage() {
     [filteredItems]
   );
 
-  const updateCascade = useCallback(
-    (next: Partial<AppliedFilters>) => {
-      const current: AppliedFilters = {
-        from,
-        to,
-        matchdays: selectedMatchdays,
-        competitions: selectedCompetitions,
-        staffIds: selectedStaffIds,
-        roleCodes: selectedRoleCodes,
-        providerIds: selectedProviderIds,
-        statuses: selectedStatuses,
-        ...next,
-      };
-      void loadFilterOptions(current);
-    },
-    [
-      from,
-      to,
-      selectedMatchdays,
-      selectedCompetitions,
-      selectedStaffIds,
-      selectedRoleCodes,
-      selectedProviderIds,
-      selectedStatuses,
-      loadFilterOptions,
-    ]
-  );
-
   const handleMatchdaysChange = (values: string[]) => {
     setSelectedMatchdays(values);
-    updateCascade({ matchdays: values });
+    void loadFilterOptions({
+      from,
+      to,
+      matchdays: values,
+      competitions: selectedCompetitions,
+      staffIds: selectedStaffIds,
+      roleCodes: selectedRoleCodes,
+      providerIds: selectedProviderIds,
+      statuses: selectedStatuses,
+    });
   };
 
   const handleCompetitionsChange = (values: string[]) => {
     setSelectedCompetitions(values);
-    updateCascade({ competitions: values });
+    void loadFilterOptions({
+      from,
+      to,
+      matchdays: selectedMatchdays,
+      competitions: values,
+      staffIds: selectedStaffIds,
+      roleCodes: selectedRoleCodes,
+      providerIds: selectedProviderIds,
+      statuses: selectedStatuses,
+    });
   };
 
   const handleStaffIdsChange = (values: string[]) => {
     setSelectedStaffIds(values);
-    updateCascade({ staffIds: values });
+    void loadFilterOptions({
+      from,
+      to,
+      matchdays: selectedMatchdays,
+      competitions: selectedCompetitions,
+      staffIds: values,
+      roleCodes: selectedRoleCodes,
+      providerIds: selectedProviderIds,
+      statuses: selectedStatuses,
+    });
   };
 
   const handleRoleCodesChange = (values: string[]) => {
     setSelectedRoleCodes(values);
-    updateCascade({ roleCodes: values });
+    void loadFilterOptions({
+      from,
+      to,
+      matchdays: selectedMatchdays,
+      competitions: selectedCompetitions,
+      staffIds: selectedStaffIds,
+      roleCodes: values,
+      providerIds: selectedProviderIds,
+      statuses: selectedStatuses,
+    });
   };
 
   const handleProviderIdsChange = (values: string[]) => {
     setSelectedProviderIds(values);
-    updateCascade({ providerIds: values });
+    void loadFilterOptions({
+      from,
+      to,
+      matchdays: selectedMatchdays,
+      competitions: selectedCompetitions,
+      staffIds: selectedStaffIds,
+      roleCodes: selectedRoleCodes,
+      providerIds: values,
+      statuses: selectedStatuses,
+    });
   };
 
   const handleStatusesChange = (values: string[]) => {
     setSelectedStatuses(values);
-    updateCascade({ statuses: values });
+    void loadFilterOptions({
+      from,
+      to,
+      matchdays: selectedMatchdays,
+      competitions: selectedCompetitions,
+      staffIds: selectedStaffIds,
+      roleCodes: selectedRoleCodes,
+      providerIds: selectedProviderIds,
+      statuses: values,
+    });
   };
 
   const roleOptions = filterOptions.roles;
@@ -448,31 +474,31 @@ export default function ConsuntivoPage() {
             options={matchdayOptions}
             selected={selectedMatchdays}
             onChange={handleMatchdaysChange}
-            placeholder="Seleziona MD"
+            placeholder="Select MD"
             disabled={areOptionFiltersDisabled}
           />
           <MultiSelectFilter
-            label="Competizione"
+            label="Competition"
             options={competitionOptions}
             selected={selectedCompetitions}
             onChange={handleCompetitionsChange}
-            placeholder="Seleziona competizione"
+            placeholder="Select competition"
             disabled={areOptionFiltersDisabled}
           />
           <MultiSelectFilter
-            label="Nominativo"
+            label="Staff"
             options={staffOptions}
             selected={selectedStaffIds}
             onChange={handleStaffIdsChange}
-            placeholder="Seleziona staff"
+            placeholder="Select staff"
             disabled={areOptionFiltersDisabled}
           />
           <MultiSelectFilter
-            label="Ruolo"
+            label="Role"
             options={roleOptions}
             selected={selectedRoleCodes}
             onChange={handleRoleCodesChange}
-            placeholder="Seleziona ruolo"
+            placeholder="Select role"
             disabled={areOptionFiltersDisabled}
           />
           <MultiSelectFilter
@@ -480,7 +506,7 @@ export default function ConsuntivoPage() {
             options={providerOptions}
             selected={selectedProviderIds}
             onChange={handleProviderIdsChange}
-            placeholder="Seleziona provider"
+            placeholder="Select provider"
             disabled={areOptionFiltersDisabled}
           />
           <MultiSelectFilter
@@ -488,7 +514,7 @@ export default function ConsuntivoPage() {
             options={statusOptions}
             selected={selectedStatuses}
             onChange={handleStatusesChange}
-            placeholder="Seleziona status"
+            placeholder="Select status"
             disabled={areOptionFiltersDisabled}
           />
         </div>
@@ -513,7 +539,7 @@ export default function ConsuntivoPage() {
 
       {!showFinance ? (
         <p className="mt-4 rounded border border-pitch-gray-dark bg-pitch-gray-dark/30 px-3 py-2 text-sm text-pitch-gray-light">
-          I dati economici non sono visibili con il tuo profilo.
+          Financial data is not visible for your profile.
         </p>
       ) : null}
 
@@ -553,6 +579,9 @@ export default function ConsuntivoPage() {
                   MD
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-pitch-gray">
+                  Competition
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-pitch-gray">
                   Staff
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-pitch-gray">
@@ -585,6 +614,9 @@ export default function ConsuntivoPage() {
                   </td>
                   <td className="px-4 py-3 text-pitch-gray-light">
                     {row.matchday ?? "—"}
+                  </td>
+                  <td className="px-4 py-3 text-pitch-gray-light">
+                    {row.competitionName ?? "—"}
                   </td>
                   <td className="px-4 py-3 text-pitch-gray-light">
                     <span className="text-pitch-white">{row.staffName}</span>

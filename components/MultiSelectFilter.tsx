@@ -14,6 +14,7 @@ type MultiSelectFilterProps = {
   selected: string[];
   onChange: (values: string[]) => void;
   placeholder?: string;
+  disabled?: boolean;
 };
 
 export default function MultiSelectFilter({
@@ -22,6 +23,7 @@ export default function MultiSelectFilter({
   selected,
   onChange,
   placeholder = "Seleziona...",
+  disabled = false,
 }: MultiSelectFilterProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -78,8 +80,11 @@ export default function MultiSelectFilter({
       <label className="mb-1 block text-xs text-pitch-gray">{label}</label>
       <button
         type="button"
+        disabled={disabled}
         onClick={() => setOpen((v) => !v)}
-        className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-left text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+        className={`w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-left text-sm text-pitch-white focus:border-pitch-accent focus:outline-none ${
+          disabled ? "cursor-not-allowed opacity-50" : ""
+        }`}
       >
         <span className={selected.length > 0 ? "text-pitch-white" : "text-pitch-gray"}>
           {triggerText}

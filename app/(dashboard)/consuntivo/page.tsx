@@ -8,12 +8,11 @@ import { canSeeFinance } from "@/lib/auth/financeAccess";
 import MultiSelectFilter, {
   type MultiSelectOption,
 } from "@/components/MultiSelectFilter";
-import { fetchRoles } from "@/lib/api/roles";
-import { fetchStaff } from "@/lib/api/staff";
 
 type ConsuntivoRow = {
   eventId: string;
   eventDate: string | null;
+  competitionName: string | null;
   matchday: number | null;
   staffId: number;
   staffName: string;
@@ -24,8 +23,8 @@ type ConsuntivoRow = {
   roleCode: string;
   roleName: string;
   location: string | null;
-  fee: number;
-  extraFee: number;
+  fee: number | null;
+  extraFee: number | null;
   invoicedAmount: number | null;
   assignmentStatus: string;
 };
@@ -33,18 +32,56 @@ type ConsuntivoRow = {
 type ConsuntivoResponse = {
   items: ConsuntivoRow[];
   total: number;
-  totalAmount: number;
+  totalAmount: number | null;
 };
 
-type ProviderOption = {
+type FilterProvider = {
   id: number;
   name: string;
   surname: string;
   company: string | null;
+  label: string;
 };
 
-type MatchdaysResponse = {
+type FilterStaff = {
+  id: number;
+  name: string;
+  surname: string;
+};
+
+type FilterRole = {
+  code: string;
+  description: string | null;
+  location: string | null;
+};
+
+type FilterOptionsResponse = {
   matchdays?: number[];
+  staff?: FilterStaff[];
+  roles?: FilterRole[];
+  providers?: FilterProvider[];
+  competitions?: string[];
+  statuses?: string[];
+};
+
+type FilterOptionsState = {
+  matchdays: MultiSelectOption[];
+  staff: MultiSelectOption[];
+  roles: MultiSelectOption[];
+  providers: MultiSelectOption[];
+  competitions: MultiSelectOption[];
+  statuses: MultiSelectOption[];
+};
+
+type AppliedFilters = {
+  from: string;
+  to: string;
+  matchdays: string[];
+  competitions: string[];
+  staffIds: string[];
+  roleCodes: string[];
+  providerIds: string[];
+  statuses: string[];
 };
 
 const INPUT_CLASS =
@@ -52,14 +89,6 @@ const INPUT_CLASS =
 
 const BTN_PRIMARY =
   "rounded bg-pitch-accent px-4 py-2 text-xs font-semibold text-pitch-bg hover:bg-yellow-200 disabled:cursor-not-allowed disabled:opacity-50";
-
-const STATUS_OPTIONS = [
-  { value: "", label: "All statuses" },
-  { value: "DRAFT", label: "DRAFT" },
-  { value: "READY", label: "READY" },
-  { value: "SENT", label: "SENT" },
-  { value: "CONFIRMED", label: "CONFIRMED" },
-];
 
 const eur = new Intl.NumberFormat("it-IT", {
   style: "currency",
@@ -95,16 +124,20 @@ export default function ConsuntivoPage() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [selectedMatchdays, setSelectedMatchdays] = useState<string[]>([]);
+  const [selectedCompetitions, setSelectedCompetitions] = useState<string[]>([]);
+  const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
   const [selectedRoleCodes, setSelectedRoleCodes] = useState<string[]>([]);
   const [selectedProviderIds, setSelectedProviderIds] = useState<string[]>([]);
-  const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
-  const [status, setStatus] = useState("");
-  const [providerOptions, setProviderOptions] = useState<ProviderOption[]>([]);
-  const [matchdayOptions, setMatchdayOptions] = useState<MultiSelectOption[]>(
-    []
-  );
-  const [roleOptions, setRoleOptions] = useState<MultiSelectOption[]>([]);
-  const [staffOptions, setStaffOptions] = useState<MultiSelectOption[]>([]);
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
+  const [loadingOptions, setLoadingOptions] = useState(false);
+  const [filterOptions, setFilterOptions] = useState<FilterOptionsState>({
+    matchdays: [],
+    staff: [],
+    roles: [],
+    providers: [],
+    competitions: [],
+    statuses: [],
+  });
 
   const [rawItems, setRawItems] = useState<ConsuntivoRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -115,10 +148,11 @@ export default function ConsuntivoPage() {
       from: string;
       to: string;
       matchdays: string[];
+      competitions: string[];
+      staffIds: string[];
       roleCodes: string[];
       providerIds: string[];
-      staffIds: string[];
-      status: string;
+      statuses: string[];
     }) => {
       setLoading(true);
       setError(null);
@@ -127,12 +161,11 @@ export default function ConsuntivoPage() {
         if (params.from.trim()) q.set("from", params.from.trim());
         if (params.to.trim()) q.set("to", params.to.trim());
         params.matchdays.forEach((v) => q.append("matchdays", v));
+        params.competitions.forEach((v) => q.append("competitions", v));
+        params.staffIds.forEach((v) => q.append("staffIds", v));
         params.roleCodes.forEach((v) => q.append("roleCodes", v));
         params.providerIds.forEach((v) => q.append("providerIds", v));
-        params.staffIds.forEach((v) => q.append("staffIds", v));
-        if (params.status.trim()) {
-          q.set("status", params.status.trim());
-        }
+        params.statuses.forEach((v) => q.append("statuses", v));
 
         const qs = q.toString();
         const res = await apiFetch(
@@ -156,77 +189,95 @@ export default function ConsuntivoPage() {
     []
   );
 
-  const fetchProviders = useCallback(async () => {
+  const loadFilterOptions = useCallback(async (filters: AppliedFilters) => {
+    setLoadingOptions(true);
     try {
-      const res = await apiFetch("/api/providers", { cache: "no-store" });
+      const q = new URLSearchParams();
+      if (filters.from.trim()) q.set("from", filters.from.trim());
+      if (filters.to.trim()) q.set("to", filters.to.trim());
+      filters.matchdays.forEach((value) => q.append("matchdays", value));
+      filters.competitions.forEach((value) => q.append("competitions", value));
+      filters.staffIds.forEach((value) => q.append("staffIds", value));
+      filters.roleCodes.forEach((value) => q.append("roleCodes", value));
+      filters.providerIds.forEach((value) => q.append("providerIds", value));
+      filters.statuses.forEach((value) => q.append("statuses", value));
+
+      const qs = q.toString();
+      const res = await apiFetch(
+        `/api/consuntivo/filter-options${qs ? `?${qs}` : ""}`,
+        { cache: "no-store" }
+      );
       if (!res.ok) throw new Error(await readFetchError(res));
-      const items = (await res.json()) as Array<Record<string, unknown>>;
-      setProviderOptions(
-        items
-          .map((p) => ({
-            id: Number(p.id ?? 0),
-            name: String(p.name ?? ""),
-            surname: String(p.surname ?? ""),
-            company:
-              p.company != null && String(p.company).trim() !== ""
-                ? String(p.company)
-                : null,
+      const data = (await res.json()) as FilterOptionsResponse;
+
+      const nextOptions: FilterOptionsState = {
+        matchdays: (data.matchdays ?? [])
+          .filter((md) => Number.isFinite(md))
+          .sort((a, b) => a - b)
+          .map((md) => ({ value: String(md), label: `MD ${md}` })),
+        competitions: (data.competitions ?? [])
+          .map((name) => String(name ?? "").trim())
+          .filter((name) => name.length > 0)
+          .sort((a, b) => a.localeCompare(b, "it"))
+          .map((name) => ({ value: name, label: name })),
+        staff: (data.staff ?? [])
+          .map((staff) => ({
+            value: String(staff.id),
+            label: `${staff.surname ?? ""} ${staff.name ?? ""}`.trim(),
+            surname: String(staff.surname ?? ""),
+            name: String(staff.name ?? ""),
           }))
-          .filter((p) => Number.isFinite(p.id) && p.id > 0)
-      );
-    } catch {
-      setProviderOptions([]);
-    }
-  }, []);
+          .filter((staff) => staff.value !== "0" && staff.label.length > 0)
+          .sort((a, b) =>
+            a.surname === b.surname
+              ? a.name.localeCompare(b.name, "it")
+              : a.surname.localeCompare(b.surname, "it")
+          )
+          .map(({ value, label }) => ({ value, label })),
+        roles: (data.roles ?? [])
+          .map((role) => ({
+            value: role.code,
+            label: role.description?.trim()
+              ? `${role.code} · ${role.description}`
+              : role.code,
+            location: String(role.location ?? ""),
+          }))
+          .filter((role) => role.value.length > 0)
+          .sort((a, b) =>
+            a.value === b.value
+              ? a.location.localeCompare(b.location, "it")
+              : a.value.localeCompare(b.value, "it")
+          )
+          .map(({ value, label }) => ({ value, label })),
+        providers: (data.providers ?? [])
+          .map((provider) => ({
+            value: String(provider.id),
+            label:
+              provider.label?.trim() ||
+              `${provider.name ?? ""} ${provider.surname ?? ""}`.trim() ||
+              `#${provider.id}`,
+          }))
+          .filter((provider) => provider.value !== "0")
+          .sort((a, b) => a.label.localeCompare(b.label, "it")),
+        statuses: (data.statuses ?? [])
+          .map((status) => String(status ?? "").trim())
+          .filter((status) => status.length > 0)
+          .sort((a, b) => a.localeCompare(b, "it"))
+          .map((status) => ({ value: status, label: status })),
+      };
 
-  const fetchMatchdays = useCallback(async () => {
-    try {
-      const res = await apiFetch("/api/events/matchdays", { cache: "no-store" });
-      if (!res.ok) throw new Error(await readFetchError(res));
-      const body = (await res.json()) as MatchdaysResponse;
-      const options = (body.matchdays ?? [])
-        .filter((md) => Number.isFinite(md))
-        .map((md) => ({ value: String(md), label: `MD ${md}` }));
-      setMatchdayOptions(options);
+      setFilterOptions(nextOptions);
     } catch {
-      setMatchdayOptions([]);
-    }
-  }, []);
-
-  const fetchRoleOptions = useCallback(async () => {
-    try {
-      const roles = await fetchRoles();
-      setRoleOptions(
-        roles.map((role) => ({
-          value: role.code,
-          label: role.name?.trim() ? role.name : role.code,
-        }))
-      );
-    } catch {
-      setRoleOptions([]);
-    }
-  }, []);
-
-  const fetchStaffOptions = useCallback(async () => {
-    try {
-      const response = await fetchStaff({ limit: 200, offset: 0 });
-      const options = (response.items ?? [])
-        .map((staff) => ({
-          value: String(staff.id),
-          label: `${staff.surname ?? ""} ${staff.name ?? ""}`.trim(),
-          surname: String(staff.surname ?? "").toLowerCase(),
-          name: String(staff.name ?? "").toLowerCase(),
-        }))
-        .filter((item) => item.label.length > 0)
-        .sort((a, b) =>
-          a.surname === b.surname
-            ? a.name.localeCompare(b.name, "it")
-            : a.surname.localeCompare(b.surname, "it")
-        )
-        .map(({ value, label }) => ({ value, label }));
-      setStaffOptions(options);
-    } catch {
-      setStaffOptions([]);
+      setFilterOptions({
+        matchdays: [],
+        staff: [],
+        roles: [],
+        providers: [],
+        competitions: [],
+        statuses: [],
+      });
+    } finally {
+      setLoadingOptions(false);
     }
   }, []);
 
@@ -235,22 +286,13 @@ export default function ConsuntivoPage() {
       from: "",
       to: "",
       matchdays: [],
+      competitions: [],
+      staffIds: [],
       roleCodes: [],
       providerIds: [],
-      staffIds: [],
-      status: "",
+      statuses: [],
     });
   }, [fetchConsuntivo]);
-
-  useEffect(() => {
-    void fetchProviders();
-  }, [fetchProviders]);
-
-  useEffect(() => {
-    void fetchMatchdays();
-    void fetchRoleOptions();
-    void fetchStaffOptions();
-  }, [fetchMatchdays, fetchRoleOptions, fetchStaffOptions]);
 
   useEffect(() => {
     let cancelled = false;
@@ -269,6 +311,25 @@ export default function ConsuntivoPage() {
     };
   }, []);
 
+  useEffect(() => {
+    setSelectedMatchdays([]);
+    setSelectedCompetitions([]);
+    setSelectedStaffIds([]);
+    setSelectedRoleCodes([]);
+    setSelectedProviderIds([]);
+    setSelectedStatuses([]);
+    void loadFilterOptions({
+      from,
+      to,
+      matchdays: [],
+      competitions: [],
+      staffIds: [],
+      roleCodes: [],
+      providerIds: [],
+      statuses: [],
+    });
+  }, [from, to, loadFilterOptions]);
+
   const filteredItems = useMemo(() => rawItems, [rawItems]);
 
   const visibleTotalFee = useMemo(
@@ -276,15 +337,83 @@ export default function ConsuntivoPage() {
     [filteredItems]
   );
 
+  const updateCascade = useCallback(
+    (next: Partial<AppliedFilters>) => {
+      const current: AppliedFilters = {
+        from,
+        to,
+        matchdays: selectedMatchdays,
+        competitions: selectedCompetitions,
+        staffIds: selectedStaffIds,
+        roleCodes: selectedRoleCodes,
+        providerIds: selectedProviderIds,
+        statuses: selectedStatuses,
+        ...next,
+      };
+      void loadFilterOptions(current);
+    },
+    [
+      from,
+      to,
+      selectedMatchdays,
+      selectedCompetitions,
+      selectedStaffIds,
+      selectedRoleCodes,
+      selectedProviderIds,
+      selectedStatuses,
+      loadFilterOptions,
+    ]
+  );
+
+  const handleMatchdaysChange = (values: string[]) => {
+    setSelectedMatchdays(values);
+    updateCascade({ matchdays: values });
+  };
+
+  const handleCompetitionsChange = (values: string[]) => {
+    setSelectedCompetitions(values);
+    updateCascade({ competitions: values });
+  };
+
+  const handleStaffIdsChange = (values: string[]) => {
+    setSelectedStaffIds(values);
+    updateCascade({ staffIds: values });
+  };
+
+  const handleRoleCodesChange = (values: string[]) => {
+    setSelectedRoleCodes(values);
+    updateCascade({ roleCodes: values });
+  };
+
+  const handleProviderIdsChange = (values: string[]) => {
+    setSelectedProviderIds(values);
+    updateCascade({ providerIds: values });
+  };
+
+  const handleStatusesChange = (values: string[]) => {
+    setSelectedStatuses(values);
+    updateCascade({ statuses: values });
+  };
+
+  const roleOptions = filterOptions.roles;
+  const staffOptions = filterOptions.staff;
+  const providerOptions = filterOptions.providers;
+  const matchdayOptions = filterOptions.matchdays;
+  const competitionOptions = filterOptions.competitions;
+  const statusOptions = filterOptions.statuses;
+
+  const areOptionFiltersDisabled = loadingOptions || loading;
+
   const handleApplyFilters = () => {
     void fetchConsuntivo({
       from,
       to,
       matchdays: selectedMatchdays,
+      competitions: selectedCompetitions,
+      staffIds: selectedStaffIds,
       roleCodes: selectedRoleCodes,
       providerIds: selectedProviderIds,
-      staffIds: selectedStaffIds,
-      status,
+      statuses: selectedStatuses,
     });
   };
 
@@ -318,52 +447,50 @@ export default function ConsuntivoPage() {
             label="MD"
             options={matchdayOptions}
             selected={selectedMatchdays}
-            onChange={setSelectedMatchdays}
+            onChange={handleMatchdaysChange}
             placeholder="Seleziona MD"
+            disabled={areOptionFiltersDisabled}
+          />
+          <MultiSelectFilter
+            label="Competizione"
+            options={competitionOptions}
+            selected={selectedCompetitions}
+            onChange={handleCompetitionsChange}
+            placeholder="Seleziona competizione"
+            disabled={areOptionFiltersDisabled}
           />
           <MultiSelectFilter
             label="Nominativo"
             options={staffOptions}
             selected={selectedStaffIds}
-            onChange={setSelectedStaffIds}
+            onChange={handleStaffIdsChange}
             placeholder="Seleziona staff"
+            disabled={areOptionFiltersDisabled}
           />
           <MultiSelectFilter
             label="Ruolo"
             options={roleOptions}
             selected={selectedRoleCodes}
-            onChange={setSelectedRoleCodes}
+            onChange={handleRoleCodesChange}
             placeholder="Seleziona ruolo"
+            disabled={areOptionFiltersDisabled}
           />
           <MultiSelectFilter
             label="Provider"
-            options={providerOptions.map((provider) => {
-              const fallbackName =
-                `${provider.name} ${provider.surname}`.trim() || `#${provider.id}`;
-              return {
-                value: String(provider.id),
-                label: provider.company?.trim() || fallbackName,
-              };
-            })}
+            options={providerOptions}
             selected={selectedProviderIds}
-            onChange={setSelectedProviderIds}
+            onChange={handleProviderIdsChange}
             placeholder="Seleziona provider"
+            disabled={areOptionFiltersDisabled}
           />
-          <div>
-            <label className="mb-1 block text-xs text-pitch-gray">Status</label>
-            <select
-              className={INPUT_CLASS}
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              disabled={loading}
-            >
-              {STATUS_OPTIONS.map((o) => (
-                <option key={o.value || "all"} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          <MultiSelectFilter
+            label="Status"
+            options={statusOptions}
+            selected={selectedStatuses}
+            onChange={handleStatusesChange}
+            placeholder="Seleziona status"
+            disabled={areOptionFiltersDisabled}
+          />
         </div>
 
         <div className="flex flex-wrap items-end gap-4 border-t border-pitch-gray-dark/50 pt-4">

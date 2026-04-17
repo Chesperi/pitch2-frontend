@@ -71,15 +71,10 @@ function requirementsCoverageLine(event: AccreditoEvent): ReactNode {
   const covered = event.coveredAssignments;
   const total = event.totalAssignments;
   if (covered == null || total == null || total <= 0) return null;
-  if (covered === total) {
-    return (
-      <div className="mt-0.5 text-xs text-green-400">
-        ✓ Tutti i requirements coperti
-      </div>
-    );
-  }
+  const colorClass = covered === total ? "text-green-400" : "text-amber-400";
   return (
-    <div className="mt-0.5 text-xs text-amber-400">
+    <div className={`mt-0.5 text-xs ${colorClass}`}>
+      {covered === total ? "✓ " : ""}
       {covered}/{total} requirements coperti
     </div>
   );

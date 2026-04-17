@@ -12,6 +12,7 @@ import MultiSelectFilter, {
 type ConsuntivoRow = {
   eventId: string;
   eventDate: string | null;
+  koItalyTime: string | null;
   competitionName: string | null;
   matchday: number | null;
   staffId: number;
@@ -116,19 +117,31 @@ const eur = new Intl.NumberFormat("it-IT", {
   currency: "EUR",
 });
 
-const dateTimeIt = new Intl.DateTimeFormat("it-IT", {
-  day: "2-digit",
-  month: "2-digit",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-});
+function formatEventDate(dateIso: string | null, koItalyTime: string | null): string {
+  if (!dateIso && !koItalyTime) return "—";
 
-function formatEventDate(iso: string | null): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return dateTimeIt.format(d);
+  let datePart = "—";
+  if (dateIso) {
+    const raw = String(dateIso).trim();
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+    if (match) {
+      datePart = `${match[3]}/${match[2]}/${match[1]}`;
+    } else {
+      const d = new Date(raw);
+      if (!Number.isNaN(d.getTime())) {
+        datePart = new Intl.DateTimeFormat("it-IT", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        }).format(d);
+      }
+    }
+  }
+
+  const koPart = koItalyTime != null && String(koItalyTime).trim() !== ""
+    ? String(koItalyTime).trim().slice(0, 5)
+    : null;
+  return koPart ? `${datePart} ${koPart}` : datePart;
 }
 
 async function readFetchError(res: Response): Promise<string> {
@@ -610,7 +623,7 @@ export default function ConsuntivoPage() {
                   className="border-b border-pitch-gray-dark/50 hover:bg-pitch-gray-dark/10"
                 >
                   <td className="whitespace-nowrap px-4 py-3 text-pitch-gray-light">
-                    {formatEventDate(row.eventDate)}
+                    {formatEventDate(row.eventDate, row.koItalyTime)}
                   </td>
                   <td className="px-4 py-3 text-pitch-gray-light">
                     {row.matchday ?? "—"}
@@ -628,10 +641,9 @@ export default function ConsuntivoPage() {
                         "—"}
                   </td>
                   <td className="px-4 py-3 text-pitch-gray-light">
-                    <span className="font-mono text-xs text-pitch-white">
-                      {row.roleCode}
+                    <span className="text-pitch-white">
+                      {row.roleName ?? row.roleCode}
                     </span>
-                    <span className="ml-1 text-pitch-gray">· {row.roleName}</span>
                   </td>
                   <td className="px-4 py-3 text-pitch-gray-light">
                     {row.location ?? "—"}

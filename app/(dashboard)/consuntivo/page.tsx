@@ -123,6 +123,10 @@ function formatEventDate(dateIso: string | null, koItalyTime: string | null): st
   let datePart = "—";
   if (dateIso) {
     const raw = String(dateIso).trim();
+    const alreadyFormatted = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(raw);
+    if (alreadyFormatted) {
+      datePart = raw;
+    } else {
     const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
     if (match) {
       datePart = `${match[3]}/${match[2]}/${match[1]}`;
@@ -135,6 +139,7 @@ function formatEventDate(dateIso: string | null, koItalyTime: string | null): st
           year: "numeric",
         }).format(d);
       }
+    }
     }
   }
 

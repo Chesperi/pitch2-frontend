@@ -16,6 +16,21 @@ export interface AccreditoItem {
   notes: string | null;
 }
 
+export interface AccreditoOnsiteItem {
+  assignmentId: number | null;
+  accreditationId: number | null;
+  staffId: number;
+  company: string | null;
+  surname: string | null;
+  name: string | null;
+  placeOfBirth: string | null;
+  dateOfBirth: string | null;
+  roleCode: string | null;
+  areas: string | null;
+  plates: string | null;
+  notes: string | null;
+}
+
 export interface CreateAccreditoPayload {
   eventId: string;
   staffId: number | string;
@@ -73,6 +88,50 @@ function normalizeAccreditoItem(raw: Record<string, unknown>): AccreditoItem {
   };
 }
 
+function normalizeAccreditoOnsiteItem(
+  raw: Record<string, unknown>
+): AccreditoOnsiteItem {
+  return {
+    assignmentId:
+      raw.assignmentId != null
+        ? Number(raw.assignmentId)
+        : raw.assignment_id != null
+          ? Number(raw.assignment_id)
+          : null,
+    accreditationId:
+      raw.accreditationId != null
+        ? Number(raw.accreditationId)
+        : raw.accreditation_id != null
+          ? Number(raw.accreditation_id)
+          : null,
+    staffId: Number(raw.staffId ?? raw.staff_id ?? 0),
+    company: raw.company != null && String(raw.company).trim() !== "" ? String(raw.company) : null,
+    surname: raw.surname != null && String(raw.surname).trim() !== "" ? String(raw.surname) : null,
+    name: raw.name != null && String(raw.name).trim() !== "" ? String(raw.name) : null,
+    placeOfBirth:
+      raw.placeOfBirth != null && String(raw.placeOfBirth).trim() !== ""
+        ? String(raw.placeOfBirth)
+        : raw.place_of_birth != null && String(raw.place_of_birth).trim() !== ""
+          ? String(raw.place_of_birth)
+          : null,
+    dateOfBirth:
+      raw.dateOfBirth != null && String(raw.dateOfBirth).trim() !== ""
+        ? String(raw.dateOfBirth)
+        : raw.date_of_birth != null && String(raw.date_of_birth).trim() !== ""
+          ? String(raw.date_of_birth)
+          : null,
+    roleCode:
+      raw.roleCode != null && String(raw.roleCode).trim() !== ""
+        ? String(raw.roleCode)
+        : raw.role_code != null && String(raw.role_code).trim() !== ""
+          ? String(raw.role_code)
+          : null,
+    areas: raw.areas != null && String(raw.areas).trim() !== "" ? String(raw.areas) : null,
+    plates: raw.plates != null && String(raw.plates).trim() !== "" ? String(raw.plates) : null,
+    notes: raw.notes != null && String(raw.notes).trim() !== "" ? String(raw.notes) : null,
+  };
+}
+
 export async function fetchAccreditiEvents(): Promise<AccreditoEvent[]> {
   const res = await apiFetch("/api/accrediti/events-ready", { cache: "no-store" });
   if (!res.ok) throw new Error(`Failed to fetch accrediti events: ${res.status}`);
@@ -89,6 +148,21 @@ export async function fetchAccrediti(eventId: string): Promise<AccreditoItem[]> 
   const data = (await res.json()) as { items?: Record<string, unknown>[] };
   const rows = Array.isArray(data.items) ? data.items : [];
   return rows.map((row) => normalizeAccreditoItem(row));
+}
+
+export async function fetchAccreditiStaffOnsite(
+  eventId: string
+): Promise<AccreditoOnsiteItem[]> {
+  const res = await apiFetch(
+    `/api/accrediti/${encodeURIComponent(eventId)}/staff-onsite`,
+    {
+      cache: "no-store",
+    }
+  );
+  if (!res.ok) throw new Error(`Failed to fetch accrediti staff onsite: ${res.status}`);
+  const data = (await res.json()) as { items?: Record<string, unknown>[] };
+  const rows = Array.isArray(data.items) ? data.items : [];
+  return rows.map((row) => normalizeAccreditoOnsiteItem(row));
 }
 
 export async function createAccredito(

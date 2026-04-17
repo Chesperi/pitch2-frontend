@@ -10,10 +10,10 @@ import {
   exportAccreditiPdf,
   exportAccreditiXlsx,
   fetchAccreditationAreas,
-  fetchAccrediti,
+  fetchAccreditiStaffOnsite,
   fetchAccreditiEvents,
   type AccreditoEvent,
-  type AccreditoItem,
+  type AccreditoOnsiteItem,
 } from "@/lib/api/accrediti";
 
 type StaffSearchItem = {
@@ -110,7 +110,7 @@ export default function AccreditiPage() {
   const [eventSearch, setEventSearch] = useState("");
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
 
-  const [items, setItems] = useState<AccreditoItem[]>([]);
+  const [items, setItems] = useState<AccreditoOnsiteItem[]>([]);
   const [itemsLoading, setItemsLoading] = useState(false);
   const [itemsError, setItemsError] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<number | null>(null);
@@ -173,7 +173,7 @@ export default function AccreditiPage() {
     setItemsLoading(true);
     setItemsError(null);
     try {
-      const rows = await fetchAccrediti(eventId);
+      const rows = await fetchAccreditiStaffOnsite(eventId);
       setItems(rows);
     } catch (err) {
       setItems([]);
@@ -332,7 +332,7 @@ export default function AccreditiPage() {
       <section className="mt-4 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/20 p-4">
         <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-sm font-semibold text-pitch-white">
-            Eventi READY_TO_SEND / SENT
+            Pronti per accredito
           </h2>
           <SearchBar
             placeholder="Cerca match/show o competizione..."
@@ -403,11 +403,8 @@ export default function AccreditiPage() {
               </h3>
               <div className="text-sm text-pitch-gray-light">
                 KO: {formatKo(selectedEvent.koItaly)} •{" "}
-                {selectedEvent.venueName
-                  ? `Stadio ${selectedEvent.venueName}${
-                      selectedEvent.venueCity ? `, ${selectedEvent.venueCity}` : ""
-                    }`
-                  : selectedEvent.facilities ?? "—"}
+                {selectedEvent.venueName ?? "—"}
+                {selectedEvent.venueCity ? `, ${selectedEvent.venueCity}` : ""}
               </div>
               <div className="text-sm text-pitch-gray-light">
                 Competition: {selectedEvent.competitionName ?? "—"}
@@ -435,7 +432,7 @@ export default function AccreditiPage() {
                 onClick={() => setAddOpen((v) => !v)}
                 className="rounded bg-pitch-accent px-3 py-1.5 text-xs font-semibold text-pitch-bg hover:bg-yellow-200"
               >
-                Aggiungi accredito
+                Aggiungi accredito extra
               </button>
             </div>
           </div>
@@ -543,8 +540,10 @@ export default function AccreditiPage() {
                   <th className="px-3 py-2">Azienda</th>
                   <th className="px-3 py-2">Cognome</th>
                   <th className="px-3 py-2">Nome</th>
-                  <th className="px-3 py-2">Ruolo</th>
+                  <th className="px-3 py-2">Luogo nascita</th>
+                  <th className="px-3 py-2">Data nascita</th>
                   <th className="px-3 py-2">Aree</th>
+                  <th className="px-3 py-2">Ruolo</th>
                   <th className="px-3 py-2">Targa</th>
                   <th className="px-3 py-2">Note</th>
                   <th className="px-3 py-2">Azioni</th>
@@ -553,35 +552,48 @@ export default function AccreditiPage() {
               <tbody>
                 {itemsLoading ? (
                   <tr>
-                    <td colSpan={8} className="px-3 py-4 text-center text-pitch-gray">
+                    <td colSpan={10} className="px-3 py-4 text-center text-pitch-gray">
                       Caricamento accrediti...
                     </td>
                   </tr>
                 ) : items.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-3 py-4 text-center text-pitch-gray">
+                    <td colSpan={10} className="px-3 py-4 text-center text-pitch-gray">
                       Nessun accredito presente.
                     </td>
                   </tr>
                 ) : (
                   items.map((row) => (
-                    <tr key={row.id} className="border-b border-pitch-gray-dark/50">
+                    <tr
+                      key={`${row.staffId}-${row.assignmentId ?? "na"}-${row.accreditationId ?? "na"}`}
+                      className="border-b border-pitch-gray-dark/50"
+                    >
                       <td className="px-3 py-2 text-pitch-gray-light">{row.company ?? "—"}</td>
                       <td className="px-3 py-2 text-pitch-gray-light">{row.surname ?? "—"}</td>
                       <td className="px-3 py-2 text-pitch-gray-light">{row.name ?? "—"}</td>
-                      <td className="px-3 py-2 text-pitch-gray-light">{row.roleCode ?? "—"}</td>
+                      <td className="px-3 py-2 text-pitch-gray-light">
+                        {row.placeOfBirth ?? "—"}
+                      </td>
+                      <td className="px-3 py-2 text-pitch-gray-light">
+                        {row.dateOfBirth ?? "—"}
+                      </td>
                       <td className="px-3 py-2 text-pitch-gray-light">{row.areas ?? "—"}</td>
+                      <td className="px-3 py-2 text-pitch-gray-light">{row.roleCode ?? "—"}</td>
                       <td className="px-3 py-2 text-pitch-gray-light">{row.plates ?? "—"}</td>
                       <td className="px-3 py-2 text-pitch-gray-light">{row.notes ?? "—"}</td>
                       <td className="px-3 py-2">
-                        <button
-                          type="button"
-                          onClick={() => void onRemoveAccredito(row.id)}
-                          disabled={removingId === row.id}
-                          className="rounded border border-red-500 px-2 py-1 text-xs text-red-400 disabled:opacity-50"
-                        >
-                          {removingId === row.id ? "Rimozione..." : "Rimuovi"}
-                        </button>
+                        {row.accreditationId != null ? (
+                          <button
+                            type="button"
+                            onClick={() => void onRemoveAccredito(row.accreditationId!)}
+                            disabled={removingId === row.accreditationId}
+                            className="rounded border border-red-500 px-2 py-1 text-xs text-red-400 disabled:opacity-50"
+                          >
+                            {removingId === row.accreditationId ? "Rimozione..." : "Rimuovi extra"}
+                          </button>
+                        ) : (
+                          <span className="text-pitch-gray">—</span>
+                        )}
                       </td>
                     </tr>
                   ))

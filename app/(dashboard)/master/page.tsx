@@ -99,6 +99,11 @@ export default function MasterPage() {
   const isSystemMaster = (item: StaffPermissionsItem): boolean =>
     item.userLevel === "MASTER" && item.name.trim().toUpperCase() === "ANDRISANO ANDREA";
 
+  const isFreelanceOrProvider = (item: StaffPermissionsItem): boolean => {
+    const u = String(item.userLevel ?? "").toUpperCase();
+    return u === "FREELANCE" || u === "PROVIDER";
+  };
+
   const nextAccessLevel = (value: AccessLevel): AccessLevel => {
     if (value === "none") return "view";
     if (value === "view") return "edit";
@@ -111,6 +116,7 @@ export default function MasterPage() {
     next: AccessLevel
   ) => {
     const row = items.find((r) => r.staffId === staffId);
+    if (row && (isSystemMaster(row) || isFreelanceOrProvider(row))) return;
     const prev =
       row?.permissions.find((p) => p.pageKey === pageKey)?.accessLevel ??
       "none";
@@ -159,6 +165,9 @@ export default function MasterPage() {
     staffId: number,
     currentVisibility: "HIDDEN" | "VISIBLE"
   ) => {
+    const row = items.find((r) => r.staffId === staffId);
+    if (row && (isSystemMaster(row) || isFreelanceOrProvider(row))) return;
+
     const nextVisibility = currentVisibility === "VISIBLE" ? "HIDDEN" : "VISIBLE";
 
     const savingKey = `finance:${staffId}`;
@@ -295,6 +304,11 @@ export default function MasterPage() {
                     <div className="text-[11px] text-pitch-gray">
                       {row.email || "—"}
                     </div>
+                    {isFreelanceOrProvider(row) ? (
+                      <div className="mt-1 text-xs text-pitch-gray">
+                        Permissions not applicable
+                      </div>
+                    ) : null}
                   </td>
                   <td className="px-4 py-2 text-xs">
                     <span
@@ -312,14 +326,16 @@ export default function MasterPage() {
                         handleFinanceToggle(row.staffId, row.financeVisibility)
                       }
                       disabled={
-                        isSystemMaster(row) || savingKeys.has(`finance:${row.staffId}`)
+                        isSystemMaster(row) ||
+                        isFreelanceOrProvider(row) ||
+                        savingKeys.has(`finance:${row.staffId}`)
                       }
                       className={`inline-flex min-w-[120px] items-center justify-center rounded border px-2 py-1.5 text-xs font-semibold transition ${
                         row.financeVisibility === "VISIBLE"
                           ? "border-pitch-accent bg-pitch-accent/20 text-pitch-accent"
                           : "border-pitch-gray-dark bg-pitch-gray-dark/30 text-pitch-gray"
                       } ${
-                        isSystemMaster(row)
+                        isSystemMaster(row) || isFreelanceOrProvider(row)
                           ? "cursor-not-allowed opacity-50"
                           : "hover:opacity-90"
                       }`}
@@ -329,29 +345,38 @@ export default function MasterPage() {
                   </td>
                   {row.permissions.map((perm) => (
                     <td key={perm.pageKey} className="px-4 py-2 text-xs">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handlePermissionChange(
-                            row.staffId,
-                            perm.pageKey,
-                            nextAccessLevel(perm.accessLevel)
-                          )
-                        }
-                        disabled={
-                          isSystemMaster(row) ||
-                          savingKeys.has(`${row.staffId}:${perm.pageKey}`)
-                        }
-                        className={`inline-flex min-w-[90px] items-center justify-center rounded border px-2 py-1.5 text-xs font-semibold transition ${accessCellClass(
-                          perm.accessLevel
-                        )} ${
-                          isSystemMaster(row)
-                            ? "cursor-not-allowed opacity-50"
-                            : "hover:opacity-90"
-                        }`}
-                      >
-                        {perm.accessLevel === "none" ? "—" : perm.accessLevel}
-                      </button>
+                      {isFreelanceOrProvider(row) ? (
+                        <span
+                          className="inline-flex min-w-[90px] cursor-not-allowed items-center justify-center rounded border border-pitch-gray-dark/40 bg-pitch-gray-dark/15 px-2 py-1.5 text-xs font-semibold text-pitch-gray opacity-60"
+                          aria-hidden
+                        >
+                          —
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handlePermissionChange(
+                              row.staffId,
+                              perm.pageKey,
+                              nextAccessLevel(perm.accessLevel)
+                            )
+                          }
+                          disabled={
+                            isSystemMaster(row) ||
+                            savingKeys.has(`${row.staffId}:${perm.pageKey}`)
+                          }
+                          className={`inline-flex min-w-[90px] items-center justify-center rounded border px-2 py-1.5 text-xs font-semibold transition ${accessCellClass(
+                            perm.accessLevel
+                          )} ${
+                            isSystemMaster(row)
+                              ? "cursor-not-allowed opacity-50"
+                              : "hover:opacity-90"
+                          }`}
+                        >
+                          {perm.accessLevel === "none" ? "—" : perm.accessLevel}
+                        </button>
+                      )}
                     </td>
                   ))}
                 </tr>

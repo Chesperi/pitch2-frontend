@@ -301,9 +301,6 @@ export default function MasterPage() {
                     <div className="font-medium text-pitch-white">
                       {row.name}
                     </div>
-                    <div className="text-[11px] text-pitch-gray">
-                      {row.email || "—"}
-                    </div>
                     {isFreelanceOrProvider(row) ? (
                       <div className="mt-1 text-xs text-pitch-gray">
                         Permissions not applicable

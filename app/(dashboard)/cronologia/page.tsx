@@ -9,6 +9,7 @@ type AuditLogItem = {
   createdAt: string;
   actorType: "staff" | "system";
   actorId: number | null;
+  actorName: string;
   entityType: string;
   entityId: string;
   action: string;
@@ -39,30 +40,65 @@ function formatDateTimeIt(iso: string): string {
   }).format(d);
 }
 
-function shortMetadata(meta: unknown, max = 120): string {
-  if (meta === undefined || meta === null) return "—";
-  let s: string;
-  if (typeof meta === "string") {
-    s = meta;
-  } else {
-    try {
-      s = JSON.stringify(meta);
-    } catch {
-      s = String(meta);
-    }
+function metaRecord(meta: unknown): Record<string, unknown> | null {
+  if (
+    meta !== undefined &&
+    meta !== null &&
+    typeof meta === "object" &&
+    !Array.isArray(meta)
+  ) {
+    return meta as Record<string, unknown>;
   }
-  if (s === "" || s === "{}") return "—";
-  if (s.length <= max) return s;
-  return `${s.slice(0, max - 1)}…`;
+  return null;
 }
 
-function formatActor(item: AuditLogItem): string {
-  if (item.actorType === "staff") {
-    return item.actorId != null
-      ? `Staff #${item.actorId}`
-      : "Staff";
+function fieldColumn(meta: unknown): string {
+  const m = metaRecord(meta);
+  if (!m) return "—";
+  const field = m.field;
+  if (typeof field === "string" && field.trim()) return field.trim();
+  const cf = m.changedFields;
+  if (
+    Array.isArray(cf) &&
+    cf.length > 0 &&
+    typeof cf[0] === "string" &&
+    cf[0].trim()
+  ) {
+    return cf[0].trim();
   }
-  return "System";
+  return "—";
+}
+
+function oldValueColumn(meta: unknown): string {
+  const m = metaRecord(meta);
+  if (!m) return "—";
+  if ("from" in m && m.from !== undefined && m.from !== null) {
+    return String(m.from);
+  }
+  if ("oldValue" in m && m.oldValue !== undefined && m.oldValue !== null) {
+    return String(m.oldValue);
+  }
+  return "—";
+}
+
+function newValueColumn(meta: unknown): string {
+  const m = metaRecord(meta);
+  if (!m) return "—";
+  if ("to" in m && m.to !== undefined && m.to !== null) {
+    return String(m.to);
+  }
+  if ("newValue" in m && m.newValue !== undefined && m.newValue !== null) {
+    return String(m.newValue);
+  }
+  return "—";
+}
+
+function fullMetadataJson(meta: unknown): string {
+  try {
+    return JSON.stringify(meta);
+  } catch {
+    return String(meta);
+  }
 }
 
 export default function CronologiaPage() {
@@ -181,7 +217,7 @@ export default function CronologiaPage() {
 
       {!loading && !error && items.length > 0 ? (
         <div className="mt-6 overflow-x-auto rounded-lg border border-pitch-gray-dark">
-          <table className="w-full min-w-[900px] border-collapse text-sm">
+          <table className="w-full min-w-[1100px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-pitch-gray-dark bg-pitch-gray-dark/30">
                 <th className="px-4 py-3 text-left font-medium text-pitch-gray">
@@ -197,7 +233,13 @@ export default function CronologiaPage() {
                   Action
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-pitch-gray">
-                  Detail
+                  Campo
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-pitch-gray">
+                  Valore precedente
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-pitch-gray">
+                  Nuovo valore
                 </th>
               </tr>
             </thead>
@@ -206,12 +248,13 @@ export default function CronologiaPage() {
                 <tr
                   key={row.id}
                   className="border-b border-pitch-gray-dark/50 hover:bg-pitch-gray-dark/15"
+                  title={fullMetadataJson(row.metadata)}
                 >
                   <td className="whitespace-nowrap px-4 py-3 text-pitch-gray-light">
                     {formatDateTimeIt(row.createdAt)}
                   </td>
                   <td className="px-4 py-3 text-pitch-gray-light">
-                    {formatActor(row)}
+                    {row.actorName ?? "Sistema"}
                   </td>
                   <td className="px-4 py-3 text-pitch-white">
                     {row.entityLabel}
@@ -219,11 +262,14 @@ export default function CronologiaPage() {
                   <td className="px-4 py-3 text-pitch-gray-light">
                     {row.actionLabel}
                   </td>
-                  <td
-                    className="max-w-md px-4 py-3 text-xs text-pitch-gray"
-                    title={shortMetadata(row.metadata, 500)}
-                  >
-                    {shortMetadata(row.metadata)}
+                  <td className="max-w-[140px] px-4 py-3 text-xs text-pitch-gray-light">
+                    {fieldColumn(row.metadata)}
+                  </td>
+                  <td className="max-w-[180px] break-words px-4 py-3 text-xs text-pitch-gray">
+                    {oldValueColumn(row.metadata)}
+                  </td>
+                  <td className="max-w-[180px] break-words px-4 py-3 text-xs text-pitch-gray">
+                    {newValueColumn(row.metadata)}
                   </td>
                 </tr>
               ))}

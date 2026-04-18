@@ -20,11 +20,12 @@ import {
   type Document as PitchDocument,
 } from "@/lib/api/documents";
 import { apiFetch } from "@/lib/api/apiFetch";
+import { usePagePermissions } from "@/hooks/usePagePermissions";
+import { fetchStaff, type StaffItem } from "@/lib/api/staff";
 
-export type StaffSelectOption = {
-  id: number;
-  fullName: string;
-};
+function staffFullName(s: StaffItem): string {
+  return `${s.surname} ${s.name}`.trim();
+}
 
 type TaskStatus = "TODO" | "IN_PROGRESS" | "DONE" | "ON_HOLD" | "";
 
@@ -157,21 +158,90 @@ function statusBadge(status: CookiesJarTask["status"]) {
 type CookiesJarTasksPageProps = {
   initialDate: string;
   initialTasks: CookiesJarTask[];
-  staffForSelect: StaffSelectOption[];
   initialDocuments: PitchDocument[];
 };
 
 export function CookiesJarTasksPage({
   initialDate,
   initialTasks,
-  staffForSelect,
   initialDocuments,
 }: CookiesJarTasksPageProps) {
-  const staffById = useMemo(() => {
-    const m = new Map<number, string>();
-    for (const s of staffForSelect) m.set(s.id, s.fullName);
-    return m;
-  }, [staffForSelect]);
+  const { loading: permissionsLoading, levelByPageKey } =
+    usePagePermissions();
+  const canEditCookiesJar =
+    !permissionsLoading && levelByPageKey.cookies_jar === "edit";
+
+  const [staffNameById, setStaffNameById] = useState<Map<number, string>>(
+    () => new Map()
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { items } = await fetchStaff({ limit: 100, offset: 0 });
+        if (cancelled) return;
+        setStaffNameById((prev) => {
+          const m = new Map(prev);
+          for (const s of items) {
+            const fn = staffFullName(s);
+            if (!m.has(s.id)) m.set(s.id, fn);
+          }
+          return m;
+        });
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const [assigneeSearch, setAssigneeSearch] = useState("");
+  const [debouncedAssigneeSearch, setDebouncedAssigneeSearch] =
+    useState("");
+  const [assigneeHits, setAssigneeHits] = useState<StaffItem[]>([]);
+  const [assigneeSearchLoading, setAssigneeSearchLoading] = useState(false);
+
+  useEffect(() => {
+    const t = window.setTimeout(
+      () => setDebouncedAssigneeSearch(assigneeSearch.trim()),
+      300
+    );
+    return () => window.clearTimeout(t);
+  }, [assigneeSearch]);
+
+  useEffect(() => {
+    if (!debouncedAssigneeSearch) {
+      setAssigneeHits([]);
+      setAssigneeSearchLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setAssigneeSearchLoading(true);
+    void fetchStaff({ q: debouncedAssigneeSearch, limit: 20 })
+      .then(({ items }) => {
+        if (cancelled) return;
+        setAssigneeHits(items);
+        setStaffNameById((prev) => {
+          const m = new Map(prev);
+          for (const s of items) {
+            m.set(s.id, staffFullName(s));
+          }
+          return m;
+        });
+      })
+      .catch(() => {
+        if (!cancelled) setAssigneeHits([]);
+      })
+      .finally(() => {
+        if (!cancelled) setAssigneeSearchLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedAssigneeSearch]);
 
   const [selectedDate, setSelectedDate] = useState(initialDate);
   const [teamFilter, setTeamFilter] = useState("");
@@ -454,12 +524,20 @@ export function CookiesJarTasksPage({
     setChatInput("");
     setChatLoading(true);
 
+    const messagesPayload = [
+      ...chatMessages.map((m) => ({
+        role: m.role as "user" | "assistant",
+        content: m.content,
+      })),
+      { role: "user" as const, content: text },
+    ];
+
     try {
       const res = await apiFetch("/api/agent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: [{ role: "user", content: text }],
+          messages: messagesPayload,
           context: {
             page: "cookies-jar",
             date: selectedDate,
@@ -477,23 +555,30 @@ export function CookiesJarTasksPage({
       }
 
       const data = (await res.json()) as {
-        reply: string;
+        reply?: unknown;
         tasks?: unknown[];
         documents?: unknown[];
       };
 
+      const replyText =
+        typeof data.reply === "string"
+          ? data.reply
+          : data.reply != null
+            ? String(data.reply)
+            : "";
+
       const assistantMsg: ChatMessage = {
         id: `${Date.now()}-assistant`,
         role: "assistant",
-        content: data.reply,
+        content:
+          replyText.trim() !== ""
+            ? replyText
+            : "(Nessun testo nella risposta.)",
       };
       setChatMessages((prev) => [...prev, assistantMsg]);
 
-      if (data.tasks) {
-        console.log("[AGENT] tasks payload:", data.tasks);
-      }
-      if (data.documents) {
-        console.log("[AGENT] documents payload:", data.documents);
+      if (Array.isArray(data.tasks)) {
+        setTasks(data.tasks as CookiesJarTask[]);
       }
     } catch (err) {
       setChatError(
@@ -561,27 +646,32 @@ export function CookiesJarTasksPage({
         <p className="text-sm text-pitch-gray">Loading…</p>
       ) : null}
 
-      <div className="mb-3 flex justify-end">
-        <button
-          type="button"
-          className={PRIMARY_BTN_SM}
-          onClick={() => {
-            setEditingTask(null);
-            setFormError(null);
-            setTaskFormValues({
-              title: "",
-              assigneeId: "",
-              team: teamFilter.trim(),
-              project: "",
-              startDate: selectedDate,
-              status: "TODO",
-            });
-            setIsModalOpen(true);
-          }}
-        >
-          New task
-        </button>
-      </div>
+      {canEditCookiesJar ? (
+        <div className="mb-3 flex justify-end">
+          <button
+            type="button"
+            className={PRIMARY_BTN_SM}
+            onClick={() => {
+              setEditingTask(null);
+              setFormError(null);
+              setTaskFormValues({
+                title: "",
+                assigneeId: "",
+                team: teamFilter.trim(),
+                project: "",
+                startDate: selectedDate,
+                status: "TODO",
+              });
+              setAssigneeSearch("");
+              setAssigneeHits([]);
+              setDebouncedAssigneeSearch("");
+              setIsModalOpen(true);
+            }}
+          >
+            New task
+          </button>
+        </div>
+      ) : null}
 
       <div className="overflow-x-auto rounded-lg border border-pitch-gray-dark">
         <table className="w-full min-w-[960px] border-collapse">
@@ -638,7 +728,8 @@ export function CookiesJarTasksPage({
                   </td>
                   <td className="px-4 py-3 text-sm text-pitch-gray-light">
                     {task.assignee_id != null
-                      ? staffById.get(task.assignee_id) ?? `#${task.assignee_id}`
+                      ? staffNameById.get(task.assignee_id) ??
+                        `#${task.assignee_id}`
                       : "—"}
                   </td>
                   <td className="px-4 py-3 text-sm text-pitch-gray-light">
@@ -657,26 +748,38 @@ export function CookiesJarTasksPage({
                       : "—"}
                   </td>
                   <td className="px-4 py-3">
-                    <button
-                      type="button"
-                      className="text-xs text-pitch-accent underline-offset-2 hover:underline"
-                      onClick={() => {
-                        setEditingTask(task);
-                        setFormError(null);
-                        setTaskFormValues({
-                          title: task.title,
-                          assigneeId:
-                            task.assignee_id != null ? task.assignee_id : "",
-                          team: task.team ?? "",
-                          project: task.project ?? "",
-                          startDate: formatIsoDateOnly(task.start_date),
-                          status: task.status,
-                        });
-                        setIsModalOpen(true);
-                      }}
-                    >
-                      Edit
-                    </button>
+                    {canEditCookiesJar ? (
+                      <button
+                        type="button"
+                        className="text-xs text-pitch-accent underline-offset-2 hover:underline"
+                        onClick={() => {
+                          setEditingTask(task);
+                          setFormError(null);
+                          setTaskFormValues({
+                            title: task.title,
+                            assigneeId:
+                              task.assignee_id != null ? task.assignee_id : "",
+                            team: task.team ?? "",
+                            project: task.project ?? "",
+                            startDate: formatIsoDateOnly(task.start_date),
+                            status: task.status,
+                          });
+                          setAssigneeSearch(
+                            task.assignee_id != null
+                              ? staffNameById.get(task.assignee_id) ??
+                                  `#${task.assignee_id}`
+                              : ""
+                          );
+                          setAssigneeHits([]);
+                          setDebouncedAssigneeSearch("");
+                          setIsModalOpen(true);
+                        }}
+                      >
+                        Edit
+                      </button>
+                    ) : (
+                      <span className="text-xs text-pitch-gray">—</span>
+                    )}
                   </td>
                 </tr>
               ))
@@ -737,36 +840,75 @@ export function CookiesJarTasksPage({
                   className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
                 />
               </div>
-              <div>
+              <div className="relative">
                 <label
-                  htmlFor="cj-assignee"
+                  htmlFor="cj-assignee-search"
                   className="mb-1 block text-xs text-pitch-gray"
                 >
                   Assigned to
                 </label>
-                <select
-                  id="cj-assignee"
-                  value={
-                    taskFormValues.assigneeId === ""
-                      ? ""
-                      : String(taskFormValues.assigneeId)
-                  }
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setTaskFormValues((prev) => ({
-                      ...prev,
-                      assigneeId: v === "" ? "" : Number(v),
-                    }));
-                  }}
-                  className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
-                >
-                  <option value="">Unassigned</option>
-                  {staffForSelect.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.fullName}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex gap-2">
+                  <input
+                    id="cj-assignee-search"
+                    type="search"
+                    autoComplete="off"
+                    placeholder="Search by name…"
+                    value={assigneeSearch}
+                    onChange={(e) => {
+                      setAssigneeSearch(e.target.value);
+                      setTaskFormValues((prev) => ({
+                        ...prev,
+                        assigneeId: "",
+                      }));
+                    }}
+                    className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white placeholder:text-pitch-gray focus:border-pitch-accent focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    className="shrink-0 rounded border border-pitch-gray px-2 py-1 text-[11px] text-pitch-gray-light hover:bg-pitch-gray-dark"
+                    onClick={() => {
+                      setTaskFormValues((v) => ({ ...v, assigneeId: "" }));
+                      setAssigneeSearch("");
+                      setAssigneeHits([]);
+                    }}
+                  >
+                    Clear
+                  </button>
+                </div>
+                {assigneeSearchLoading ? (
+                  <p className="mt-1 text-[11px] text-pitch-gray">
+                    Searching…
+                  </p>
+                ) : null}
+                {assigneeHits.length > 0 ? (
+                  <ul
+                    className="absolute z-10 mt-1 max-h-40 w-full overflow-y-auto rounded border border-pitch-gray-dark bg-pitch-bg py-1 text-sm shadow-lg"
+                    role="listbox"
+                  >
+                    {assigneeHits.map((s) => (
+                      <li key={s.id}>
+                        <button
+                          type="button"
+                          className="w-full px-3 py-1.5 text-left text-pitch-white hover:bg-pitch-gray-dark"
+                          onClick={() => {
+                            const fn = staffFullName(s);
+                            setTaskFormValues((prev) => ({
+                              ...prev,
+                              assigneeId: s.id,
+                            }));
+                            setAssigneeSearch(fn);
+                            setAssigneeHits([]);
+                            setStaffNameById((prev) =>
+                              new Map(prev).set(s.id, fn)
+                            );
+                          }}
+                        >
+                          {staffFullName(s)}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
               </div>
               <div>
                 <label
@@ -1277,24 +1419,30 @@ export function CookiesJarTasksPage({
           Operational chat (Cookies jar agent)
         </h2>
 
-        <div className="mb-2 max-h-60 overflow-y-auto rounded border border-pitch-gray-dark bg-pitch-gray-dark/20 p-2 text-xs">
+        <div className="mb-2 max-h-80 overflow-y-auto rounded border border-pitch-gray-dark bg-pitch-gray-dark/20 p-2 text-xs">
           {chatMessages.length === 0 && (
             <p className="text-[11px] text-pitch-gray">
               Start typing a question or operational command (e.g. &quot;Show me
               today&apos;s open tasks for the MEDIA team&quot;).
             </p>
           )}
+          {chatLoading ? (
+            <div className="mb-2 rounded border border-pitch-accent/60 bg-pitch-bg px-2 py-1.5 text-[11px] text-pitch-gray-light">
+              <span className="font-semibold text-pitch-white">Assistant:</span>{" "}
+              <span className="animate-pulse text-pitch-accent">…</span>
+            </div>
+          ) : null}
           {chatMessages.map((m) => (
             <div
               key={m.id}
               className={
                 m.role === "user"
-                  ? "mb-1 text-[11px] text-pitch-gray-light"
-                  : "mb-1 text-[11px] text-sky-300"
+                  ? "mb-2 rounded border border-pitch-gray-dark bg-pitch-gray-dark/40 px-2 py-1.5 text-[11px] text-pitch-gray-light"
+                  : "mb-2 rounded border border-pitch-accent bg-pitch-bg px-2 py-1.5 text-[11px] text-pitch-white"
               }
             >
               <span className="font-semibold text-pitch-white">
-                {m.role === "user" ? "You" : "Agent"}:
+                {m.role === "user" ? "You" : "Assistant"}:
               </span>{" "}
               <span className="whitespace-pre-line">{m.content}</span>
             </div>
@@ -1311,7 +1459,9 @@ export function CookiesJarTasksPage({
             className={`${INPUT_SM_CLASS} flex-1 min-w-0`}
             value={chatInput}
             onChange={(e) => setChatInput(e.target.value)}
-            placeholder="Write a question or operational command..."
+            placeholder={
+              chatLoading ? "…" : "Write a question or operational command..."
+            }
             disabled={chatLoading}
           />
           <button

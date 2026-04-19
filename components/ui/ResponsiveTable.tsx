@@ -15,7 +15,7 @@ export default function ResponsiveTable({
   return (
     <div className={`relative ${className}`.trim()}>
       <div
-        className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-pitch-bg to-transparent md:hidden"
+        className="pointer-events-none absolute inset-y-0 right-0 z-10 w-12 bg-gradient-to-l from-pitch-bg via-pitch-bg/90 to-transparent md:hidden"
         aria-hidden
       />
       <div className="overflow-x-auto">

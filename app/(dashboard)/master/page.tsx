@@ -281,19 +281,19 @@ export default function MasterPage() {
           <table className="w-full border-collapse text-xs">
             <thead>
               <tr className="border-b border-pitch-gray-dark bg-pitch-gray-dark/30">
-                <th className="sticky left-0 z-10 min-w-[220px] bg-pitch-gray-dark/40 px-3 py-2 text-left font-medium text-pitch-gray">
+                <th className="sticky left-0 z-10 min-w-[160px] whitespace-nowrap bg-pitch-gray-dark/40 px-3 py-2 text-left font-medium text-pitch-gray">
                   Nome
                 </th>
-                <th className="min-w-[120px] px-3 py-2 text-left font-medium text-pitch-gray">
+                <th className="min-w-[120px] whitespace-nowrap px-3 py-2 text-left font-medium text-pitch-gray">
                   User level
                 </th>
-                <th className="min-w-[160px] px-3 py-2 text-left font-medium text-pitch-gray">
+                <th className="min-w-[160px] whitespace-nowrap px-3 py-2 text-left font-medium text-pitch-gray">
                   Visib. finanziaria
                 </th>
                 {pageKeysOrdered.map((pk) => (
                   <th
                     key={pk}
-                    className="min-w-[120px] px-3 py-2 text-left font-medium text-pitch-gray"
+                    className="min-w-[120px] whitespace-nowrap px-3 py-2 text-left font-medium text-pitch-gray"
                   >
                     {pageColumnLabel(pk)}
                   </th>
@@ -306,7 +306,7 @@ export default function MasterPage() {
                   key={row.staffId}
                   className="border-b border-pitch-gray-dark/50 hover:bg-pitch-gray-dark/10"
                 >
-                  <td className="sticky left-0 z-10 bg-pitch-bg px-3 py-2 align-top">
+                  <td className="sticky left-0 z-10 min-w-[160px] whitespace-nowrap bg-pitch-bg px-3 py-2 align-top">
                     <div className="font-medium text-pitch-white">
                       {row.name}
                     </div>
@@ -325,7 +325,7 @@ export default function MasterPage() {
                       {row.userLevel}
                     </span>
                   </td>
-                  <td className="px-4 py-2 text-xs">
+                  <td className="whitespace-nowrap px-4 py-2 text-xs">
                     <button
                       type="button"
                       onClick={() =>
@@ -350,7 +350,7 @@ export default function MasterPage() {
                     </button>
                   </td>
                   {row.permissions.map((perm) => (
-                    <td key={perm.pageKey} className="px-4 py-2 text-xs">
+                    <td key={perm.pageKey} className="whitespace-nowrap px-4 py-2 text-xs">
                       {isFreelanceOrProvider(row) ? (
                         <span
                           className="inline-flex min-w-[90px] cursor-not-allowed items-center justify-center rounded border border-pitch-gray-dark/40 bg-pitch-gray-dark/15 px-2 py-1.5 text-xs font-semibold text-pitch-gray opacity-60"

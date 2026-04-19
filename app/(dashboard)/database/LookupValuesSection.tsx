@@ -43,10 +43,12 @@ function CategoryCollapsible({
       <button
         type="button"
         onClick={onToggle}
-        className="flex w-full items-center justify-between px-4 py-3 text-left text-base font-semibold text-pitch-white hover:bg-pitch-gray-dark/50"
+        className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium text-[#e5e5e5] hover:bg-pitch-gray-dark/50"
       >
-        {title}
-        <span className="text-pitch-gray">{open ? "▼" : "▶"}</span>
+        <span>{title}</span>
+        <span className="text-[#666]" aria-hidden>
+          {open ? "▼" : "▶"}
+        </span>
       </button>
       {open ? (
         <div className="border-t border-pitch-gray-dark p-4">{children}</div>

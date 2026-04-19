@@ -247,7 +247,20 @@ const FORM_SECTION_LABEL =
   "mb-3 border-b border-[#1e1e1e] pb-2 text-[10px] font-medium uppercase tracking-widest text-[#555]";
 
 const STAFF_FILTER_SELECT =
-  "w-full rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] px-3 py-1.5 text-[12px] text-pitch-white focus:border-pitch-accent focus:outline-none";
+  "w-full rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] px-3 py-1.5 text-[12px] text-[#ccc] focus:border-pitch-accent focus:outline-none";
+
+/** Separa "Staff (193)" → label + suffisso tra parentesi (conteggio in grigio). */
+function splitCollapsibleSectionTitle(title: string): {
+  label: string;
+  suffix: string | null;
+} {
+  const t = title.trim();
+  const m = /^(.+?)(\s*\([^)]+\))\s*$/.exec(t);
+  if (m?.[1] && m[2]) {
+    return { label: m[1].trim(), suffix: m[2] };
+  }
+  return { label: t, suffix: null };
+}
 
 const STAFF_ROLES_COUNT_BADGE =
   "inline-flex cursor-default items-center gap-1 rounded-md border border-[#2a2a2a] bg-[#1a1a1a] px-2 py-0.5 text-[11px] text-[#ccc]";
@@ -336,6 +349,7 @@ function CollapsibleSection({
   onToggle: () => void;
   children: React.ReactNode;
 }) {
+  const { label, suffix } = splitCollapsibleSectionTitle(title);
   return (
     <section className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/20">
       <button
@@ -343,10 +357,17 @@ function CollapsibleSection({
         onClick={onToggle}
         className="flex w-full items-center justify-between border-b border-[#1e1e1e] px-4 pb-2 pt-3 text-left hover:bg-pitch-gray-dark/50"
       >
-        <span className="text-[10px] font-medium uppercase tracking-widest text-[#555]">
-          {title}
+        <span className="text-[10px] font-medium uppercase tracking-widest text-[#e5e5e5]">
+          {label}
+          {suffix ? (
+            <span className="text-[#888] normal-case tracking-normal">
+              {suffix}
+            </span>
+          ) : null}
         </span>
-        <span className="text-pitch-gray">{open ? "▼" : "▶"}</span>
+        <span className="text-[#666]" aria-hidden>
+          {open ? "▼" : "▶"}
+        </span>
       </button>
       <div
         className={
@@ -1197,7 +1218,7 @@ export function DatabaseSections({
           value={staffSearchQuery}
           onChange={(e) => setStaffSearchQuery(e.target.value)}
           placeholder="Search database…"
-          className="w-full rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] px-3 py-2 text-sm text-pitch-white placeholder:text-pitch-gray focus:border-pitch-accent focus:outline-none"
+          className="w-full rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] px-3 py-2 text-sm text-[#ccc] placeholder:text-[#888] focus:border-pitch-accent focus:outline-none"
           aria-label="Search staff"
         />
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">

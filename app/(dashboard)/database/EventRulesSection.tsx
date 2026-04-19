@@ -298,7 +298,7 @@ export function EventRulesSection({
       }`}
     >
       {!embedded ? (
-        <h3 className="text-lg font-semibold text-pitch-white">
+        <h3 className="text-lg font-medium text-[#e5e5e5]">
           Automatic event rules
         </h3>
       ) : null}

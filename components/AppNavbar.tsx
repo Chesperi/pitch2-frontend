@@ -50,11 +50,13 @@ export default function AppNavbar({
   }
 
   return (
-    <header className="sticky top-0 z-20" style={{ background: "#111" }}>
+    <header
+      className="sticky top-0 z-20 h-14 shrink-0"
+      style={{ background: "#111" }}
+    >
       <div
-        className="flex items-center justify-between gap-2 px-3 sm:px-6"
+        className="flex h-14 shrink-0 items-center justify-between gap-2 px-3 sm:px-6"
         style={{
-          height: 56,
           boxSizing: "border-box",
           borderBottom: "1px solid #2a2a2a",
           background: "#111",

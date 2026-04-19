@@ -38,11 +38,6 @@ export default async function DatabasePage() {
     <>
       <PageHeader title="Database" />
       <DesktopRecommended />
-      <p className="mt-3 text-xs leading-relaxed text-pitch-gray">
-        System directory data (roles, staff, standard packages) used in navigation and
-        other flows — for example Events, Assignments and accreditations. Roles, staff
-        and standard packages can be created or edited from this page.
-      </p>
       <div className="mt-4">
         <SearchBar placeholder="Search database..." />
       </div>

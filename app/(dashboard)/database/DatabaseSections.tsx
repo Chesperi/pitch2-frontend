@@ -48,9 +48,16 @@ import { fetchLookupValues } from "@/lib/api/lookupValues";
 import type { LookupValue } from "@/lib/types";
 import {
   DB_TH,
+  DB_TH_CELL,
+  DB_TH_FIRST,
   DB_TBODY_TR,
+  DB_TBODY_TR_COMPACT,
   DB_TD,
+  DB_TD_CELL,
   DB_TD_EMPTY,
+  DB_TD_EMPTY_CELL,
+  DB_TD_EMPTY_FIRST,
+  DB_TD_FIRST,
 } from "./dbSectionStyles";
 import ResponsiveTable from "@/components/ui/ResponsiveTable";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
@@ -192,6 +199,9 @@ type StaffFormValues = {
 const PRIMARY_BTN_SM =
   "rounded bg-pitch-accent px-3 py-1.5 text-xs font-semibold text-pitch-bg hover:bg-yellow-200 disabled:cursor-not-allowed disabled:opacity-50";
 
+const FORM_SECTION_LABEL =
+  "mb-3 border-b border-[#1e1e1e] pb-2 text-[10px] font-medium uppercase tracking-widest text-[#555]";
+
 const COMBO_ROLE_LOCATION_OPTIONS = ["STADIO", "COLOGNO", "REMOTE"] as const;
 const COMBO_ROLE_LOCATION_SORTED = sortAsc([...COMBO_ROLE_LOCATION_OPTIONS]);
 
@@ -267,13 +277,11 @@ function roleToForm(role: Role): RoleFormValues {
 
 function CollapsibleSection({
   title,
-  description,
   open,
   onToggle,
   children,
 }: {
   title: string;
-  description?: string;
   open: boolean;
   onToggle: () => void;
   children: React.ReactNode;
@@ -283,19 +291,16 @@ function CollapsibleSection({
       <button
         type="button"
         onClick={onToggle}
-        className="flex w-full items-center justify-between px-4 py-3 text-left text-lg font-semibold text-pitch-white hover:bg-pitch-gray-dark/50"
+        className="flex w-full items-center justify-between border-b border-[#1e1e1e] px-4 pb-2 pt-3 text-left hover:bg-pitch-gray-dark/50"
       >
-        {title}
-        <span className="text-pitch-gray">
-          {open ? "▼" : "▶"}
+        <span className="text-[10px] font-medium uppercase tracking-widest text-[#555]">
+          {title}
         </span>
+        <span className="text-pitch-gray">{open ? "▼" : "▶"}</span>
       </button>
-      {description ? (
-        <p className="border-t border-pitch-gray-dark/60 px-4 py-2 text-xs leading-snug text-pitch-gray">
-          {description}
-        </p>
+      {open ? (
+        <div className="border-t border-pitch-gray-dark/60 p-4">{children}</div>
       ) : null}
-      {open && <div className="border-t border-pitch-gray-dark p-4">{children}</div>}
     </section>
   );
 }
@@ -309,8 +314,12 @@ export function DatabaseSections({
 }: DatabaseSectionsProps) {
   const [showFinance, setShowFinance] = useState(false);
   const [staffOpen, setStaffOpen] = useState(true);
-  const [rolesOpen, setRolesOpen] = useState(true);
-  const [standardOpen, setStandardOpen] = useState(true);
+  const [rolesOpen, setRolesOpen] = useState(false);
+  const [standardOpen, setStandardOpen] = useState(false);
+  const [lookupOpen, setLookupOpen] = useState(false);
+  const [eventRulesOpen, setEventRulesOpen] = useState(false);
+  const [lookupCount, setLookupCount] = useState(0);
+  const [eventRulesCount, setEventRulesCount] = useState(0);
   const [accreditationAreasOpen, setAccreditationAreasOpen] = useState(false);
   const [accreditationOwnerCode, setAccreditationOwnerCode] = useState("lega");
   const [accreditationAreaMappings, setAccreditationAreaMappings] = useState<
@@ -979,8 +988,7 @@ export function DatabaseSections({
   return (
     <>
       <CollapsibleSection
-        title="Staff"
-        description="People directory; roles and fees per venue live on each profile and drive assignment compatibility."
+        title={`Staff (${staffTotal})`}
         open={staffOpen}
         onToggle={() => setStaffOpen(!staffOpen)}
       >
@@ -1025,22 +1033,22 @@ export function DatabaseSections({
             <table className="w-full border-collapse">
               <thead>
                 <tr className="border-b border-[#2a2a2a]">
-                  <th className={DB_TH}>Last name</th>
-                  <th className={DB_TH}>First name</th>
-                  <th className={DB_TH}>Email</th>
-                  <th className={DB_TH}>Phone</th>
-                  <th className={DB_TH}>Company</th>
-                  <th className={DB_TH}>Roles</th>
-                  <th className={DB_TH}>Plate(s)</th>
-                  <th className={DB_TH}>User level</th>
-                  <th className={DB_TH}>DAZN Team</th>
-                  <th className={DB_TH}>Notes</th>
-                  <th className={DB_TH}>Place of birth</th>
-                  <th className={DB_TH}>Date of birth</th>
-                  <th className={DB_TH}>Address</th>
-                  <th className={DB_TH}>Document</th>
-                  <th className={DB_TH}>Active</th>
-                  <th className={DB_TH}>Actions</th>
+                  <th className={DB_TH_FIRST}>Last name</th>
+                  <th className={DB_TH_FIRST}>First name</th>
+                  <th className={DB_TH_CELL}>Email</th>
+                  <th className={DB_TH_CELL}>Phone</th>
+                  <th className={DB_TH_CELL}>Company</th>
+                  <th className={DB_TH_CELL}>Roles</th>
+                  <th className={DB_TH_CELL}>Plate(s)</th>
+                  <th className={DB_TH_CELL}>User level</th>
+                  <th className={DB_TH_CELL}>DAZN Team</th>
+                  <th className={DB_TH_CELL}>Notes</th>
+                  <th className={DB_TH_CELL}>Place of birth</th>
+                  <th className={DB_TH_CELL}>Date of birth</th>
+                  <th className={DB_TH_CELL}>Address</th>
+                  <th className={DB_TH_CELL}>Document</th>
+                  <th className={DB_TH_CELL}>Active</th>
+                  <th className={DB_TH_CELL}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -1052,28 +1060,28 @@ export function DatabaseSections({
                     effectiveRoleMap[code] ?? code
                   );
                   return (
-                  <tr key={s.id} className={DB_TBODY_TR}>
-                    <td className={DB_TD}>{s.surname}</td>
-                    <td className={DB_TD}>{s.name}</td>
+                  <tr key={s.id} className={DB_TBODY_TR_COMPACT}>
+                    <td className={DB_TD_FIRST}>{s.surname}</td>
+                    <td className={DB_TD_FIRST}>{s.name}</td>
                     <td
                       className={
-                        s.email ? DB_TD : DB_TD_EMPTY
+                        s.email ? DB_TD_CELL : DB_TD_EMPTY_CELL
                       }
                     >
                       {s.email ?? "—"}
                     </td>
                     <td
-                      className={s.phone ? DB_TD : DB_TD_EMPTY}
+                      className={s.phone ? DB_TD_CELL : DB_TD_EMPTY_CELL}
                     >
                       {s.phone ?? "—"}
                     </td>
                     <td
-                      className={s.company ? DB_TD : DB_TD_EMPTY}
+                      className={s.company ? DB_TD_CELL : DB_TD_EMPTY_CELL}
                     >
                       {s.company ?? "—"}
                     </td>
-                    <td className={DB_TD}>
-                      <div className="flex flex-wrap gap-1">
+                    <td className={DB_TD_CELL}>
+                      <div className="flex flex-nowrap items-center justify-center gap-1">
                         {rolesChip.visible.length === 0 ? (
                           <span className="text-[#3F4547]">—</span>
                         ) : (
@@ -1081,14 +1089,14 @@ export function DatabaseSections({
                             {rolesChip.visible.map((label) => (
                               <span
                                 key={label}
-                                className="inline-flex rounded-full border border-[#2a2a2a] px-2 py-0.5 text-[11px] text-pitch-gray-light"
+                                className="inline-flex shrink-0 whitespace-nowrap rounded-full border border-[#2a2a2a] bg-[#1a1a1a] px-2 py-0.5 text-[10px] text-[#aaa]"
                               >
                                 {label}
                               </span>
                             ))}
                             {rolesChip.extra > 0 ? (
-                              <span className="text-[11px] text-gray-500">
-                                +{rolesChip.extra} more
+                              <span className="inline-flex shrink-0 rounded-full bg-[#333] px-1.5 py-0.5 text-[10px] font-medium text-[#888]">
+                                +{rolesChip.extra}
                               </span>
                             ) : null}
                           </>
@@ -1096,51 +1104,51 @@ export function DatabaseSections({
                       </div>
                     </td>
                     <td
-                      className={platesDisp.empty ? DB_TD_EMPTY : DB_TD}
+                      className={platesDisp.empty ? DB_TD_EMPTY_CELL : DB_TD_CELL}
                     >
                       {platesDisp.text}
                     </td>
-                    <td className={DB_TD}>{s.user_level}</td>
+                    <td className={DB_TD_CELL}>{s.user_level}</td>
                     <td
                       className={
-                        s.team_dazn ? DB_TD : DB_TD_EMPTY
+                        s.team_dazn ? DB_TD_CELL : DB_TD_EMPTY_CELL
                       }
                     >
                       {s.team_dazn ?? "—"}
                     </td>
                     <td
-                      className={notePrev.empty ? DB_TD_EMPTY : DB_TD}
+                      className={notePrev.empty ? DB_TD_EMPTY_CELL : DB_TD_CELL}
                       title={notePrev.title}
                     >
                       {notePrev.text}
                     </td>
                     <td
                       className={
-                        s.place_of_birth ? DB_TD : DB_TD_EMPTY
+                        s.place_of_birth ? DB_TD_CELL : DB_TD_EMPTY_CELL
                       }
                     >
                       {s.place_of_birth ?? "—"}
                     </td>
                     <td
                       className={
-                        dobStr === "—" ? DB_TD_EMPTY : DB_TD
+                        dobStr === "—" ? DB_TD_EMPTY_CELL : DB_TD_CELL
                       }
                     >
                       {dobStr}
                     </td>
                     <td
                       className={
-                        s.residential_address ? DB_TD : DB_TD_EMPTY
+                        s.residential_address ? DB_TD_CELL : DB_TD_EMPTY_CELL
                       }
                     >
                       {s.residential_address ?? "—"}
                     </td>
                     <td
-                      className={s.id_number ? DB_TD : DB_TD_EMPTY}
+                      className={s.id_number ? DB_TD_CELL : DB_TD_EMPTY_CELL}
                     >
                       {s.id_number ?? "—"}
                     </td>
-                    <td className="px-3 py-3">
+                    <td className={DB_TD_CELL}>
                       <span
                         className={
                           s.active ? DB_BADGE_ON : DB_BADGE_OFF
@@ -1149,9 +1157,9 @@ export function DatabaseSections({
                         {s.active ? "Yes" : "No"}
                       </span>
                     </td>
-                    <td className="px-3 py-3">
+                    <td className={`${DB_TD_CELL} whitespace-nowrap`}>
                       {canEditDatabase ? (
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <div className="inline-flex flex-nowrap items-center justify-center gap-x-3">
                           <button
                             type="button"
                             disabled={deletingStaffId === s.id}
@@ -1267,8 +1275,7 @@ export function DatabaseSections({
       </CollapsibleSection>
 
       <CollapsibleSection
-        title="Roles"
-        description="Catalog of production roles (code, name, Stadio/Cologno location); basis for slots and staff default role."
+        title={`Roles (${roles.length})`}
         open={rolesOpen}
         onToggle={() => setRolesOpen(!rolesOpen)}
       >
@@ -1294,25 +1301,25 @@ export function DatabaseSections({
             <table className="w-full border-collapse">
               <thead>
                 <tr className="border-b border-[#2a2a2a]">
-                  <th className={DB_TH}>Code</th>
-                  <th className={DB_TH}>Location</th>
-                  <th className={DB_TH}>Description</th>
-                  <th className={DB_TH}>Actions</th>
+                  <th className={DB_TH_FIRST}>Code</th>
+                  <th className={DB_TH_CELL}>Location</th>
+                  <th className={DB_TH_CELL}>Description</th>
+                  <th className={DB_TH_CELL}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {roles.map((r) => (
-                  <tr key={r.id} className={DB_TBODY_TR}>
-                    <td className={DB_TD}>{r.code}</td>
-                    <td className={DB_TD}>{r.location}</td>
+                  <tr key={r.id} className={DB_TBODY_TR_COMPACT}>
+                    <td className={DB_TD_FIRST}>{r.code}</td>
+                    <td className={DB_TD_CELL}>{r.location}</td>
                     <td
                       className={
-                        r.description ? DB_TD : DB_TD_EMPTY
+                        r.description ? DB_TD_CELL : DB_TD_EMPTY_CELL
                       }
                     >
                       {r.description ?? "—"}
                     </td>
-                    <td className="px-3 py-3">
+                    <td className={`${DB_TD_CELL} whitespace-nowrap`}>
                       <button
                         type="button"
                         className="text-xs text-pitch-accent underline-offset-2 hover:underline"
@@ -1481,8 +1488,7 @@ export function DatabaseSections({
       ) : null}
 
       <CollapsibleSection
-        title="Standard packages"
-        description="Each package groups onsite, Cologno, facilities and studio with the role list (quantity and coverage). Used in Assignments to build requirements."
+        title={`Standard packages (${standardCombos.length})`}
         open={standardOpen}
         onToggle={() => setStandardOpen(!standardOpen)}
       >
@@ -1513,13 +1519,13 @@ export function DatabaseSections({
               <table className="w-full border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-[#2a2a2a]">
-                    <th className={DB_TH}>ID</th>
-                    <th className={DB_TH}>Standard onsite</th>
-                    <th className={DB_TH}>Standard Cologno</th>
-                    <th className={DB_TH}>Facilities</th>
-                    <th className={DB_TH}>Studio</th>
-                    <th className={DB_TH}>Roles</th>
-                    <th className={DB_TH}>Actions</th>
+                    <th className={DB_TH_CELL}>ID</th>
+                    <th className={DB_TH_FIRST}>Standard onsite</th>
+                    <th className={DB_TH_FIRST}>Standard Cologno</th>
+                    <th className={DB_TH_CELL}>Facilities</th>
+                    <th className={DB_TH_CELL}>Studio</th>
+                    <th className={DB_TH_CELL}>Roles</th>
+                    <th className={DB_TH_CELL}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1535,23 +1541,23 @@ export function DatabaseSections({
                   <>
                     <tr
                       key={combo.id}
-                      className={`${DB_TBODY_TR} bg-[#1a1a1a] hover:bg-black/30`}
+                      className={`${DB_TBODY_TR_COMPACT} bg-[#1a1a1a] hover:bg-black/30`}
                     >
-                      <td className={DB_TD}>{combo.id}</td>
-                      <td className={DB_TD}>{combo.standardOnsite}</td>
-                      <td className={DB_TD}>{combo.standardCologno}</td>
-                      <td className={showFacilitiesBadge ? DB_TD : DB_TD_EMPTY}>
+                      <td className={DB_TD_CELL}>{combo.id}</td>
+                      <td className={DB_TD_FIRST}>{combo.standardOnsite}</td>
+                      <td className={DB_TD_FIRST}>{combo.standardCologno}</td>
+                      <td className={showFacilitiesBadge ? DB_TD_CELL : DB_TD_EMPTY_CELL}>
                         {showFacilitiesBadge ? combo.facilities : "—"}
                       </td>
-                      <td className={showStudioBadge ? DB_TD : DB_TD_EMPTY}>
+                      <td className={showStudioBadge ? DB_TD_CELL : DB_TD_EMPTY_CELL}>
                         {showStudioBadge ? combo.studio : "—"}
                       </td>
-                      <td className={DB_TD}>
+                      <td className={DB_TD_CELL}>
                         {combo.requirements.length} role
                         {combo.requirements.length === 1 ? "" : "s"}
                       </td>
-                      <td className="px-3 py-3">
-                        <div className="flex flex-wrap items-center gap-3">
+                      <td className={`${DB_TD_CELL} whitespace-nowrap`}>
+                        <div className="inline-flex flex-nowrap items-center justify-center gap-3">
                           <button
                             type="button"
                             className="text-xs text-pitch-accent underline-offset-2 hover:underline"
@@ -1583,43 +1589,40 @@ export function DatabaseSections({
                       </td>
                     </tr>
                     {expanded ? (
-                      <tr className={DB_TBODY_TR}>
+                      <tr className={DB_TBODY_TR_COMPACT}>
                         <td colSpan={7} className="px-0 py-0">
                           <div className="border-t border-[#2a2a2a] px-4 py-3">
-                        <div className="mb-2 text-xs text-pitch-gray">
-                          Requirement rows linked to this package
-                        </div>
                         <ResponsiveTable minWidth="800px">
                           <table className="w-full border-collapse text-sm">
                             <thead>
                               <tr className="border-b border-[#2a2a2a]">
-                                <th className={DB_TH}>role_code</th>
-                                <th className={DB_TH}>site</th>
-                                <th className={`${DB_TH} text-right`}>
+                                <th className={DB_TH_FIRST}>role_code</th>
+                                <th className={DB_TH_CELL}>site</th>
+                                <th className={`${DB_TH_CELL} text-right`}>
                                   qty
                                 </th>
-                                <th className={DB_TH}>coverage_type</th>
+                                <th className={DB_TH_CELL}>coverage_type</th>
                               </tr>
                             </thead>
                             <tbody>
                               {combo.requirements.length === 0 ? (
-                                <tr className={DB_TBODY_TR}>
+                                <tr className={DB_TBODY_TR_COMPACT}>
                                   <td
                                     colSpan={4}
-                                    className={`${DB_TD_EMPTY} py-3`}
+                                    className={`${DB_TD_EMPTY_CELL} text-center`}
                                   >
                                     No roles in this package
                                   </td>
                                 </tr>
                               ) : (
                                 combo.requirements.map((r) => (
-                                  <tr key={r.id} className={DB_TBODY_TR}>
-                                    <td className={DB_TD}>{r.roleCode}</td>
-                                    <td className={DB_TD}>{r.site}</td>
-                                    <td className={`${DB_TD} text-right`}>
+                                  <tr key={r.id} className={DB_TBODY_TR_COMPACT}>
+                                    <td className={DB_TD_FIRST}>{r.roleCode}</td>
+                                    <td className={DB_TD_CELL}>{r.site}</td>
+                                    <td className={`${DB_TD_CELL} text-right`}>
                                       {r.quantity}
                                     </td>
-                                    <td className={DB_TD}>
+                                    <td className={DB_TD_CELL}>
                                       {r.coverageType ?? "FREELANCE"}
                                     </td>
                                   </tr>
@@ -1643,8 +1646,7 @@ export function DatabaseSections({
       </CollapsibleSection>
 
       <CollapsibleSection
-        title="Aree Accredito"
-        description="Mappatura read-only ruolo → aree e legenda aree per club owner."
+        title={`Aree Accredito (${accreditationAreaMappings.length})`}
         open={accreditationAreasOpen}
         onToggle={() => setAccreditationAreasOpen(!accreditationAreasOpen)}
       >
@@ -1673,21 +1675,21 @@ export function DatabaseSections({
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="border-b border-[#2a2a2a]">
-                <th className={DB_TH}>Ruolo</th>
-                <th className={DB_TH}>Aree assegnate</th>
-                <th className={DB_TH}>Azioni</th>
+                <th className={DB_TH_FIRST}>Ruolo</th>
+                <th className={DB_TH_CELL}>Aree assegnate</th>
+                <th className={DB_TH_CELL}>Azioni</th>
               </tr>
             </thead>
             <tbody>
               {accreditationAreasLoading ? (
-                <tr className={DB_TBODY_TR}>
-                  <td colSpan={3} className={DB_TD_EMPTY}>
+                <tr className={DB_TBODY_TR_COMPACT}>
+                  <td colSpan={3} className={`${DB_TD_EMPTY_CELL} text-center`}>
                     Loading...
                   </td>
                 </tr>
               ) : accreditationAreaMappings.length === 0 ? (
-                <tr className={DB_TBODY_TR}>
-                  <td colSpan={3} className={DB_TD_EMPTY}>
+                <tr className={DB_TBODY_TR_COMPACT}>
+                  <td colSpan={3} className={`${DB_TD_EMPTY_CELL} text-center`}>
                     Nessuna mappatura disponibile.
                   </td>
                 </tr>
@@ -1695,10 +1697,10 @@ export function DatabaseSections({
                 accreditationAreaMappings.map((row) => (
                   <tr
                     key={`${row.roleCode}-${row.areas}`}
-                    className={DB_TBODY_TR}
+                    className={DB_TBODY_TR_COMPACT}
                   >
-                    <td className={DB_TD}>{row.roleCode}</td>
-                    <td className={DB_TD}>
+                    <td className={DB_TD_FIRST}>{row.roleCode}</td>
+                    <td className={DB_TD_CELL}>
                       {editingAccreditationRoleCode === row.roleCode ? (
                         <input
                           type="text"
@@ -1712,9 +1714,9 @@ export function DatabaseSections({
                         row.areas
                       )}
                     </td>
-                    <td className="px-3 py-2">
+                    <td className={`${DB_TD_CELL} whitespace-nowrap`}>
                       {editingAccreditationRoleCode === row.roleCode ? (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-center gap-2">
                           <button
                             type="button"
                             disabled={savingAccreditationRoleCode === row.roleCode}
@@ -1801,20 +1803,20 @@ export function DatabaseSections({
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="border-b border-[#2a2a2a]">
-                <th className={DB_TH}>Area code</th>
-                <th className={DB_TH}>Descrizione</th>
+                <th className={DB_TH_FIRST}>Area code</th>
+                <th className={DB_TH_CELL}>Descrizione</th>
               </tr>
             </thead>
             <tbody>
               {accreditationAreasLoading ? (
-                <tr className={DB_TBODY_TR}>
-                  <td colSpan={2} className={DB_TD_EMPTY}>
+                <tr className={DB_TBODY_TR_COMPACT}>
+                  <td colSpan={2} className={`${DB_TD_EMPTY_CELL} text-center`}>
                     Loading...
                   </td>
                 </tr>
               ) : accreditationAreaLegends.length === 0 ? (
-                <tr className={DB_TBODY_TR}>
-                  <td colSpan={2} className={DB_TD_EMPTY}>
+                <tr className={DB_TBODY_TR_COMPACT}>
+                  <td colSpan={2} className={`${DB_TD_EMPTY_CELL} text-center`}>
                     Nessuna legenda disponibile.
                   </td>
                 </tr>
@@ -1822,10 +1824,10 @@ export function DatabaseSections({
                 accreditationAreaLegends.map((row) => (
                   <tr
                     key={`${row.areaCode}-${row.description}`}
-                    className={DB_TBODY_TR}
+                    className={DB_TBODY_TR_COMPACT}
                   >
-                    <td className={DB_TD}>{row.areaCode}</td>
-                    <td className={DB_TD}>{row.description}</td>
+                    <td className={DB_TD_FIRST}>{row.areaCode}</td>
+                    <td className={DB_TD_CELL}>{row.description}</td>
                   </tr>
                 ))
               )}
@@ -1834,8 +1836,27 @@ export function DatabaseSections({
         </ResponsiveTable>
       </CollapsibleSection>
 
-      <LookupValuesSection />
-      <EventRulesSection />
+      <CollapsibleSection
+        title={`Vocabulary (${lookupCount})`}
+        open={lookupOpen}
+        onToggle={() => setLookupOpen(!lookupOpen)}
+      >
+        <LookupValuesSection
+          embedded
+          onCountChange={setLookupCount}
+        />
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        title={`Automatic event rules (${eventRulesCount})`}
+        open={eventRulesOpen}
+        onToggle={() => setEventRulesOpen(!eventRulesOpen)}
+      >
+        <EventRulesSection
+          embedded
+          onCountChange={setEventRulesCount}
+        />
+      </CollapsibleSection>
 
       {isComboModalOpen ? (
         <div
@@ -2297,12 +2318,54 @@ export function DatabaseSections({
                 {staffFormError}
               </p>
             ) : null}
-            <form className="mt-4 space-y-3" onSubmit={handleSubmitStaff}>
+            <form className="mt-4 space-y-5" onSubmit={handleSubmitStaff}>
               <div>
-                <p className="mb-2 border-b border-pitch-gray-dark pb-1 text-xs font-semibold uppercase text-pitch-gray">
-                  Personal data
-                </p>
-                <div className="grid grid-cols-2 gap-2">
+                <p className={FORM_SECTION_LABEL}>Personal data</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label
+                      htmlFor="staff-surname"
+                      className="mb-1 block text-xs text-pitch-gray"
+                    >
+                      Last name <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      id="staff-surname"
+                      type="text"
+                      required
+                      value={staffFormValues.surname}
+                      onChange={(e) =>
+                        setStaffFormValues((v) => ({
+                          ...v,
+                          surname: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="staff-name"
+                      className="mb-1 block text-xs text-pitch-gray"
+                    >
+                      First name <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      id="staff-name"
+                      type="text"
+                      required
+                      value={staffFormValues.name}
+                      onChange={(e) =>
+                        setStaffFormValues((v) => ({
+                          ...v,
+                          name: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+                    />
+                  </div>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-3">
                   <div>
                     <label
                       htmlFor="staff-place-birth"
@@ -2344,7 +2407,7 @@ export function DatabaseSections({
                     />
                   </div>
                 </div>
-                <div className="mt-2">
+                <div className="mt-3">
                   <label
                     htmlFor="staff-address"
                     className="mb-1 block text-xs text-pitch-gray"
@@ -2364,103 +2427,270 @@ export function DatabaseSections({
                     className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
                   />
                 </div>
-                <div className="mt-2 grid grid-cols-2 gap-2">
+                <div className="mt-3">
+                  <label
+                    htmlFor="staff-id-number"
+                    className="mb-1 block text-xs text-pitch-gray"
+                  >
+                    Document / ID
+                  </label>
+                  <input
+                    id="staff-id-number"
+                    type="text"
+                    value={staffFormValues.idNumber}
+                    onChange={(e) =>
+                      setStaffFormValues((v) => ({
+                        ...v,
+                        idNumber: e.target.value,
+                      }))
+                    }
+                    className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <p className={FORM_SECTION_LABEL}>Contract details</p>
+                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label
-                      htmlFor="staff-id-number"
+                      htmlFor="staff-user-level"
                       className="mb-1 block text-xs text-pitch-gray"
                     >
-                      Document / ID
+                      User level
                     </label>
-                    <input
-                      id="staff-id-number"
-                      type="text"
-                      value={staffFormValues.idNumber}
+                    <select
+                      id="staff-user-level"
+                      value={staffFormValues.userLevel}
                       onChange={(e) =>
                         setStaffFormValues((v) => ({
                           ...v,
-                          idNumber: e.target.value,
+                          userLevel: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+                    >
+                      {userLevelSelectOptions.map((lvl) => (
+                        <option key={lvl} value={lvl}>
+                          {lvl}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="staff-company"
+                      className="mb-1 block text-xs text-pitch-gray"
+                    >
+                      Company
+                    </label>
+                    <input
+                      id="staff-company"
+                      type="text"
+                      value={staffFormValues.company}
+                      onChange={(e) =>
+                        setStaffFormValues((v) => ({
+                          ...v,
+                          company: e.target.value,
                         }))
                       }
                       className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
                     />
                   </div>
                 </div>
-              </div>
-
-              <div>
-                <p className="mb-2 border-b border-pitch-gray-dark pb-1 text-xs font-semibold uppercase text-pitch-gray">
-                  Contract details
-                </p>
-                <div className="space-y-2">
-                  <div>
-                    <label
-                      htmlFor="staff-team-dazn"
-                      className="mb-1 block text-xs text-pitch-gray"
-                    >
-                      DAZN Team
-                    </label>
-                    {daznTeamLookupFetchFailed ? (
-                      <input
-                        id="staff-team-dazn"
-                        type="text"
-                        value={staffFormValues.teamDazn}
-                        onChange={(e) =>
-                          setStaffFormValues((v) => ({
-                            ...v,
-                            teamDazn: e.target.value,
-                          }))
-                        }
-                        className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
-                      />
-                    ) : (
-                      <select
-                        id="staff-team-dazn"
-                        value={staffFormValues.teamDazn}
-                        onChange={(e) =>
-                          setStaffFormValues((v) => ({
-                            ...v,
-                            teamDazn: e.target.value,
-                          }))
-                        }
-                        className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
-                      >
-                        <option value="">— no team —</option>
-                        {daznTeamSelectOptions.map((t) => (
-                          <option key={t} value={t}>
-                            {t}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                  </div>
-                  <div>
-                    <label
-                      htmlFor="staff-notes"
-                      className="mb-1 block text-xs text-pitch-gray"
-                    >
-                      Notes
-                    </label>
-                    <textarea
-                      id="staff-notes"
-                      rows={3}
-                      value={staffFormValues.staffNotes}
+                <div className="mt-3">
+                  <label
+                    htmlFor="staff-team-dazn"
+                    className="mb-1 block text-xs text-pitch-gray"
+                  >
+                    DAZN Team
+                  </label>
+                  {daznTeamLookupFetchFailed ? (
+                    <input
+                      id="staff-team-dazn"
+                      type="text"
+                      value={staffFormValues.teamDazn}
                       onChange={(e) =>
                         setStaffFormValues((v) => ({
                           ...v,
-                          staffNotes: e.target.value,
+                          teamDazn: e.target.value,
                         }))
                       }
-                      className="w-full resize-y rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+                      className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+                    />
+                  ) : (
+                    <select
+                      id="staff-team-dazn"
+                      value={staffFormValues.teamDazn}
+                      onChange={(e) =>
+                        setStaffFormValues((v) => ({
+                          ...v,
+                          teamDazn: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+                    >
+                      <option value="">— no team —</option>
+                      {daznTeamSelectOptions.map((t) => (
+                        <option key={t} value={t}>
+                          {t}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+                <div className="mt-3 grid grid-cols-3 gap-3">
+                  <div>
+                    <label
+                      htmlFor="staff-plate-1"
+                      className="mb-1 block text-xs text-pitch-gray"
+                    >
+                      Plate 1
+                    </label>
+                    <input
+                      id="staff-plate-1"
+                      type="text"
+                      placeholder="AA000BB"
+                      value={staffFormValues.plate1}
+                      onChange={(e) =>
+                        setStaffFormValues((v) => ({
+                          ...v,
+                          plate1: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
                     />
                   </div>
+                  <div>
+                    <label
+                      htmlFor="staff-plate-2"
+                      className="mb-1 block text-xs text-pitch-gray"
+                    >
+                      Plate 2
+                    </label>
+                    <input
+                      id="staff-plate-2"
+                      type="text"
+                      placeholder="AA000BB"
+                      value={staffFormValues.plate2}
+                      onChange={(e) =>
+                        setStaffFormValues((v) => ({
+                          ...v,
+                          plate2: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="staff-plate-3"
+                      className="mb-1 block text-xs text-pitch-gray"
+                    >
+                      Plate 3
+                    </label>
+                    <input
+                      id="staff-plate-3"
+                      type="text"
+                      placeholder="AA000BB"
+                      value={staffFormValues.plate3}
+                      onChange={(e) =>
+                        setStaffFormValues((v) => ({
+                          ...v,
+                          plate3: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+                    />
+                  </div>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <div>
+                    <label
+                      htmlFor="staff-email"
+                      className="mb-1 block text-xs text-pitch-gray"
+                    >
+                      Email <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      id="staff-email"
+                      type="email"
+                      required
+                      value={staffFormValues.email}
+                      onChange={(e) =>
+                        setStaffFormValues((v) => ({
+                          ...v,
+                          email: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="staff-phone"
+                      className="mb-1 block text-xs text-pitch-gray"
+                    >
+                      Phone
+                    </label>
+                    <input
+                      id="staff-phone"
+                      type="text"
+                      value={staffFormValues.phone}
+                      onChange={(e) =>
+                        setStaffFormValues((v) => ({
+                          ...v,
+                          phone: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+                    />
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <label
+                    htmlFor="staff-notes"
+                    className="mb-1 block text-xs text-pitch-gray"
+                  >
+                    Notes
+                  </label>
+                  <textarea
+                    id="staff-notes"
+                    rows={3}
+                    value={staffFormValues.staffNotes}
+                    onChange={(e) =>
+                      setStaffFormValues((v) => ({
+                        ...v,
+                        staffNotes: e.target.value,
+                      }))
+                    }
+                    className="w-full resize-y rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+                  />
+                </div>
+                <div className="mt-3 flex flex-col gap-3">
+                  <ToggleSwitch
+                    tone="active"
+                    checked={staffFormValues.active}
+                    onChange={(checked) =>
+                      setStaffFormValues((v) => ({ ...v, active: checked }))
+                    }
+                    label="Active"
+                  />
+                  <ToggleSwitch
+                    checked={staffFormValues.financeVisibility}
+                    onChange={(checked) =>
+                      setStaffFormValues((v) => ({
+                        ...v,
+                        financeVisibility: checked,
+                      }))
+                    }
+                    label="Financial visibility"
+                  />
                 </div>
               </div>
 
               <div className="rounded-[10px] border border-[#1e1e1e] bg-[#0d0d0d] p-4">
-                <p className="mb-3 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
-                  Roles & fees
-                </p>
+                <p className={FORM_SECTION_LABEL}>Roles & fees</p>
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[640px] border-collapse text-sm">
                     <thead>
@@ -2469,7 +2699,7 @@ export function DatabaseSections({
                         <th className="h-11 px-2 text-left">Location</th>
                         <th className="h-11 px-2 text-left">Fee (€)</th>
                         <th className="h-11 px-2 text-left">Extra fee (€)</th>
-                        <th className="h-11 px-2 text-left">Primary</th>
+                        <th className="h-11 px-2 text-center">Primary</th>
                         <th className="h-11 px-2 text-right">Actions</th>
                       </tr>
                     </thead>
@@ -2494,22 +2724,24 @@ export function DatabaseSections({
                             {showFinance ? row.extraFee : "—"}
                           </td>
                           <td className="px-2 align-middle">
-                            <ToggleSwitch
-                              checked={row.isPrimary}
-                              disabled={staffRoleDeletingId !== null}
-                              onChange={(next) => {
-                                setStaffRolesDraft((d) =>
-                                  d.map((r) => {
-                                    if (r.id === row.id)
-                                      return { ...r, isPrimary: next };
-                                    if (next) return { ...r, isPrimary: false };
-                                    return r;
-                                  })
-                                );
-                              }}
-                              label="Primary"
-                              tooltip="The primary role appears in the staff list and is used as default when no specific assignment context is available."
-                            />
+                            <div className="flex justify-center">
+                              <ToggleSwitch
+                                checked={row.isPrimary}
+                                disabled={staffRoleDeletingId !== null}
+                                onChange={(next) => {
+                                  setStaffRolesDraft((d) =>
+                                    d.map((r) => {
+                                      if (r.id === row.id)
+                                        return { ...r, isPrimary: next };
+                                      if (next)
+                                        return { ...r, isPrimary: false };
+                                      return r;
+                                    })
+                                  );
+                                }}
+                                tooltip="The primary role appears in the staff list and is used as default when no specific assignment context is available."
+                              />
+                            </div>
                           </td>
                           <td className="px-2 text-right align-middle">
                             <button
@@ -2610,7 +2842,7 @@ export function DatabaseSections({
                       </div>
                     </>
                   ) : null}
-                  <div className="pb-1">
+                  <div className="flex items-end pb-1">
                     <ToggleSwitch
                       checked={newRolePrimary}
                       onChange={(next) => {
@@ -2621,7 +2853,6 @@ export function DatabaseSections({
                           );
                         }
                       }}
-                      label="Primary"
                       tooltip="The primary role appears in the staff list and is used as default when no specific assignment context is available."
                     />
                   </div>
@@ -2666,226 +2897,6 @@ export function DatabaseSections({
                 </div>
               </div>
 
-              <div>
-                <p className="mb-2 border-b border-pitch-gray-dark pb-1 text-xs font-semibold uppercase text-pitch-gray">
-                  Settings
-                </p>
-                <ToggleSwitch
-                  checked={staffFormValues.financeVisibility}
-                  onChange={(checked) =>
-                    setStaffFormValues((v) => ({
-                      ...v,
-                      financeVisibility: checked,
-                    }))
-                  }
-                  label="Financial visibility"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="staff-surname"
-                  className="mb-1 block text-xs text-pitch-gray"
-                >
-                  Last name <span className="text-red-400">*</span>
-                </label>
-                <input
-                  id="staff-surname"
-                  type="text"
-                  required
-                  value={staffFormValues.surname}
-                  onChange={(e) =>
-                    setStaffFormValues((v) => ({
-                      ...v,
-                      surname: e.target.value,
-                    }))
-                  }
-                  className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="staff-name"
-                  className="mb-1 block text-xs text-pitch-gray"
-                >
-                  First name <span className="text-red-400">*</span>
-                </label>
-                <input
-                  id="staff-name"
-                  type="text"
-                  required
-                  value={staffFormValues.name}
-                  onChange={(e) =>
-                    setStaffFormValues((v) => ({ ...v, name: e.target.value }))
-                  }
-                  className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="staff-email"
-                  className="mb-1 block text-xs text-pitch-gray"
-                >
-                  Email <span className="text-red-400">*</span>
-                </label>
-                <input
-                  id="staff-email"
-                  type="email"
-                  required
-                  value={staffFormValues.email}
-                  onChange={(e) =>
-                    setStaffFormValues((v) => ({
-                      ...v,
-                      email: e.target.value,
-                    }))
-                  }
-                  className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="staff-phone"
-                  className="mb-1 block text-xs text-pitch-gray"
-                >
-                  Phone
-                </label>
-                <input
-                  id="staff-phone"
-                  type="text"
-                  value={staffFormValues.phone}
-                  onChange={(e) =>
-                    setStaffFormValues((v) => ({
-                      ...v,
-                      phone: e.target.value,
-                    }))
-                  }
-                  className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="staff-company"
-                  className="mb-1 block text-xs text-pitch-gray"
-                >
-                  Company
-                </label>
-                <input
-                  id="staff-company"
-                  type="text"
-                  value={staffFormValues.company}
-                  onChange={(e) =>
-                    setStaffFormValues((v) => ({
-                      ...v,
-                      company: e.target.value,
-                    }))
-                  }
-                  className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="staff-user-level"
-                  className="mb-1 block text-xs text-pitch-gray"
-                >
-                  User level
-                </label>
-                <select
-                  id="staff-user-level"
-                  value={staffFormValues.userLevel}
-                  onChange={(e) =>
-                    setStaffFormValues((v) => ({
-                      ...v,
-                      userLevel: e.target.value,
-                    }))
-                  }
-                  className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
-                >
-                  {userLevelSelectOptions.map((lvl) => (
-                    <option key={lvl} value={lvl}>
-                      {lvl}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div>
-                  <label
-                    htmlFor="staff-plate-1"
-                    className="mb-1 block text-xs text-pitch-gray"
-                  >
-                    Plate 1
-                  </label>
-                  <input
-                    id="staff-plate-1"
-                    type="text"
-                    placeholder="AA000BB"
-                    value={staffFormValues.plate1}
-                    onChange={(e) =>
-                      setStaffFormValues((v) => ({
-                        ...v,
-                        plate1: e.target.value,
-                      }))
-                    }
-                    className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label
-                    htmlFor="staff-plate-2"
-                    className="mb-1 block text-xs text-pitch-gray"
-                  >
-                    Plate 2
-                  </label>
-                  <input
-                    id="staff-plate-2"
-                    type="text"
-                    placeholder="AA000BB"
-                    value={staffFormValues.plate2}
-                    onChange={(e) =>
-                      setStaffFormValues((v) => ({
-                        ...v,
-                        plate2: e.target.value,
-                      }))
-                    }
-                    className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label
-                    htmlFor="staff-plate-3"
-                    className="mb-1 block text-xs text-pitch-gray"
-                  >
-                    Plate 3
-                  </label>
-                  <input
-                    id="staff-plate-3"
-                    type="text"
-                    placeholder="AA000BB"
-                    value={staffFormValues.plate3}
-                    onChange={(e) =>
-                      setStaffFormValues((v) => ({
-                        ...v,
-                        plate3: e.target.value,
-                      }))
-                    }
-                    className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
-                  />
-                </div>
-              </div>
-              <label className="flex cursor-pointer items-center gap-2 text-sm text-pitch-gray-light">
-                <input
-                  type="checkbox"
-                  checked={staffFormValues.active}
-                  onChange={(e) =>
-                    setStaffFormValues((v) => ({
-                      ...v,
-                      active: e.target.checked,
-                    }))
-                  }
-                  className="rounded border-pitch-gray-dark"
-                />
-                Active
-              </label>
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"

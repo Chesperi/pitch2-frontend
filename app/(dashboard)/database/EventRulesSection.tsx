@@ -9,6 +9,14 @@ import {
 } from "@/lib/api/eventRules";
 import { fetchLookupValues } from "@/lib/api/lookupValues";
 import type { CreateEventRulePayload, EventRule, LookupValue } from "@/lib/types";
+import {
+  DB_TH_CELL,
+  DB_TH_FIRST,
+  DB_TBODY_TR_COMPACT,
+  DB_TD_CELL,
+  DB_TD_EMPTY_CELL,
+  DB_TD_FIRST,
+} from "./dbSectionStyles";
 
 const DAY_OPTIONS: { value: string; label: string }[] = [
   { value: "", label: "Any" },
@@ -95,9 +103,6 @@ function payloadForApi(p: CreateEventRulePayload): CreateEventRulePayload {
 const inputClass =
   "w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none";
 
-const tableTh =
-  "px-3 py-2 text-left text-[11px] font-medium uppercase tracking-wide text-pitch-gray";
-
 function LookupSelect({
   label,
   fieldValue,
@@ -135,7 +140,15 @@ function LookupSelect({
   );
 }
 
-export function EventRulesSection() {
+type EventRulesSectionProps = {
+  embedded?: boolean;
+  onCountChange?: (n: number) => void;
+};
+
+export function EventRulesSection({
+  embedded = false,
+  onCountChange,
+}: EventRulesSectionProps = {}) {
   const [rules, setRules] = useState<EventRule[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -170,6 +183,10 @@ export function EventRulesSection() {
   useEffect(() => {
     void loadRules();
   }, [loadRules]);
+
+  useEffect(() => {
+    onCountChange?.(rules.length);
+  }, [rules.length, onCountChange]);
 
   useEffect(() => {
     let cancelled = false;
@@ -272,20 +289,32 @@ export function EventRulesSection() {
       ? ""
       : String(form.day_of_week);
 
-  return (
-    <section className="mt-10 border-t border-pitch-gray-dark pt-8">
-      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+  const toolbar = (
+    <div
+      className={`mb-4 flex items-center gap-2 ${
+        embedded
+          ? "justify-end"
+          : "flex-col sm:flex-row sm:justify-between"
+      }`}
+    >
+      {!embedded ? (
         <h3 className="text-lg font-semibold text-pitch-white">
           Automatic event rules
         </h3>
-        <button
-          type="button"
-          onClick={openNew}
-          className="rounded bg-pitch-accent px-4 py-2 text-sm font-medium text-pitch-bg hover:bg-yellow-200"
-        >
-          New rule
-        </button>
-      </div>
+      ) : null}
+      <button
+        type="button"
+        onClick={openNew}
+        className="rounded bg-pitch-accent px-4 py-2 text-sm font-medium text-pitch-bg hover:bg-yellow-200"
+      >
+        New rule
+      </button>
+    </div>
+  );
+
+  const body = (
+    <>
+      {toolbar}
 
       {error ? (
         <p className="mb-3 rounded border border-red-900/50 bg-red-950/40 px-3 py-2 text-sm text-red-200">
@@ -297,28 +326,28 @@ export function EventRulesSection() {
         <p className="text-sm text-pitch-gray">Loading…</p>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-pitch-gray-dark">
-          <table className="w-full min-w-[1100px] border-collapse text-xs">
+          <table className="w-full min-w-[1100px] border-collapse text-[12px]">
             <thead>
               <tr className="border-b border-pitch-gray-dark bg-pitch-gray-dark/30">
-                <th className={tableTh}>Competition</th>
-                <th className={tableTh}>Day</th>
-                <th className={tableTh}>Time</th>
-                <th className={tableTh}>Onsite</th>
-                <th className={tableTh}>Cologno</th>
-                <th className={tableTh}>Facilities</th>
-                <th className={tableTh}>Studio</th>
-                <th className={tableTh}>Show</th>
-                <th className={tableTh}>PRE</th>
-                <th className={tableTh}>Pri.</th>
-                <th className={tableTh}>Actions</th>
+                <th className={DB_TH_FIRST}>Competition</th>
+                <th className={DB_TH_CELL}>Day</th>
+                <th className={DB_TH_CELL}>Time</th>
+                <th className={DB_TH_CELL}>Onsite</th>
+                <th className={DB_TH_CELL}>Cologno</th>
+                <th className={DB_TH_CELL}>Facilities</th>
+                <th className={DB_TH_CELL}>Studio</th>
+                <th className={DB_TH_CELL}>Show</th>
+                <th className={DB_TH_CELL}>PRE</th>
+                <th className={DB_TH_CELL}>Pri.</th>
+                <th className={DB_TH_CELL}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {rules.length === 0 ? (
-                <tr>
+                <tr className={DB_TBODY_TR_COMPACT}>
                   <td
                     colSpan={11}
-                    className="px-3 py-6 text-center text-pitch-gray"
+                    className={`${DB_TD_EMPTY_CELL} text-center`}
                   >
                     No rules. Create the first one with &quot;New rule&quot;.
                   </td>
@@ -327,39 +356,39 @@ export function EventRulesSection() {
                 rules.map((r) => (
                   <tr
                     key={r.id}
-                    className="border-b border-pitch-gray-dark/50 hover:bg-pitch-gray-dark/10"
+                    className={`${DB_TBODY_TR_COMPACT} hover:bg-pitch-gray-dark/10`}
                   >
-                    <td className="px-3 py-2 text-pitch-white">
+                    <td className={`${DB_TD_FIRST} whitespace-nowrap`}>
                       {r.competition_name?.trim() || "—"}
                     </td>
-                    <td className="px-3 py-2 text-pitch-gray-light">
+                    <td className={`${DB_TD_CELL} whitespace-nowrap`}>
                       {dayLabel(r.day_of_week)}
                     </td>
-                    <td className="px-3 py-2 text-pitch-gray-light">
+                    <td className={`${DB_TD_CELL} whitespace-nowrap`}>
                       {r.ko_time_from ?? r.ko_time_to ?? "—"}
                     </td>
-                    <td className="max-w-[100px] truncate px-3 py-2 text-pitch-gray-light">
+                    <td className={`${DB_TD_CELL} whitespace-nowrap`}>
                       {r.standard_onsite ?? "—"}
                     </td>
-                    <td className="max-w-[100px] truncate px-3 py-2 text-pitch-gray-light">
+                    <td className={`${DB_TD_CELL} whitespace-nowrap`}>
                       {r.standard_cologno ?? "—"}
                     </td>
-                    <td className="max-w-[100px] truncate px-3 py-2 text-pitch-gray-light">
+                    <td className={`${DB_TD_CELL} whitespace-nowrap`}>
                       {r.facilities ?? "—"}
                     </td>
-                    <td className="max-w-[100px] truncate px-3 py-2 text-pitch-gray-light">
+                    <td className={`${DB_TD_CELL} whitespace-nowrap`}>
                       {r.studio ?? "—"}
                     </td>
-                    <td className="max-w-[100px] truncate px-3 py-2 text-pitch-gray-light">
+                    <td className={`${DB_TD_CELL} whitespace-nowrap`}>
                       {r.show_name ?? "—"}
                     </td>
-                    <td className="px-3 py-2 text-pitch-gray-light">
+                    <td className={`${DB_TD_CELL} whitespace-nowrap`}>
                       {r.pre_duration_minutes ?? "—"}
                     </td>
-                    <td className="px-3 py-2 text-pitch-gray-light">
+                    <td className={`${DB_TD_CELL} whitespace-nowrap`}>
                       {r.priority}
                     </td>
-                    <td className="whitespace-nowrap px-3 py-2">
+                    <td className={`${DB_TD_CELL} whitespace-nowrap`}>
                       <button
                         type="button"
                         onClick={() => openEdit(r)}
@@ -551,6 +580,16 @@ export function EventRulesSection() {
           </div>
         </div>
       ) : null}
+    </>
+  );
+
+  if (embedded) {
+    return body;
+  }
+
+  return (
+    <section className="mt-10 border-t border-pitch-gray-dark pt-8">
+      {body}
     </section>
   );
 }

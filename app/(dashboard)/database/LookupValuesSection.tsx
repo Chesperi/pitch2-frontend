@@ -10,10 +10,12 @@ import {
 } from "@/lib/api/lookupValues";
 import type { LookupValue } from "@/lib/types";
 import {
-  DB_TH,
-  DB_TBODY_TR,
-  DB_TD,
-  DB_TD_EMPTY,
+  DB_TH_CELL,
+  DB_TH_FIRST,
+  DB_TBODY_TR_COMPACT,
+  DB_TD_CELL,
+  DB_TD_EMPTY_CELL,
+  DB_TD_FIRST,
 } from "./dbSectionStyles";
 
 const PRIMARY_BTN_SM =
@@ -53,7 +55,15 @@ function CategoryCollapsible({
   );
 }
 
-export function LookupValuesSection() {
+type LookupValuesSectionProps = {
+  embedded?: boolean;
+  onCountChange?: (n: number) => void;
+};
+
+export function LookupValuesSection({
+  embedded = false,
+  onCountChange,
+}: LookupValuesSectionProps = {}) {
   const { levelByPageKey } = usePagePermissions();
   const canEditDatabase = levelByPageKey.database === "edit";
 
@@ -92,6 +102,10 @@ export function LookupValuesSection() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    onCountChange?.(items.length);
+  }, [items.length, onCountChange]);
 
   const categoryKeys = useMemo(() => {
     const set = new Set<string>();
@@ -233,15 +247,8 @@ export function LookupValuesSection() {
   const toggleCat = (key: string) =>
     setOpenByCat((prev) => ({ ...prev, [key]: !prev[key] }));
 
-  return (
-    <section className="mt-6">
-      <h2 className="text-lg font-semibold text-pitch-white">Vocabulary</h2>
-      <p className="mt-1 text-xs text-pitch-gray">
-        Controlled lookup values for forms and rules. Categories are created from data;
-        use &quot;New category&quot; to add one, then add values (you can remove the
-        &quot;{PLACEHOLDER_LOOKUP_VALUE}&quot; placeholder row).
-      </p>
-
+  const inner = (
+    <>
       {error ? (
         <p className="mt-3 rounded border border-red-900/50 bg-red-950/40 px-3 py-2 text-sm text-red-200">
           {error}
@@ -249,9 +256,11 @@ export function LookupValuesSection() {
       ) : null}
 
       {loading ? (
-        <p className="mt-4 text-sm text-pitch-gray">Loading…</p>
+        <p className={`text-sm text-pitch-gray ${embedded ? "" : "mt-4"}`}>
+          Loading…
+        </p>
       ) : (
-        <div className="mt-4">
+        <div className={embedded ? "mt-0" : "mt-4"}>
           {canEditDatabase ? (
             <div className="mb-2 flex justify-end">
               <button
@@ -291,27 +300,27 @@ export function LookupValuesSection() {
                   <table className="w-full min-w-[480px] border-collapse">
                     <thead>
                       <tr className="border-b border-[#2a2a2a]">
-                        <th className={DB_TH}>Value</th>
-                        <th className={DB_TH}>Order</th>
-                        <th className={DB_TH}>Actions</th>
+                        <th className={DB_TH_FIRST}>Value</th>
+                        <th className={DB_TH_CELL}>Order</th>
+                        <th className={DB_TH_CELL}>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {rows.length === 0 ? (
-                        <tr className={DB_TBODY_TR}>
+                        <tr className={DB_TBODY_TR_COMPACT}>
                           <td
                             colSpan={3}
-                            className={`${DB_TD_EMPTY} py-4 text-center`}
+                            className={`${DB_TD_EMPTY_CELL} text-center`}
                           >
                             No values — use &quot;Add value&quot;.
                           </td>
                         </tr>
                       ) : (
                         rows.map((row) => (
-                          <tr key={row.id} className={DB_TBODY_TR}>
-                            <td className={DB_TD}>{row.value}</td>
-                            <td className={DB_TD}>{row.sort_order}</td>
-                            <td className="whitespace-nowrap px-3 py-3 text-sm">
+                          <tr key={row.id} className={DB_TBODY_TR_COMPACT}>
+                            <td className={DB_TD_FIRST}>{row.value}</td>
+                            <td className={DB_TD_CELL}>{row.sort_order}</td>
+                            <td className={`${DB_TD_CELL} whitespace-nowrap`}>
                               {canEditDatabase ? (
                                 <>
                                   <button
@@ -452,6 +461,12 @@ export function LookupValuesSection() {
           </div>
         </div>
       ) : null}
-    </section>
+    </>
   );
+
+  if (embedded) {
+    return inner;
+  }
+
+  return <section className="mt-6">{inner}</section>;
 }

@@ -6,6 +6,7 @@ import { apiFetch } from "@/lib/api/apiFetch";
 import { updateStaff } from "@/lib/api/staff";
 import { fetchDistinctTeamNames } from "@/lib/api/shifts";
 import ResponsiveTable from "@/components/ui/ResponsiveTable";
+import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import PageLoading from "@/components/ui/PageLoading";
 import DesktopRecommended from "@/components/ui/DesktopRecommended";
 
@@ -424,56 +425,44 @@ export default function MasterPage() {
                     </span>
                   </td>
                   <td className="whitespace-nowrap px-4 py-2 text-xs align-top">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleFinanceToggle(row.staffId, row.financeVisibility)
-                      }
+                    <ToggleSwitch
+                      checked={row.financeVisibility === "VISIBLE"}
                       disabled={
                         isSystemMaster(row) ||
                         isFreelanceOrProvider(row) ||
                         savingKeys.has(`finance:${row.staffId}`)
                       }
-                      className={`inline-flex min-w-[120px] items-center justify-center rounded border px-2 py-1.5 text-xs font-semibold transition-colors duration-150 ease-out ${
-                        row.financeVisibility === "VISIBLE"
-                          ? "border-pitch-accent bg-pitch-accent/20 text-pitch-accent"
-                          : "border-pitch-gray-dark bg-pitch-gray-dark/30 text-pitch-gray"
-                      } ${
-                        isSystemMaster(row) || isFreelanceOrProvider(row)
-                          ? "cursor-not-allowed opacity-50"
-                          : "hover:opacity-90"
-                      }`}
-                    >
-                      {row.financeVisibility}
-                    </button>
+                      tooltip="Financial visibility"
+                      onChange={(checked) => {
+                        const isVis = row.financeVisibility === "VISIBLE";
+                        if (checked !== isVis) {
+                          void handleFinanceToggle(
+                            row.staffId,
+                            row.financeVisibility
+                          );
+                        }
+                      }}
+                    />
                   </td>
                   <td className="min-w-[200px] px-4 py-2 text-xs align-top">
                     <div className="flex flex-col gap-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleShiftsToggle(
-                            row.staffId,
-                            row.shiftsManagement
-                          )
-                        }
+                      <ToggleSwitch
+                        checked={row.shiftsManagement}
                         disabled={
                           isSystemMaster(row) ||
                           isFreelanceOrProvider(row) ||
                           savingKeys.has(`shifts:${row.staffId}`)
                         }
-                        className={`inline-flex min-w-[120px] items-center justify-center rounded border px-2 py-1.5 text-xs font-semibold transition-colors duration-150 ease-out ${
-                          row.shiftsManagement
-                            ? "border-pitch-accent bg-pitch-accent/20 text-pitch-accent"
-                            : "border-pitch-gray-dark bg-pitch-gray-dark/30 text-pitch-gray"
-                        } ${
-                          isSystemMaster(row) || isFreelanceOrProvider(row)
-                            ? "cursor-not-allowed opacity-50"
-                            : "hover:opacity-90"
-                        }`}
-                      >
-                        {row.shiftsManagement ? "ON" : "OFF"}
-                      </button>
+                        tooltip="Shifts management"
+                        onChange={(checked) => {
+                          if (checked !== row.shiftsManagement) {
+                            void handleShiftsToggle(
+                              row.staffId,
+                              row.shiftsManagement
+                            );
+                          }
+                        }}
+                      />
                       {row.shiftsManagement &&
                       !isFreelanceOrProvider(row) &&
                       !isSystemMaster(row) ? (

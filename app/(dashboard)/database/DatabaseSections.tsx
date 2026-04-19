@@ -53,6 +53,7 @@ import {
   DB_TD_EMPTY,
 } from "./dbSectionStyles";
 import ResponsiveTable from "@/components/ui/ResponsiveTable";
+import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 
 /** Usate quando si ripristinano POST/PATCH su staff/ruoli (evita import “unused”). */
 const _databaseApiReadRef = {
@@ -374,6 +375,12 @@ export function DatabaseSections({
   const [newRoleFee, setNewRoleFee] = useState("");
   const [newRoleExtra, setNewRoleExtra] = useState("");
   const [newRolePrimary, setNewRolePrimary] = useState(false);
+  const [staffRoleDeletingId, setStaffRoleDeletingId] = useState<number | null>(
+    null
+  );
+  const [staffRoleDeleteError, setStaffRoleDeleteError] = useState<string | null>(
+    null
+  );
   const [staffOffset, setStaffOffset] = useState(0);
   const [staffTotal, setStaffTotal] = useState(initialStaffTotal);
   const [staffLoadingMore, setStaffLoadingMore] = useState(false);
@@ -605,6 +612,34 @@ export function DatabaseSections({
       );
     } finally {
       setSavingRole(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isStaffModalOpen) {
+      setStaffRoleDeletingId(null);
+      setStaffRoleDeleteError(null);
+    }
+  }, [isStaffModalOpen]);
+
+  const removeStaffRoleRow = async (row: StaffRoleFee) => {
+    if (row.id <= 0) {
+      setStaffRolesDraft((d) => d.filter((x) => x.id !== row.id));
+      setStaffRoleDeleteError(null);
+      return;
+    }
+    setStaffRoleDeletingId(row.id);
+    setStaffRoleDeleteError(null);
+    try {
+      await deleteStaffRole(row.id);
+      setStaffRolesDraft((d) => d.filter((x) => x.id !== row.id));
+      setStaffRolesBaseline((b) => b.filter((x) => x.id !== row.id));
+    } catch (e) {
+      setStaffRoleDeleteError(
+        e instanceof Error ? e.message : "Failed to remove role."
+      );
+    } finally {
+      setStaffRoleDeletingId(null);
     }
   };
 
@@ -2458,27 +2493,45 @@ export function DatabaseSections({
                           <td className="px-2 text-pitch-gray-light">
                             {showFinance ? row.extraFee : "—"}
                           </td>
-                          <td className="px-2">
-                            {row.isPrimary ? (
-                              <span className="text-[10px] font-semibold uppercase text-[#FFFA00]">
-                                Primary
-                              </span>
-                            ) : (
-                              <span className="text-gray-600">—</span>
-                            )}
+                          <td className="px-2 align-middle">
+                            <ToggleSwitch
+                              checked={row.isPrimary}
+                              disabled={staffRoleDeletingId !== null}
+                              onChange={(next) => {
+                                setStaffRolesDraft((d) =>
+                                  d.map((r) => {
+                                    if (r.id === row.id)
+                                      return { ...r, isPrimary: next };
+                                    if (next) return { ...r, isPrimary: false };
+                                    return r;
+                                  })
+                                );
+                              }}
+                              label="Primary"
+                              tooltip="The primary role appears in the staff list and is used as default when no specific assignment context is available."
+                            />
                           </td>
-                          <td className="px-2 text-right">
+                          <td className="px-2 text-right align-middle">
                             <button
                               type="button"
-                              className="text-lg leading-none text-gray-500 hover:text-red-400"
+                              disabled={staffRoleDeletingId !== null}
+                              className="inline-flex min-h-[28px] min-w-[28px] items-center justify-center text-lg leading-none text-gray-500 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-50"
                               title="Remove role"
-                              onClick={() =>
-                                setStaffRolesDraft((d) =>
-                                  d.filter((x) => x.id !== row.id)
-                                )
+                              aria-busy={
+                                staffRoleDeletingId === row.id
+                                  ? true
+                                  : undefined
                               }
+                              onClick={() => void removeStaffRoleRow(row)}
                             >
-                              ×
+                              {staffRoleDeletingId === row.id ? (
+                                <span
+                                  className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-gray-500 border-t-transparent"
+                                  aria-hidden
+                                />
+                              ) : (
+                                <span aria-hidden>×</span>
+                              )}
                             </button>
                           </td>
                         </tr>
@@ -2486,6 +2539,14 @@ export function DatabaseSections({
                     </tbody>
                   </table>
                 </div>
+                {staffRoleDeleteError ? (
+                  <p
+                    role="alert"
+                    className="mt-2 text-xs text-red-400"
+                  >
+                    {staffRoleDeleteError}
+                  </p>
+                ) : null}
                 <div className="mt-4 flex flex-wrap items-end gap-2 border-t border-[#1e1e1e] pt-4">
                   <div className="min-w-[200px] flex-1">
                     <label className="mb-1 block text-[10px] uppercase text-gray-500">
@@ -2549,15 +2610,21 @@ export function DatabaseSections({
                       </div>
                     </>
                   ) : null}
-                  <label className="flex cursor-pointer items-center gap-2 pb-2 text-xs text-gray-400">
-                    <input
-                      type="checkbox"
+                  <div className="pb-1">
+                    <ToggleSwitch
                       checked={newRolePrimary}
-                      onChange={(e) => setNewRolePrimary(e.target.checked)}
-                      className="rounded border-[#2a2a2a]"
+                      onChange={(next) => {
+                        setNewRolePrimary(next);
+                        if (next) {
+                          setStaffRolesDraft((d) =>
+                            d.map((r) => ({ ...r, isPrimary: false }))
+                          );
+                        }
+                      }}
+                      label="Primary"
+                      tooltip="The primary role appears in the staff list and is used as default when no specific assignment context is available."
                     />
-                    Primary
-                  </label>
+                  </div>
                   <button
                     type="button"
                     className="rounded bg-[#FFFA00] px-3 py-2 text-sm font-semibold text-pitch-bg hover:bg-yellow-200"
@@ -2571,9 +2638,8 @@ export function DatabaseSections({
                       const loc = newRoleLoc.trim() || locFromCombo;
                       const nf = parseFloat(newRoleFee.replace(",", "."));
                       const ef = parseFloat(newRoleExtra.replace(",", "."));
-                      setStaffRolesDraft((d) => [
-                        ...d,
-                        {
+                      setStaffRolesDraft((d) => {
+                        const nextRow: StaffRoleFee = {
                           id: -Date.now(),
                           staffId: editingStaff?.id ?? -1,
                           roleCode: code,
@@ -2582,8 +2648,12 @@ export function DatabaseSections({
                           extraFee: Number.isFinite(ef) ? ef : 0,
                           isPrimary: newRolePrimary,
                           active: true,
-                        },
-                      ]);
+                        };
+                        const base = newRolePrimary
+                          ? d.map((r) => ({ ...r, isPrimary: false }))
+                          : d;
+                        return [...base, nextRow];
+                      });
                       setNewRoleCombo("");
                       setNewRoleLoc("STADIO");
                       setNewRoleFee("");
@@ -2600,21 +2670,16 @@ export function DatabaseSections({
                 <p className="mb-2 border-b border-pitch-gray-dark pb-1 text-xs font-semibold uppercase text-pitch-gray">
                   Settings
                 </p>
-                <label className="flex cursor-pointer items-center gap-2 text-sm text-pitch-gray-light">
-                  <input
-                    id="staff-finance-visibility"
-                    type="checkbox"
-                    checked={staffFormValues.financeVisibility}
-                    onChange={(e) =>
-                      setStaffFormValues((v) => ({
-                        ...v,
-                        financeVisibility: e.target.checked,
-                      }))
-                    }
-                    className="rounded border-pitch-gray-dark"
-                  />
-                  Financial visibility
-                </label>
+                <ToggleSwitch
+                  checked={staffFormValues.financeVisibility}
+                  onChange={(checked) =>
+                    setStaffFormValues((v) => ({
+                      ...v,
+                      financeVisibility: checked,
+                    }))
+                  }
+                  label="Financial visibility"
+                />
               </div>
 
               <div>

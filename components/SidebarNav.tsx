@@ -120,11 +120,10 @@ type SidebarNavProps = {
 };
 
 /** Campo da calcio stilizzato per header sidebar (linee bianche su sfondo nero). */
-function FootballFieldSvg({ size }: { size: number }) {
+function FootballFieldSvg() {
   return (
     <svg
-      width={size}
-      height={size}
+      className="h-8 w-8 shrink-0"
       viewBox="0 0 32 32"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
@@ -186,7 +185,7 @@ export default function SidebarNav({
             collapsed ? "justify-center" : "justify-start"
           }`}
         >
-          <FootballFieldSvg size={collapsed ? 32 : 28} />
+          <FootballFieldSvg />
         </div>
         {onMobileClose ? (
           <button

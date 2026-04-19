@@ -27,6 +27,8 @@ export default function DashboardLayout({
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    let isInside = false;
+
     const handleMouseMove = (e: MouseEvent) => {
       const sidebar = sidebarRef.current;
       if (!sidebar) return;
@@ -36,11 +38,10 @@ export default function DashboardLayout({
         e.clientX <= rect.right &&
         e.clientY >= rect.top &&
         e.clientY <= rect.bottom;
-      if (inside) {
-        setCollapsed(false);
-      } else {
-        setCollapsed(true);
-      }
+
+      if (inside === isInside) return;
+      isInside = inside;
+      setCollapsed(!inside);
     };
 
     window.addEventListener("mousemove", handleMouseMove);

@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { apiFetch } from "@/lib/api/apiFetch";
+import ResponsiveTable from "@/components/ui/ResponsiveTable";
+import PageLoading from "@/components/ui/PageLoading";
 
 type AccessLevel = "none" | "view" | "edit";
 
@@ -254,12 +256,14 @@ export default function MasterPage() {
       ) : null}
 
       {loading ? (
-        <p className="mt-6 text-sm text-pitch-gray">Loading…</p>
+        <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30">
+          <PageLoading />
+        </div>
       ) : null}
 
       {!loading && !loadError && items.length === 0 ? (
         <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-6 text-center text-sm text-pitch-gray">
-          No active staff to configure.
+          Nessuno staff attivo da configurare.
         </div>
       ) : null}
 
@@ -268,8 +272,11 @@ export default function MasterPage() {
           {actionError ? (
             <p className="mt-2 text-xs text-red-300">{actionError}</p>
           ) : null}
-          <div className="mt-6 overflow-x-auto rounded-lg border border-pitch-gray-dark">
-          <table className="w-full min-w-max border-collapse text-xs">
+          <ResponsiveTable
+            className="mt-6 rounded-lg border border-pitch-gray-dark"
+            minWidth="900px"
+          >
+          <table className="w-full border-collapse text-xs">
             <thead>
               <tr className="border-b border-pitch-gray-dark bg-pitch-gray-dark/30">
                 <th className="sticky left-0 z-10 min-w-[220px] bg-pitch-gray-dark/40 px-3 py-2 text-left font-medium text-pitch-gray">
@@ -380,7 +387,7 @@ export default function MasterPage() {
               ))}
             </tbody>
           </table>
-        </div>
+          </ResponsiveTable>
         </>
       ) : null}
 

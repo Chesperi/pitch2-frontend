@@ -114,6 +114,9 @@ function isNavItemVisible(
 
 type SidebarNavProps = {
   collapsed: boolean;
+  /** Called after navigating (e.g. close mobile drawer). */
+  onNavigate?: () => void;
+  onMobileClose?: () => void;
 };
 
 /** Campo da calcio stilizzato per header sidebar (linee bianche su sfondo nero). */
@@ -138,7 +141,11 @@ function FootballFieldSvg({ size }: { size: number }) {
   );
 }
 
-export default function SidebarNav({ collapsed }: SidebarNavProps) {
+export default function SidebarNav({
+  collapsed,
+  onNavigate,
+  onMobileClose,
+}: SidebarNavProps) {
   const pathname = usePathname();
   const { loading, levelByPageKey } = usePagePermissions();
   const [meLevelUpper, setMeLevelUpper] = useState<string | null>(null);
@@ -197,6 +204,7 @@ export default function SidebarNav({ collapsed }: SidebarNavProps) {
                 key={item.href}
                 href={item.href}
                 title={item.label}
+                onClick={() => onNavigate?.()}
                 className={`flex items-center justify-center rounded-lg px-2 py-2.5 transition-colors hover:text-white ${
                   isActive
                     ? "bg-[#1a1a1a] text-[#FFFA00]"
@@ -212,9 +220,8 @@ export default function SidebarNav({ collapsed }: SidebarNavProps) {
       ) : (
         <>
           <div
+            className="relative flex items-center justify-between"
             style={{
-              display: "flex",
-              alignItems: "center",
               height: 56,
               boxSizing: "border-box",
               paddingLeft: 16,
@@ -223,6 +230,29 @@ export default function SidebarNav({ collapsed }: SidebarNavProps) {
             }}
           >
             <FootballFieldSvg size={28} />
+            {onMobileClose ? (
+              <button
+                type="button"
+                className="md:hidden flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg text-[#868A8C] hover:bg-[#1a1a1a] hover:text-white"
+                aria-label="Chiudi menu"
+                onClick={onMobileClose}
+              >
+                <svg
+                  className="h-6 w-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            ) : null}
           </div>
           <div className="flex flex-col gap-1 px-3 py-3">
           {visibleItems.map((item) => {
@@ -233,6 +263,7 @@ export default function SidebarNav({ collapsed }: SidebarNavProps) {
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={() => onNavigate?.()}
                 className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors hover:text-white ${
                   isActive
                     ? "bg-[#1a1a1a] text-[#FFFA00]"

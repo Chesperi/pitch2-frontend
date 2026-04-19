@@ -6,12 +6,14 @@ type PageHeaderProps = {
 
 export function PageHeader({ title, subtitle, actions }: PageHeaderProps) {
   return (
-    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <h2 className="text-xl font-semibold text-pitch-white">{title}</h2>
         {subtitle && <div className="text-sm text-pitch-gray">{subtitle}</div>}
       </div>
-      {actions && <div className="mt-2 sm:mt-0">{actions}</div>}
+      {actions && (
+        <div className="flex flex-wrap gap-2 sm:justify-end">{actions}</div>
+      )}
     </div>
   );
 }

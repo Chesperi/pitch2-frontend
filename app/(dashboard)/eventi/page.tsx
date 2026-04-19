@@ -22,6 +22,12 @@ import { ImportEventsModal } from "./ImportEventsModal";
 import { fetchLookupValues } from "@/lib/api/lookupValues";
 import { apiFetch } from "@/lib/api/apiFetch";
 import type { LookupValue } from "@/lib/types";
+import type { ReactNode } from "react";
+import StatusBadge from "@/components/ui/StatusBadge";
+import ResponsiveTable from "@/components/ui/ResponsiveTable";
+import PrimaryButton from "@/components/ui/PrimaryButton";
+import PageLoading from "@/components/ui/PageLoading";
+import EmptyState from "@/components/ui/EmptyState";
 
 function formatKoItaly(koItaly: string | null): string {
   if (!koItaly) return "—";
@@ -78,71 +84,43 @@ function toDatetimeLocalValueFromEvent(event: EventItem): string {
   return `${y}-${m}-${day}T${hh}:${mm}`;
 }
 
-function renderEventStatus(status: string | null): React.ReactNode {
+function eventStatusBadgeEl(status: string | null): ReactNode {
   const value = status?.toUpperCase() ?? "";
-  const baseClass = "rounded-full px-2 py-0.5 text-xs font-medium bg-transparent";
-  switch (value) {
-    case "TBC":
-    case "TBD":
-      return (
-        <span className={`${baseClass} border border-yellow-300 text-yellow-300`}>
-          To confirm
-        </span>
-      );
-    case "OK":
-    case "CONFIRMED":
-      return (
-        <span
-          className={`${baseClass} ${
-            value === "CONFIRMED"
-              ? "border border-orange-500 text-orange-500"
-              : "border border-green-300 text-green-300"
-          }`}
-        >
-          {value === "OK" ? "OK" : "Confirmed"}
-        </span>
-      );
-    case "CANCELLED":
-    case "CANCELED":
-      return (
-        <span className={`${baseClass} border border-red-300 text-red-300`}>
-          Cancelled
-        </span>
-      );
-    default:
-      return (
-        <span className="rounded-full bg-pitch-gray-dark px-2 py-0.5 text-xs text-pitch-gray-light">
-          {status || "—"}
-        </span>
-      );
+  if (value === "TBC" || value === "TBD") {
+    return <StatusBadge variant="pending" label="To confirm" />;
   }
+  if (value === "OK") {
+    return <StatusBadge variant="complete" label="OK" />;
+  }
+  if (value === "CONFIRMED") {
+    return <StatusBadge variant="confirmed" label="Confirmed" />;
+  }
+  if (value === "CANCELLED" || value === "CANCELED") {
+    return <StatusBadge variant="cancelled" label="Cancelled" />;
+  }
+  if (!status?.trim()) {
+    return <span className="text-xs text-pitch-gray">—</span>;
+  }
+  return (
+    <span className="rounded-full bg-pitch-gray-dark px-2 py-0.5 text-xs text-pitch-gray-light">
+      {status}
+    </span>
+  );
 }
 
-function renderAssignmentsStatusBadge(
+function assignmentsStatusBadgeEl(
   status: EventAssignmentsStatus | null | undefined
-): React.ReactNode {
+): ReactNode {
   if (!status) {
     return <span className="text-xs text-pitch-gray">—</span>;
   }
   switch (status) {
     case "DRAFT":
-      return (
-        <span className="rounded-full bg-pitch-gray-dark px-2 py-0.5 text-xs text-pitch-gray-light">
-          Draft
-        </span>
-      );
+      return <StatusBadge variant="draft" label="Draft" />;
     case "READY_TO_SEND":
-      return (
-        <span className="rounded-full bg-yellow-900/50 px-2 py-0.5 text-xs text-yellow-300">
-          Ready
-        </span>
-      );
+      return <StatusBadge variant="pending" label="Ready" />;
     case "SENT":
-      return (
-        <span className="rounded-full bg-green-900/50 px-2 py-0.5 text-xs text-green-300">
-          Sent
-        </span>
-      );
+      return <StatusBadge variant="accepted" label="Sent" />;
     default:
       return (
         <span className="rounded-full bg-pitch-gray-dark px-2 py-0.5 text-xs text-pitch-gray-light">
@@ -387,8 +365,8 @@ function EventModal({
           <div
             className={
               form.category === "MATCH"
-                ? "grid grid-cols-3 gap-4"
-                : "grid grid-cols-2 gap-4"
+                ? "grid grid-cols-1 gap-4 sm:grid-cols-3"
+                : "grid grid-cols-1 gap-4 sm:grid-cols-2"
             }
           >
             <div>
@@ -475,7 +453,7 @@ function EventModal({
                   required
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {!isStudioShow ? (
                   <div>
                   <label className="mb-1 block text-xs text-pitch-gray">
@@ -511,7 +489,7 @@ function EventModal({
               </div>
             </>
           ) : null}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-xs text-pitch-gray">
                 KO date/time (ISO)
@@ -549,7 +527,7 @@ function EventModal({
               </div>
             ) : null}
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <EventFormLookupSelect
               label="Standard onsite"
               value={form.standardOnsite}
@@ -569,7 +547,7 @@ function EventModal({
               inputClassName={inputClass}
             />
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             {!isMediaContent ? (
               <>
                 {!isStudioShow ? (
@@ -1031,24 +1009,25 @@ export default function EventiPage() {
         actions={
           <div className="flex flex-wrap gap-2">
             {canImportMatches ? (
-              <button
+              <PrimaryButton
                 type="button"
+                variant="secondary"
                 onClick={() => setImportModalOpen(true)}
-                className="rounded border border-pitch-accent px-4 py-2 text-sm font-medium text-pitch-accent hover:bg-pitch-accent/10"
+                className="border-pitch-accent text-pitch-accent hover:bg-pitch-accent/10"
               >
                 Import matches
-              </button>
+              </PrimaryButton>
             ) : null}
-            <button
+            <PrimaryButton
               type="button"
+              variant="primary"
               onClick={() => {
                 setEditingEvent(null);
                 setIsCreateModalOpen(true);
               }}
-              className="rounded bg-pitch-accent px-4 py-2 text-sm font-medium text-pitch-bg hover:bg-yellow-200"
             >
               New event
-            </button>
+            </PrimaryButton>
           </div>
         }
       />
@@ -1215,7 +1194,7 @@ export default function EventiPage() {
               type="button"
               disabled={bulkUpdating}
               onClick={() => void handleBulkSetOk()}
-              className="rounded bg-pitch-accent px-3 py-1.5 text-sm font-medium text-pitch-bg hover:bg-yellow-200 disabled:opacity-50"
+              className="min-h-[40px] rounded bg-pitch-accent px-3 py-2 text-sm font-medium text-pitch-bg hover:bg-yellow-200 disabled:opacity-50"
             >
               {bulkUpdating ? "Updating..." : "Imposta Standard OK"}
             </button>
@@ -1223,7 +1202,7 @@ export default function EventiPage() {
               type="button"
               disabled={bulkDeleting}
               onClick={handleOpenBulkDeleteModal}
-              className="rounded border border-red-700 px-3 py-1.5 text-sm font-medium text-red-300 hover:bg-red-900/30 disabled:opacity-50"
+              className="min-h-[40px] rounded border border-red-700 px-3 py-2 text-sm font-medium text-red-300 hover:bg-red-900/30 disabled:opacity-50"
             >
               Elimina selezionati
             </button>
@@ -1240,7 +1219,7 @@ export default function EventiPage() {
             type="button"
             disabled={page <= 0 || isLoading}
             onClick={() => setPage((p) => Math.max(0, p - 1))}
-            className="rounded border border-pitch-gray-dark px-3 py-1.5 text-pitch-white hover:bg-pitch-gray-dark disabled:opacity-40"
+            className="min-h-[40px] rounded border border-pitch-gray-dark px-3 py-2 text-pitch-white hover:bg-pitch-gray-dark disabled:opacity-40"
           >
             Previous
           </button>
@@ -1250,23 +1229,24 @@ export default function EventiPage() {
               isLoading || (page + 1) * PAGE_SIZE >= total
             }
             onClick={() => setPage((p) => p + 1)}
-            className="rounded border border-pitch-gray-dark px-3 py-1.5 text-pitch-white hover:bg-pitch-gray-dark disabled:opacity-40"
+            className="min-h-[40px] rounded border border-pitch-gray-dark px-3 py-2 text-pitch-white hover:bg-pitch-gray-dark disabled:opacity-40"
           >
             Next
           </button>
         </div>
       )}
-      <div className="mt-6 overflow-x-auto">
+      <div className="mt-6">
         {isLoading ? (
-          <div className="rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-8 text-center text-pitch-gray">
-            Loading...
+          <div className="rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30">
+            <PageLoading />
           </div>
         ) : filteredEvents.length === 0 ? (
-          <div className="rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-8 text-center text-pitch-gray">
-            No events
+          <div className="rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30">
+            <EmptyState message="Nessun evento trovato" icon="calendar" />
           </div>
         ) : (
-          <table className="w-full min-w-[1080px] border-collapse">
+          <ResponsiveTable minWidth="1260px">
+          <table className="w-full border-collapse">
             <thead>
               <tr className="border-b border-pitch-gray-dark">
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
@@ -1444,13 +1424,13 @@ export default function EventiPage() {
                       {event.showName ?? "—"}
                     </td>
                     <td className="px-4 py-3">
-                      {renderEventStatus(event.status)}
+                      {eventStatusBadgeEl(event.status)}
                     </td>
                     <td
                       className="px-4 py-3"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      {renderAssignmentsStatusBadge(event.assignmentsStatus)}
+                      {assignmentsStatusBadgeEl(event.assignmentsStatus)}
                     </td>
                   </tr>
                 );
@@ -1459,6 +1439,7 @@ export default function EventiPage() {
               })()}
             </tbody>
           </table>
+          </ResponsiveTable>
         )}
       </div>
 

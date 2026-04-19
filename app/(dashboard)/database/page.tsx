@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { PageHeader } from "@/components/PageHeader";
 import { SearchBar } from "@/components/SearchBar";
@@ -6,6 +7,7 @@ import {
   fetchStaff,
 } from "@/lib/api";
 import { fetchStandardCombos } from "@/lib/api/standardCombos";
+import PageLoading from "@/components/ui/PageLoading";
 import { DatabaseSections } from "./DatabaseSections";
 
 export const dynamic = "force-dynamic";
@@ -41,13 +43,15 @@ export default async function DatabasePage() {
       </div>
 
       <div className="mt-8">
-        <DatabaseSections
-          staff={staff}
-          staffTotal={staffData.total ?? 0}
-          roles={roles}
-          standardCombos={combos}
-          roleMap={roleMap}
-        />
+        <Suspense fallback={<PageLoading />}>
+          <DatabaseSections
+            staff={staff}
+            staffTotal={staffData.total ?? 0}
+            roles={roles}
+            standardCombos={combos}
+            roleMap={roleMap}
+          />
+        </Suspense>
       </div>
     </>
   );

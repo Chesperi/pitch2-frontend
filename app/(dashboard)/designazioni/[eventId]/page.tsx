@@ -39,6 +39,8 @@ import { fetchRoles } from "@/lib/api/roles";
 import { fetchStaff } from "@/lib/api/staff";
 import type { Role } from "@/lib/api/roles";
 import type { StaffItem } from "@/lib/api/staff";
+import StatusBadge from "@/components/ui/StatusBadge";
+import PageLoading from "@/components/ui/PageLoading";
 
 function assignmentRoleForApi(a: AssignmentWithJoins): {
   roleCode: string;
@@ -71,23 +73,11 @@ function renderAssignmentsStatusBadge(
 ): React.ReactNode {
   switch (status) {
     case "DRAFT":
-      return (
-        <span className="rounded-full bg-pitch-gray-dark px-2 py-0.5 text-xs text-pitch-gray-light">
-          Draft
-        </span>
-      );
+      return <StatusBadge variant="draft" label="Draft" />;
     case "READY_TO_SEND":
-      return (
-        <span className="rounded-full bg-yellow-900/50 px-2 py-0.5 text-xs text-yellow-300">
-          Ready to send
-        </span>
-      );
+      return <StatusBadge variant="pending" label="Ready to send" />;
     case "SENT":
-      return (
-        <span className="rounded-full bg-green-900/50 px-2 py-0.5 text-xs text-green-300">
-          Sent
-        </span>
-      );
+      return <StatusBadge variant="accepted" label="Sent" />;
     default:
       return (
         <span className="rounded-full bg-pitch-gray-dark px-2 py-0.5 text-xs text-pitch-gray-light">
@@ -185,9 +175,9 @@ const ASSIGNMENT_STATUS_INFO = {
 } satisfies Record<AssignmentStatus, { label: string; description: string }>;
 
 const btnSmallYellow =
-  "rounded bg-pitch-accent px-2 py-1 text-xs font-medium text-pitch-bg hover:bg-yellow-200 disabled:opacity-50";
+  "inline-flex min-h-[44px] items-center rounded bg-pitch-accent px-3 py-2 text-xs font-medium text-pitch-bg hover:bg-yellow-200 disabled:opacity-50";
 const btnSmallGrey =
-  "rounded border border-pitch-gray px-2 py-1 text-xs text-pitch-gray hover:bg-pitch-gray-dark disabled:opacity-50";
+  "inline-flex min-h-[44px] items-center rounded border border-pitch-gray px-3 py-2 text-xs text-pitch-gray hover:bg-pitch-gray-dark disabled:opacity-50";
 
 type RoleSummary = {
   roleKey: string;
@@ -1055,7 +1045,7 @@ export default function DesignazioniEventPage() {
           <button
             type="button"
             onClick={() => void handleDeleteSlot(a.id)}
-            className="rounded border border-red-700/70 px-2 py-1 text-xs font-semibold text-red-300 hover:bg-red-950/40"
+            className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded border border-red-700/70 px-2 py-1 text-xs font-semibold text-red-300 hover:bg-red-950/40"
             title="Elimina slot"
             aria-label="Elimina slot"
           >
@@ -1070,8 +1060,8 @@ export default function DesignazioniEventPage() {
     return (
       <>
         <PageHeader title="Event assignments" />
-        <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-8 text-center text-pitch-gray">
-          Loading...
+        <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30">
+          <PageLoading />
         </div>
       </>
     );
@@ -1264,7 +1254,7 @@ export default function DesignazioniEventPage() {
               type="button"
               onClick={handleReadySelected}
               disabled={!hasAnyReady}
-              className="rounded bg-pitch-accent px-3 py-1 text-xs font-semibold text-pitch-bg hover:bg-yellow-200 disabled:cursor-not-allowed disabled:bg-pitch-gray-dark disabled:text-pitch-gray"
+              className="inline-flex min-h-[44px] items-center rounded bg-pitch-accent px-3 py-2 text-xs font-semibold text-pitch-bg hover:bg-yellow-200 disabled:cursor-not-allowed disabled:bg-pitch-gray-dark disabled:text-pitch-gray"
             >
               Ready selected
             </button>
@@ -1272,7 +1262,7 @@ export default function DesignazioniEventPage() {
               type="button"
               onClick={handleReadyToSendEvent}
               disabled={assignments.every((a) => (a.staffId ?? a.staff_id) == null)}
-              className="rounded bg-yellow-700 px-3 py-1 text-xs font-semibold text-white hover:bg-yellow-600 disabled:cursor-not-allowed disabled:bg-pitch-gray-dark disabled:text-pitch-gray"
+              className="inline-flex min-h-[44px] items-center rounded bg-yellow-700 px-3 py-2 text-xs font-semibold text-white hover:bg-yellow-600 disabled:cursor-not-allowed disabled:bg-pitch-gray-dark disabled:text-pitch-gray"
             >
               Ready to Send (event)
             </button>
@@ -1284,7 +1274,7 @@ export default function DesignazioniEventPage() {
                 !event.standardCologno ||
                 isGeneratingFromStandard
               }
-              className="rounded border border-pitch-gray px-3 py-1 text-xs text-pitch-gray-light hover:bg-pitch-gray-dark disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex min-h-[44px] items-center rounded border border-pitch-gray px-3 py-2 text-xs text-pitch-gray-light hover:bg-pitch-gray-dark disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isGeneratingFromStandard ? "Regenerating..." : "Regenerate from standard"}
             </button>
@@ -1361,7 +1351,7 @@ export default function DesignazioniEventPage() {
           </span>
         </button>
         {legendOpen ? (
-          <div className="mt-3 grid gap-2 md:grid-cols-2">
+          <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
             <div className="rounded-md border border-pitch-gray-dark bg-pitch-gray-dark/20 p-2 text-xs">
               <div className="mb-1.5 font-semibold text-pitch-gray-light">
                 Assignment status (event)

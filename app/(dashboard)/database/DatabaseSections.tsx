@@ -43,6 +43,7 @@ import {
   DB_TD,
   DB_TD_EMPTY,
 } from "./dbSectionStyles";
+import ResponsiveTable from "@/components/ui/ResponsiveTable";
 
 /** Usate quando si ripristinano POST/PATCH su staff/ruoli (evita import “unused”). */
 const _databaseApiReadRef = {
@@ -865,13 +866,13 @@ export function DatabaseSections({
             New staff
           </button>
         </div>
-        <div className="overflow-x-auto">
+        <ResponsiveTable minWidth="1680px">
           {staff.length === 0 ? (
             <div className="rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-6 text-pitch-gray">
               No staff
             </div>
           ) : (
-            <table className="w-full min-w-[1680px] border-collapse">
+            <table className="w-full border-collapse">
               <thead>
                 <tr className="border-b border-[#2a2a2a]">
                   <th className={DB_TH}>Last name</th>
@@ -1095,7 +1096,7 @@ export function DatabaseSections({
               </tbody>
             </table>
           )}
-        </div>
+        </ResponsiveTable>
         {staff.length < staffTotal && (
           <div className="mt-4 flex justify-center">
             <button
@@ -1150,13 +1151,13 @@ export function DatabaseSections({
             New role
           </button>
         </div>
-        <div className="overflow-x-auto">
+        <ResponsiveTable minWidth="900px">
           {roles.length === 0 ? (
             <div className="rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-6 text-pitch-gray">
               No roles
             </div>
           ) : (
-            <table className="w-full min-w-[520px] border-collapse">
+            <table className="w-full border-collapse">
               <thead>
                 <tr className="border-b border-[#2a2a2a]">
                   <th className={DB_TH}>Code</th>
@@ -1195,7 +1196,7 @@ export function DatabaseSections({
               </tbody>
             </table>
           )}
-        </div>
+        </ResponsiveTable>
       </CollapsibleSection>
 
       {isRoleModalOpen ? (
@@ -1374,8 +1375,8 @@ export function DatabaseSections({
               No standard packages
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[860px] border-collapse text-sm">
+            <ResponsiveTable minWidth="1200px">
+              <table className="w-full border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-[#2a2a2a]">
                     <th className={DB_TH}>ID</th>
@@ -1454,8 +1455,8 @@ export function DatabaseSections({
                         <div className="mb-2 text-xs text-pitch-gray">
                           Requirement rows linked to this package
                         </div>
-                        <div className="overflow-x-auto">
-                          <table className="w-full min-w-[520px] border-collapse text-sm">
+                        <ResponsiveTable minWidth="800px">
+                          <table className="w-full border-collapse text-sm">
                             <thead>
                               <tr className="border-b border-[#2a2a2a]">
                                 <th className={DB_TH}>role_code</th>
@@ -1492,7 +1493,7 @@ export function DatabaseSections({
                               )}
                             </tbody>
                           </table>
-                        </div>
+                        </ResponsiveTable>
                           </div>
                         </td>
                       </tr>
@@ -1502,7 +1503,7 @@ export function DatabaseSections({
               })}
                 </tbody>
               </table>
-            </div>
+            </ResponsiveTable>
           )}
         </div>
       </CollapsibleSection>
@@ -1534,8 +1535,8 @@ export function DatabaseSections({
           <p className="mb-3 text-xs text-red-300">{accreditationAreasError}</p>
         ) : null}
 
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[520px] border-collapse text-sm">
+        <ResponsiveTable minWidth="720px">
+          <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="border-b border-[#2a2a2a]">
                 <th className={DB_TH}>Ruolo</th>
@@ -1660,10 +1661,10 @@ export function DatabaseSections({
               )}
             </tbody>
           </table>
-        </div>
+        </ResponsiveTable>
 
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[520px] border-collapse text-sm">
+        <ResponsiveTable minWidth="640px">
+          <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="border-b border-[#2a2a2a]">
                 <th className={DB_TH}>Area code</th>
@@ -1696,7 +1697,7 @@ export function DatabaseSections({
               )}
             </tbody>
           </table>
-        </div>
+        </ResponsiveTable>
       </CollapsibleSection>
 
       <LookupValuesSection />
@@ -1893,11 +1894,11 @@ export function DatabaseSections({
                     Add role
                   </button>
                 </div>
-                <div
-                  className="overflow-x-auto rounded-lg border"
-                  style={{ borderColor: "#2a2a2a" }}
+                <ResponsiveTable
+                  className="rounded-lg border border-[#2a2a2a]"
+                  minWidth="1000px"
                 >
-                  <table className="w-full min-w-[600px] border-collapse text-left text-xs">
+                  <table className="w-full border-collapse text-left text-xs">
                     <thead>
                       <tr className="border-b border-[#2a2a2a]">
                         <th className={DB_TH}>Role</th>
@@ -2049,7 +2050,7 @@ export function DatabaseSections({
                       ))}
                     </tbody>
                   </table>
-                </div>
+                </ResponsiveTable>
               </div>
 
               <div className="flex justify-end gap-2 pt-2">

@@ -16,6 +16,10 @@ import {
   sendDesignazioniForPeriod,
   type AssignmentWithJoins,
 } from "@/lib/api/assignments";
+import StatusBadge from "@/components/ui/StatusBadge";
+import ResponsiveTable from "@/components/ui/ResponsiveTable";
+import PageLoading from "@/components/ui/PageLoading";
+import EmptyState from "@/components/ui/EmptyState";
 
 function formatKoItaly(koItaly: string | null): string {
   if (!koItaly) return "—";
@@ -38,23 +42,11 @@ function renderAssignmentsStatusBadge(
 ): React.ReactNode {
   switch (status) {
     case "DRAFT":
-      return (
-        <span className="rounded-full bg-pitch-gray-dark px-2 py-0.5 text-xs text-pitch-gray-light">
-          Draft
-        </span>
-      );
+      return <StatusBadge variant="draft" label="Draft" />;
     case "READY_TO_SEND":
-      return (
-        <span className="rounded-full bg-yellow-900/50 px-2 py-0.5 text-xs text-yellow-300">
-          Ready
-        </span>
-      );
+      return <StatusBadge variant="pending" label="Ready" />;
     case "SENT":
-      return (
-        <span className="rounded-full bg-green-900/50 px-2 py-0.5 text-xs text-green-300">
-          Sent
-        </span>
-      );
+      return <StatusBadge variant="accepted" label="Sent" />;
     default:
       return (
         <span className="rounded-full bg-pitch-gray-dark px-2 py-0.5 text-xs text-pitch-gray-light">
@@ -278,8 +270,8 @@ export default function DesignazioniPage() {
     return (
       <>
         <PageHeader title="Assignments" />
-        <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-8 text-center text-pitch-gray">
-          Loading...
+        <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30">
+          <PageLoading />
         </div>
       </>
     );
@@ -306,7 +298,7 @@ export default function DesignazioniPage() {
         the detail to manage staffing and sends.
       </p>
 
-      <div className="mt-4 flex flex-wrap items-end gap-4">
+      <div className="mt-4 flex flex-wrap items-end gap-2">
         <div>
           <label className="mb-1 block text-xs text-pitch-gray">View</label>
           <div className="flex rounded-lg border border-pitch-gray-dark p-0.5">
@@ -363,17 +355,24 @@ export default function DesignazioniPage() {
         />
       </div>
 
-      <div className="mt-6 overflow-x-auto">
+      <div className="mt-6">
         {filteredItems.length === 0 ? (
-          <div className="rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-12 text-center text-pitch-gray">
-            {items.length === 0
-              ? listScope === "designable"
-                ? "No assignable events for the selected filters."
-                : "No events for the selected filters."
-              : "No results for your search."}
+          <div className="rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30">
+            {items.length === 0 && !search.trim() ? (
+              <EmptyState
+                message="Seleziona un periodo per visualizzare le designazioni"
+                icon="calendar"
+              />
+            ) : (
+              <EmptyState
+                message="Nessuna designazione trovata per i filtri selezionati"
+                icon="search"
+              />
+            )}
           </div>
         ) : (
-          <table className="w-full min-w-[860px] border-collapse">
+          <ResponsiveTable minWidth="860px">
+          <table className="w-full border-collapse">
             <thead>
               <tr className="border-b border-pitch-gray-dark">
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
@@ -423,7 +422,7 @@ export default function DesignazioniPage() {
                   <td className="px-4 py-3">
                     <Link
                       href={`/designazioni/${event.id}`}
-                      className="inline-flex rounded bg-pitch-accent px-3 py-1.5 text-sm font-medium text-pitch-bg hover:bg-yellow-200"
+                      className="inline-flex min-h-[44px] items-center rounded bg-pitch-accent px-4 py-2 text-sm font-medium text-pitch-bg hover:bg-yellow-200"
                     >
                       Manage
                     </Link>
@@ -432,6 +431,7 @@ export default function DesignazioniPage() {
               ))}
             </tbody>
           </table>
+          </ResponsiveTable>
         )}
       </div>
 
@@ -481,15 +481,18 @@ export default function DesignazioniPage() {
           </button>
         </div>
 
-        <div className="overflow-x-auto rounded-lg border border-pitch-gray-dark">
+        <ResponsiveTable
+          className="rounded-lg border border-pitch-gray-dark"
+          minWidth="640px"
+        >
           {staffGroups.length === 0 ? (
             <div className="p-6 text-center text-pitch-gray">
               {startDate && endDate
-                ? "No assignments in the selected period"
-                : "Select a period and click Filter period"}
+                ? "Nessuna assegnazione nel periodo selezionato"
+                : "Seleziona un periodo e clicca Filtra periodo"}
             </div>
           ) : (
-            <table className="w-full min-w-[640px] border-collapse text-xs">
+            <table className="w-full border-collapse text-xs">
               <thead>
                 <tr className="border-b border-pitch-gray-dark text-left text-pitch-gray">
                   <th className="px-4 py-2">Person</th>
@@ -614,7 +617,7 @@ export default function DesignazioniPage() {
               </tbody>
             </table>
           )}
-        </div>
+        </ResponsiveTable>
       </section>
     </>
   );

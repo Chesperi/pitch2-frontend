@@ -7,6 +7,7 @@ import {
   assignmentsHomeForUserLevel,
   loginAndSync,
 } from "@/lib/auth/pitch2Session";
+import PrimaryButton from "@/components/ui/PrimaryButton";
 
 function EyeIcon({ className }: { className?: string }) {
   return (
@@ -101,7 +102,7 @@ function LoginContent() {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-pitch-bg px-4">
-      <div className="w-full max-w-md rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-6 shadow-lg">
+      <div className="mx-auto w-full max-w-sm rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-6 shadow-lg">
         <div className="mb-6 text-center">
           <div className="text-2xl font-bold text-pitch-accent">PITCH</div>
           <p className="mt-2 text-sm text-pitch-gray">Accedi con email e password</p>
@@ -178,13 +179,15 @@ function LoginContent() {
 
           {error ? <p className="text-sm text-red-400">{error}</p> : null}
 
-          <button
+          <PrimaryButton
             type="submit"
+            variant="primary"
+            loading={loading}
             disabled={loading}
-            className="w-full rounded bg-pitch-accent px-4 py-2 text-sm font-medium text-pitch-bg hover:bg-yellow-200 disabled:opacity-60"
+            className="min-h-[48px] w-full px-4 py-3"
           >
             {loading ? "Accesso in corso…" : "Accedi"}
-          </button>
+          </PrimaryButton>
         </form>
 
         <p className="mt-4 text-center text-xs text-pitch-gray">

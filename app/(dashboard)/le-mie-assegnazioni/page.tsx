@@ -14,6 +14,12 @@ import {
 } from "@/lib/api/myAssignmentsStaff";
 import { fetchAuthMe } from "@/lib/api/freelanceAssignments";
 import { canSeeFinance } from "@/lib/auth/financeAccess";
+import StatusBadge, {
+  type StatusBadgeVariant,
+} from "@/components/ui/StatusBadge";
+import ResponsiveTable from "@/components/ui/ResponsiveTable";
+import PageLoading from "@/components/ui/PageLoading";
+import EmptyState from "@/components/ui/EmptyState";
 
 function formatKoItaly(koItaly: string | null): string {
   if (!koItaly) return "—";
@@ -31,26 +37,17 @@ function formatKoItaly(koItaly: string | null): string {
   }
 }
 
-function renderStatusBadge(status: string): React.ReactNode {
+function assignmentStatusBadgeProps(status: string): {
+  variant: StatusBadgeVariant;
+  label: string;
+} {
   switch (status) {
     case "CONFIRMED":
-      return (
-        <span className="rounded-full bg-green-900/50 px-2 py-0.5 text-xs text-green-300">
-          Confirmed
-        </span>
-      );
+      return { variant: "accepted", label: "Confirmed" };
     case "REJECTED":
-      return (
-        <span className="rounded-full bg-red-900/50 px-2 py-0.5 text-xs text-red-300">
-          Declined
-        </span>
-      );
+      return { variant: "declined", label: "Declined" };
     default:
-      return (
-        <span className="rounded-full bg-yellow-900/50 px-2 py-0.5 text-xs text-yellow-300">
-          To confirm
-        </span>
-      );
+      return { variant: "pending", label: "To confirm" };
   }
 }
 
@@ -234,8 +231,8 @@ export default function LeMieAssegnazioniPage() {
         <div className="mt-4">
           <SearchBar placeholder="Search assignments..." />
         </div>
-        <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-8 text-center text-pitch-gray">
-          Loading...
+        <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30">
+          <PageLoading />
         </div>
       </>
     );
@@ -289,15 +286,21 @@ export default function LeMieAssegnazioniPage() {
         </div>
       )}
 
-      <div className="mt-6 overflow-x-auto">
+      <div className="mt-6">
         {filteredItems.length === 0 ? (
-          <div className="rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-12 text-center text-pitch-gray">
-            {items.length === 0
-              ? "No assignments for this period yet."
-              : "No results for your search."}
+          <div className="rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30">
+            <EmptyState
+              message={
+                items.length === 0
+                  ? "Nessuna assegnazione trovata"
+                  : "Nessun risultato per la ricerca."
+              }
+              icon={items.length === 0 ? "calendar" : "search"}
+            />
           </div>
         ) : (
-          <table className="w-full min-w-[900px] border-collapse">
+          <ResponsiveTable minWidth="900px">
+          <table className="w-full border-collapse">
             <thead>
               <tr className="border-b border-pitch-gray-dark">
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
@@ -378,7 +381,9 @@ export default function LeMieAssegnazioniPage() {
                       </td>
                     ) : null}
                     <td className="px-4 py-3">
-                      {renderStatusBadge(assignment.status)}
+                      <StatusBadge
+                        {...assignmentStatusBadgeProps(assignment.status)}
+                      />
                     </td>
                     <td className="px-4 py-3">
                       {!canHaveCarPass ? (
@@ -420,7 +425,7 @@ export default function LeMieAssegnazioniPage() {
                             type="button"
                             onClick={() => handleConfirm(row)}
                             disabled={isActioning}
-                            className="rounded bg-pitch-accent px-3 py-1 text-sm font-medium text-pitch-bg hover:bg-yellow-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="min-h-[44px] rounded bg-pitch-accent px-4 py-2 text-sm font-medium text-pitch-bg hover:bg-yellow-200 disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             {isActioning ? "..." : "Confirm"}
                           </button>
@@ -428,7 +433,7 @@ export default function LeMieAssegnazioniPage() {
                             type="button"
                             onClick={() => handleReject(row)}
                             disabled={isActioning}
-                            className="rounded border border-red-500/50 bg-transparent px-3 py-1 text-sm font-medium text-red-400 hover:bg-red-900/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="min-h-[44px] rounded border border-red-500/50 bg-transparent px-4 py-2 text-sm font-medium text-red-400 hover:bg-red-900/30 disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             Decline
                           </button>
@@ -440,6 +445,7 @@ export default function LeMieAssegnazioniPage() {
               })}
             </tbody>
           </table>
+          </ResponsiveTable>
         )}
       </div>
     </>

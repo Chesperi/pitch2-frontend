@@ -8,6 +8,9 @@ import { canSeeFinance } from "@/lib/auth/financeAccess";
 import MultiSelectFilter, {
   type MultiSelectOption,
 } from "@/components/MultiSelectFilter";
+import ResponsiveTable from "@/components/ui/ResponsiveTable";
+import PageLoading from "@/components/ui/PageLoading";
+import EmptyState from "@/components/ui/EmptyState";
 
 type ConsuntivoRow = {
   eventId: string;
@@ -466,7 +469,7 @@ export default function ConsuntivoPage() {
       <PageHeader title="Scorecard" />
 
       <div className="mt-4 space-y-4 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/10 p-4">
-        <div className="flex flex-wrap items-end gap-4">
+        <div className="flex flex-wrap items-end gap-2">
           <div>
             <label className="mb-1 block text-xs text-pitch-gray">From</label>
             <input
@@ -537,7 +540,7 @@ export default function ConsuntivoPage() {
           />
         </div>
 
-        <div className="flex flex-wrap items-end gap-4 border-t border-pitch-gray-dark/50 pt-4">
+        <div className="flex flex-wrap items-end gap-2 border-t border-pitch-gray-dark/50 pt-4">
           <button
             type="button"
             className={BTN_PRIMARY}
@@ -562,7 +565,9 @@ export default function ConsuntivoPage() {
       ) : null}
 
       {loading ? (
-        <p className="mt-4 text-sm text-pitch-gray">Loading…</p>
+        <div className="mt-4 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30">
+          <PageLoading />
+        </div>
       ) : null}
 
       <div className="mt-4 flex flex-wrap gap-6 text-sm text-pitch-gray-light">
@@ -580,14 +585,17 @@ export default function ConsuntivoPage() {
       </div>
 
       {!loading && !error && filteredItems.length === 0 ? (
-        <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-6 text-center text-sm text-pitch-gray">
-          No rows for the selected filters.
+        <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30">
+          <EmptyState message="Nessun dato disponibile" icon="document" />
         </div>
       ) : null}
 
       {!loading && filteredItems.length > 0 ? (
-        <div className="mt-4 overflow-x-auto rounded-lg border border-pitch-gray-dark">
-          <table className="w-full min-w-[1000px] border-collapse text-sm">
+        <ResponsiveTable
+          className="mt-4 rounded-lg border border-pitch-gray-dark"
+          minWidth="1000px"
+        >
+          <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="border-b border-pitch-gray-dark bg-pitch-gray-dark/30">
                 <th className="px-4 py-3 text-left font-medium text-pitch-gray">
@@ -665,7 +673,7 @@ export default function ConsuntivoPage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </ResponsiveTable>
       ) : null}
     </>
   );

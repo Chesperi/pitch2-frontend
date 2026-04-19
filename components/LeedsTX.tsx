@@ -9,6 +9,8 @@ import {
 } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { fetchAuthMe } from "@/lib/api/freelanceAssignments";
+import ResponsiveTable from "@/components/ui/ResponsiveTable";
+import PageLoading from "@/components/ui/PageLoading";
 import {
   createProductionContactLeeds,
   deleteProductionContactLeeds,
@@ -36,7 +38,7 @@ const thClass =
 const tdClass = "px-4 py-3 text-sm text-pitch-gray-light whitespace-nowrap";
 
 const btnIconClass =
-  "inline-flex rounded p-1.5 text-pitch-gray-light hover:bg-pitch-gray-dark hover:text-pitch-accent disabled:opacity-40";
+  "inline-flex min-h-[36px] min-w-[36px] items-center justify-center rounded p-2 text-pitch-gray-light hover:bg-pitch-gray-dark hover:text-pitch-accent disabled:opacity-40";
 
 function emptyPayload(): ProductionContactLeedsPayload {
   return {
@@ -332,17 +334,17 @@ export default function LeedsTX() {
         </p>
       ) : null}
 
-      <div className="mt-6 overflow-x-auto">
+      <ResponsiveTable minWidth="2200px">
         {loading ? (
-          <div className="rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-8 text-center text-pitch-gray">
-            Caricamento…
+          <div className="rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30">
+            <PageLoading />
           </div>
         ) : items.length === 0 ? (
           <div className="rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-8 text-center text-pitch-gray">
             Nessun contatto. Usa &quot;Aggiungi&quot; per crearne uno.
           </div>
         ) : (
-          <table className="w-full min-w-[2200px] border-collapse">
+          <table className="w-full border-collapse">
             <thead>
               <tr className="border-b border-pitch-gray-dark">
                 <th className={thClass}>Competition</th>
@@ -445,7 +447,7 @@ export default function LeedsTX() {
             </tbody>
           </table>
         )}
-      </div>
+      </ResponsiveTable>
 
       {modalOpen ? (
         <div

@@ -1,15 +1,14 @@
 import { PageHeader } from "@/components/PageHeader";
-import { SearchBar } from "@/components/SearchBar";
 
 export default function CallSheetPage() {
   return (
     <>
       <PageHeader title="Call sheet" />
-      <div className="mt-4">
-        <SearchBar placeholder="Cerca call sheet..." />
-      </div>
-      <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-6 text-pitch-gray">
-        Qui verrà la lista call sheet
+      <div className="flex flex-col items-center justify-center py-24 text-center gap-4">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-pitch-gray-light" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+        <p className="text-pitch-gray-light text-sm">Call sheet in arrivo nella prossima fase</p>
       </div>
     </>
   );

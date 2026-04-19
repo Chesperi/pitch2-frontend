@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { apiFetch } from "@/lib/api/apiFetch";
+import ResponsiveTable from "@/components/ui/ResponsiveTable";
+import PageLoading from "@/components/ui/PageLoading";
+import EmptyState from "@/components/ui/EmptyState";
 
 type AuditLogItem = {
   id: number;
@@ -307,7 +310,7 @@ export default function CronologiaPage() {
     <>
       <PageHeader title="History" />
 
-      <div className="mt-4 flex flex-wrap items-end gap-4">
+      <div className="mt-4 flex flex-wrap items-end gap-2">
         <div>
           <label
             htmlFor="cronologia-entity-type"
@@ -344,18 +347,23 @@ export default function CronologiaPage() {
       ) : null}
 
       {loading ? (
-        <p className="mt-6 text-sm text-pitch-gray">Loading…</p>
+        <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30">
+          <PageLoading />
+        </div>
       ) : null}
 
       {!loading && !error && items.length === 0 ? (
-        <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-6 text-center text-sm text-pitch-gray">
-          No history entries.
+        <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30">
+          <EmptyState message="Nessuna attività registrata" icon="list" />
         </div>
       ) : null}
 
       {!loading && !error && items.length > 0 ? (
-        <div className="mt-6 overflow-x-auto rounded-lg border border-pitch-gray-dark">
-          <table className="w-full min-w-[1280px] border-collapse text-sm">
+        <ResponsiveTable
+          className="mt-6 rounded-lg border border-pitch-gray-dark"
+          minWidth="1280px"
+        >
+          <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="border-b border-pitch-gray-dark bg-pitch-gray-dark/30">
                 <th className="px-4 py-3 text-left font-medium text-pitch-gray">
@@ -419,7 +427,7 @@ export default function CronologiaPage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </ResponsiveTable>
       ) : null}
     </>
   );

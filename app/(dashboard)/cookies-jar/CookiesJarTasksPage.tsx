@@ -22,6 +22,10 @@ import {
 import { apiFetch } from "@/lib/api/apiFetch";
 import { usePagePermissions } from "@/hooks/usePagePermissions";
 import { fetchStaff, type StaffItem } from "@/lib/api/staff";
+import ResponsiveTable from "@/components/ui/ResponsiveTable";
+import PrimaryButton from "@/components/ui/PrimaryButton";
+import PageLoading from "@/components/ui/PageLoading";
+import EmptyState from "@/components/ui/EmptyState";
 
 function staffFullName(s: StaffItem): string {
   return `${s.surname} ${s.name}`.trim();
@@ -39,7 +43,7 @@ type TaskFormValues = {
 };
 
 const PRIMARY_BTN_SM =
-  "rounded bg-pitch-accent px-3 py-1.5 text-xs font-semibold text-pitch-bg hover:bg-yellow-200 disabled:cursor-not-allowed disabled:opacity-50";
+  "min-h-[44px] rounded bg-pitch-accent px-4 py-2 text-xs font-semibold text-pitch-bg hover:bg-yellow-200 disabled:cursor-not-allowed disabled:opacity-50";
 
 const FILTER_SELECT_CLASS =
   "rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none";
@@ -643,14 +647,16 @@ export function CookiesJarTasksPage({
       ) : null}
 
       {loading ? (
-        <p className="text-sm text-pitch-gray">Loading…</p>
+        <div className="rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30">
+          <PageLoading />
+        </div>
       ) : null}
 
       {canEditCookiesJar ? (
         <div className="mb-3 flex justify-end">
-          <button
+          <PrimaryButton
             type="button"
-            className={PRIMARY_BTN_SM}
+            variant="primary"
             onClick={() => {
               setEditingTask(null);
               setFormError(null);
@@ -669,12 +675,15 @@ export function CookiesJarTasksPage({
             }}
           >
             New task
-          </button>
+          </PrimaryButton>
         </div>
       ) : null}
 
-      <div className="overflow-x-auto rounded-lg border border-pitch-gray-dark">
-        <table className="w-full min-w-[960px] border-collapse">
+      <ResponsiveTable
+        className="rounded-lg border border-pitch-gray-dark"
+        minWidth="960px"
+      >
+        <table className="w-full border-collapse">
           <thead>
             <tr className="border-b border-pitch-gray-dark bg-pitch-gray-dark/30">
               <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
@@ -706,11 +715,8 @@ export function CookiesJarTasksPage({
           <tbody>
             {sortedTasks.length === 0 ? (
               <tr>
-                <td
-                  colSpan={8}
-                  className="px-4 py-8 text-center text-sm text-pitch-gray"
-                >
-                  No tasks for the selected filters.
+                <td colSpan={8} className="p-0 align-top">
+                  <EmptyState message="Nessun task presente" icon="list" />
                 </td>
               </tr>
             ) : (
@@ -786,7 +792,7 @@ export function CookiesJarTasksPage({
             )}
           </tbody>
         </table>
-      </div>
+      </ResponsiveTable>
 
       {isModalOpen ? (
         <div
@@ -1081,9 +1087,9 @@ export function CookiesJarTasksPage({
           />
         </div>
         <div className="ml-auto flex items-end">
-          <button
+          <PrimaryButton
             type="button"
-            className={PRIMARY_BTN_SM}
+            variant="primary"
             onClick={() => {
               setEditingDoc(null);
               setDocFormError(null);
@@ -1100,7 +1106,7 @@ export function CookiesJarTasksPage({
             }}
           >
             New document
-          </button>
+          </PrimaryButton>
         </div>
       </div>
 
@@ -1110,10 +1116,15 @@ export function CookiesJarTasksPage({
         </p>
       ) : null}
       {docsLoading ? (
-        <p className="text-xs text-pitch-gray">Loading documents…</p>
+        <div className="rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30">
+          <PageLoading label="Caricamento documenti…" />
+        </div>
       ) : null}
 
-      <div className="overflow-x-auto rounded-lg border border-pitch-gray-dark">
+      <ResponsiveTable
+        className="rounded-lg border border-pitch-gray-dark"
+        minWidth="960px"
+      >
         <table className="min-w-full divide-y divide-pitch-gray-dark text-xs">
           <thead>
             <tr className="bg-pitch-gray-dark/30">
@@ -1150,7 +1161,7 @@ export function CookiesJarTasksPage({
                   colSpan={8}
                   className="px-3 py-6 text-center text-pitch-gray"
                 >
-                  No documents for the selected filters.
+                  Nessun documento per i filtri selezionati.
                 </td>
               </tr>
             ) : (
@@ -1208,7 +1219,7 @@ export function CookiesJarTasksPage({
             )}
           </tbody>
         </table>
-      </div>
+      </ResponsiveTable>
 
       {isDocModalOpen ? (
         <div
@@ -1304,7 +1315,7 @@ export function CookiesJarTasksPage({
                   className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label
                     htmlFor="doc-valid-from"

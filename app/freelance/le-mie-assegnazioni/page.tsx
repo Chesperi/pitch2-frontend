@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api/apiFetch";
 import AppNavbar from "@/components/AppNavbar";
+import StatusBadge from "@/components/ui/StatusBadge";
+import PrimaryButton from "@/components/ui/PrimaryButton";
 
 type UserProfile = {
   id: number | null;
@@ -533,57 +535,37 @@ export default function FreelanceLeMieAssegnazioniPage() {
     const label = statusBucketLabel(item);
     if (label === "DA CONFERMARE") {
       return (
-        <span
-          className="rounded-full border px-2 py-1 text-[10px] font-bold"
-          style={{
-            color: "#E24B4A",
-            borderColor: "#E24B4A44",
-            background: "#E24B4A22",
-          }}
-        >
-          DA CONFERMARE
-        </span>
+        <StatusBadge
+          variant="rejected"
+          label="DA CONFERMARE"
+          className="border font-bold uppercase tracking-wide"
+        />
       );
     }
     if (label === "PASSATA") {
       return (
-        <span
-          className="rounded-full border px-2 py-1 text-[10px] font-bold"
-          style={{
-            color: "#888",
-            borderColor: "#444",
-            background: "#222",
-          }}
-        >
-          PASSATA
-        </span>
+        <StatusBadge
+          variant="partial"
+          label="PASSATA"
+          className="font-bold uppercase tracking-wide"
+        />
       );
     }
     if (label === "DECLINATA") {
       return (
-        <span
-          className="rounded-full border px-2 py-1 text-[10px] font-bold"
-          style={{
-            color: "#E24B4A",
-            borderColor: "#E24B4A44",
-            background: "#E24B4A22",
-          }}
-        >
-          DECLINATA
-        </span>
+        <StatusBadge
+          variant="declined"
+          label="DECLINATA"
+          className="border font-bold uppercase tracking-wide"
+        />
       );
     }
     return (
-      <span
-        className="rounded-full border px-2 py-1 text-[10px] font-bold"
-        style={{
-          color: "#639922",
-          borderColor: "#63992244",
-          background: "#63992222",
-        }}
-      >
-        CONFERMATA
-      </span>
+      <StatusBadge
+        variant="accepted"
+        label="CONFERMATA"
+        className="border font-bold uppercase tracking-wide"
+      />
     );
   }
 
@@ -659,12 +641,12 @@ export default function FreelanceLeMieAssegnazioniPage() {
                   void handleConfirm(item.id);
                 }}
                 disabled={confirmingId === item.id}
-                className="inline-flex items-center gap-2"
-                style={{ color: "#FFFA00", fontWeight: 700 }}
+                className="inline-flex min-h-[44px] min-w-[44px] items-center gap-2 rounded px-4 font-bold"
+                style={{ color: "#FFFA00" }}
               >
                 ACCETTA
                 <span
-                  className="inline-flex h-6 w-6 items-center justify-center rounded-full text-xs"
+                  className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-xs"
                   style={{ background: "#FFFA00", color: "#111" }}
                 >
                   ✓
@@ -677,7 +659,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
                   void handleDecline(item.id);
                 }}
                 disabled={confirmingId === item.id}
-                className="text-xs font-bold"
+                className="min-h-[44px] shrink-0 rounded px-4 text-xs font-bold"
                 style={{ color: "#E24B4A" }}
               >
                 DECLINA
@@ -809,15 +791,16 @@ export default function FreelanceLeMieAssegnazioniPage() {
                     <h2 className="text-sm font-bold uppercase text-white">AZIONE RICHIESTA</h2>
                     <div className="flex items-center gap-2">
                       {sections.pendingFuture.length > 1 ? (
-                        <button
+                        <PrimaryButton
                           type="button"
+                          variant="primary"
                           onClick={() => void handleConfirmAll()}
+                          loading={confirmingAll}
                           disabled={confirmingAll}
-                          className="rounded-md px-3 py-1 text-xs font-bold uppercase disabled:cursor-not-allowed disabled:opacity-60"
-                          style={{ background: "#FFFA00", color: "#111" }}
+                          className="text-xs font-bold uppercase"
                         >
-                          {confirmingAll ? "Conferma..." : "Conferma tutte"}
-                        </button>
+                          Conferma tutte
+                        </PrimaryButton>
                       ) : null}
                       <span className="rounded-full px-2 py-1 text-xs font-bold" style={{ background: "#FFFA00", color: "#111" }}>
                         {sections.pendingFuture.length}
@@ -926,7 +909,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-7 gap-1 text-center text-xs uppercase" style={{ color: "#888" }}>
+                <div className="grid grid-cols-7 gap-1 text-center text-xs uppercase sm:text-sm" style={{ color: "#888" }}>
                   {["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"].map((d) => (
                     <div key={d} className="py-1">{d}</div>
                   ))}
@@ -963,7 +946,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
                           color: cell.inCurrentMonth ? "#fff" : "#666",
                         }}
                       >
-                        <div className="text-xs">{cell.day}</div>
+                        <div className="text-xs sm:text-sm">{cell.day}</div>
                         <div className="mt-1 flex gap-1">
                           {dotColor ? (
                             <span className="h-2 w-2 rounded-full" style={{ background: dotColor }} />

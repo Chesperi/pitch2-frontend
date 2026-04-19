@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import SidebarNav from "@/components/SidebarNav";
 import { fetchAuthMe } from "@/lib/api/freelanceAssignments";
 import AppNavbar from "@/components/AppNavbar";
@@ -22,6 +22,30 @@ export default function DashboardLayout({
   const [userName, setUserName] = useState("User");
   const [userEmail, setUserEmail] = useState("Email not available");
   const [userInitials, setUserInitials] = useState("?");
+  const sidebarRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const sidebar = sidebarRef.current;
+      if (!sidebar) return;
+      const rect = sidebar.getBoundingClientRect();
+      const inside =
+        e.clientX >= rect.left &&
+        e.clientX <= rect.right &&
+        e.clientY >= rect.top &&
+        e.clientY <= rect.bottom;
+      if (inside) {
+        setCollapsed(false);
+      } else {
+        setCollapsed(true);
+      }
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => window.removeEventListener("mousemove", handleMouseMove);
+  }, []);
 
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 768px)");
@@ -79,18 +103,12 @@ export default function DashboardLayout({
             />
           ) : null}
           <aside
+            ref={sidebarRef}
             className={`fixed inset-y-0 left-0 z-20 h-screen w-64 overflow-y-auto border-r border-[#2a2a2a] bg-black text-white transition-[width,transform] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] md:translate-x-0 ${
               mobileOpen ? "translate-x-0" : "-translate-x-full"
             } ${collapsed ? "md:w-16" : "md:w-64 md:shadow-xl"}`}
             style={{
               color: "#FFFFFF",
-            }}
-            onMouseEnter={() => setCollapsed(false)}
-            onMouseLeave={(e) => {
-              const related = e.relatedTarget as Node | null;
-              const aside = e.currentTarget;
-              if (related && aside.contains(related)) return;
-              setCollapsed(true);
             }}
           >
             <SidebarNav

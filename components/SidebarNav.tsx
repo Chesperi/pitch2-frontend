@@ -180,11 +180,7 @@ export default function SidebarNav({
   return (
     <nav className="flex flex-col" style={{ background: "#000000" }}>
       <div className="relative flex h-14 shrink-0 items-center border-b border-[#2a2a2a]">
-        <div
-          className={`flex min-h-0 min-w-0 flex-1 items-center px-3 ${
-            collapsed ? "justify-center" : "justify-start"
-          }`}
-        >
+        <div className="flex h-14 w-16 shrink-0 items-center justify-center">
           <FootballFieldSvg />
         </div>
         {onMobileClose ? (

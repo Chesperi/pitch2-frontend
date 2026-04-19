@@ -95,14 +95,6 @@ export default function DashboardLayout({
             onClick={() => setMobileOpen(false)}
             aria-hidden={!mobileOpen}
           />
-          {!collapsed ? (
-            <button
-              type="button"
-              className="fixed inset-y-0 left-16 right-0 z-[25] hidden cursor-default bg-black/10 md:block"
-              aria-label="Chiudi espansione menu laterale"
-              onClick={() => setCollapsed(true)}
-            />
-          ) : null}
           <aside
             ref={sidebarRef}
             className={`fixed inset-y-0 left-0 z-20 h-screen w-64 overflow-y-auto border-r border-[#2a2a2a] bg-black text-white transition-[width,transform] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] md:translate-x-0 ${

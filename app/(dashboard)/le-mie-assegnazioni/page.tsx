@@ -25,15 +25,35 @@ import PageLoading from "@/components/ui/PageLoading";
 import EmptyState from "@/components/ui/EmptyState";
 import PrimaryButton from "@/components/ui/PrimaryButton";
 import type { ShiftType } from "@/lib/api/shifts";
+import { fetchLookupValues } from "@/lib/api/lookupValues";
 import {
   deleteShiftApi,
-  fetchDistinctTeamNames,
   fetchMyShifts,
   fetchShiftsByRange,
   fetchTeamMembers,
   upsertShiftsBulk,
 } from "@/lib/api/shifts";
-import { SHIFT_CHIP_CLASS, SHIFT_TYPES, ShiftChip } from "./shiftUi";
+import { SHIFT_TYPES, ShiftChip } from "./shiftUi";
+
+/** Dark-grid palette for Shifts tab (distinct from global ShiftChip colors). */
+const TURNI_GRID_SHIFT_STYLE: Record<
+  ShiftType,
+  { bg: string; text: string }
+> = {
+  PD: { bg: "#1a2a3a", text: "#60a5fa" },
+  PS: { bg: "#0f1f3a", text: "#3b82f6" },
+  S: { bg: "#1a2e1a", text: "#4ade80" },
+  O: { bg: "#1e1e1e", text: "#6b7280" },
+  RE: { bg: "#1a2e25", text: "#34d399" },
+  F: { bg: "#2e2310", text: "#fbbf24" },
+  R: { bg: "#2e1a2e", text: "#e879f9" },
+  M: { bg: "#2e1a1a", text: "#f87171" },
+  RT: { bg: "#2a1f1a", text: "#fb923c" },
+  T: { bg: "#1e1a2e", text: "#a78bfa" },
+};
+
+/** Monday-first row; letters per mockup (L … D). */
+const TURNI_DOW_LETTERS = ["L", "M", "M", "G", "V", "S", "D"] as const;
 
 type ColleagueSlot = {
   id: number;
@@ -289,7 +309,7 @@ export default function LeMieAssegnazioniPage() {
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
   const [calTeam, setCalTeam] = useState<string>("__tutti__");
-  const [teamOptions, setTeamOptions] = useState<string[]>([]);
+  const [teamLookupSorted, setTeamLookupSorted] = useState<string[]>([]);
   const [calMyShifts, setCalMyShifts] = useState<
     Awaited<ReturnType<typeof fetchMyShifts>>
   >([]);
@@ -439,16 +459,40 @@ export default function LeMieAssegnazioniPage() {
     let c = false;
     (async () => {
       try {
-        const teams = await fetchDistinctTeamNames();
-        if (!c) setTeamOptions(teams);
+        const rows = await fetchLookupValues("team_dazn");
+        if (!c) {
+          const vals = [...rows]
+            .filter((v) => v.category === "team_dazn")
+            .sort((a, b) => a.sort_order - b.sort_order)
+            .map((v) => v.value);
+          setTeamLookupSorted(vals);
+        }
       } catch {
-        if (!c) setTeamOptions([]);
+        if (!c) setTeamLookupSorted([]);
       }
     })();
     return () => {
       c = true;
     };
   }, []);
+
+  const teamOptions = useMemo(() => {
+    const base = teamLookupSorted;
+    const seen = new Set(base);
+    const extra: string[] = [];
+    const pushExtra = (raw: string | null | undefined) => {
+      const t = raw?.trim();
+      if (t && !seen.has(t)) {
+        seen.add(t);
+        extra.push(t);
+      }
+    };
+    pushExtra(profile?.team_dazn ?? null);
+    if (calTeam !== "__tutti__") pushExtra(calTeam);
+    pushExtra(turniTeam);
+    extra.sort((a, b) => a.localeCompare(b, "en"));
+    return [...base, ...extra];
+  }, [teamLookupSorted, profile?.team_dazn, calTeam, turniTeam]);
 
   const monthRange = useMemo(() => {
     const cells = buildMonthGrid(calendarMonth);
@@ -1342,8 +1386,8 @@ export default function LeMieAssegnazioniPage() {
             <div className="flex flex-wrap items-center gap-3">
               <button
                 type="button"
-                className="rounded border border-pitch-gray-dark px-3 py-2 text-sm"
-                style={{ color: "#FFFA00" }}
+                aria-label="Previous month"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#333] text-sm text-white transition-colors hover:border-[#FFFA00]"
                 onClick={() =>
                   setTurniMonth(
                     new Date(
@@ -1356,7 +1400,7 @@ export default function LeMieAssegnazioniPage() {
               >
                 ←
               </button>
-              <span className="font-semibold capitalize">
+              <span className="min-w-[10rem] text-center font-semibold capitalize text-white">
                 {turniMonth.toLocaleDateString("en-US", {
                   month: "long",
                   year: "numeric",
@@ -1364,8 +1408,8 @@ export default function LeMieAssegnazioniPage() {
               </span>
               <button
                 type="button"
-                className="rounded border border-pitch-gray-dark px-3 py-2 text-sm"
-                style={{ color: "#FFFA00" }}
+                aria-label="Next month"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#333] text-sm text-white transition-colors hover:border-[#FFFA00]"
                 onClick={() =>
                   setTurniMonth(
                     new Date(
@@ -1381,7 +1425,7 @@ export default function LeMieAssegnazioniPage() {
               <select
                 value={turniTeam}
                 onChange={(e) => setTurniTeam(e.target.value)}
-                className="rounded border border-pitch-gray-dark bg-pitch-bg px-3 py-2"
+                className="rounded-lg border border-[#333] bg-[#1a1a1a] px-3 py-1.5 text-sm text-white focus:border-[#FFFA00] focus:outline-none"
               >
                 <option value="">— Select team —</option>
                 {teamOptions.map((t) => (
@@ -1390,158 +1434,239 @@ export default function LeMieAssegnazioniPage() {
                   </option>
                 ))}
               </select>
-              <PrimaryButton
-                variant="secondary"
+              <button
                 type="button"
                 disabled={turniSaving || !turniTeam.trim()}
-                loading={turniSaving}
                 onClick={() => void handleTurniSave()}
+                className="rounded-lg bg-[#FFFA00] px-4 py-1.5 font-semibold text-black transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Save
-              </PrimaryButton>
-              <PrimaryButton
-                variant="ghost"
+                {turniSaving ? "…" : "Save"}
+              </button>
+              <button
                 type="button"
                 disabled={!turniTeam.trim() || turniMembers.length === 0}
                 onClick={handleCopyWeekForward}
+                className="rounded-lg border border-[#333] px-4 py-1.5 text-white transition-colors hover:border-[#FFFA00] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Copy week →
-              </PrimaryButton>
+              </button>
             </div>
 
             {!turniTeam.trim() ? (
-              <p className="text-sm text-pitch-gray">
+              <p className="text-sm text-gray-500">
                 Select a team to edit shifts.
               </p>
             ) : (
               <div
-                className="rounded-xl border border-pitch-gray-dark bg-[#111] p-4"
-                style={{ borderColor: "#2a2a2a" }}
+                className="rounded-2xl border bg-[#111] p-5"
+                style={{ borderColor: "#2a2a2a", borderWidth: 1 }}
               >
                 <div className="overflow-x-auto">
-                  <table className="min-w-max border-collapse text-xs">
+                  <table className="min-w-max border-collapse">
                     <thead>
                       <tr>
-                        <th className="sticky left-0 z-10 min-w-[140px] bg-[#111] px-2 py-2 text-left">
+                        <th
+                          className="sticky left-0 z-20 min-w-[140px] bg-[#111] px-2 py-2 text-left text-xs font-medium uppercase tracking-wide text-gray-400"
+                        >
                           Name
                         </th>
                         {turniCells.map((cell) => {
                           const d0 = new Date(`${cell.isoDate}T12:00:00`);
-                          const dow = ["M", "T", "W", "T", "F", "S", "S"][
-                            (d0.getDay() + 6) % 7
-                          ];
-                          const monStart = (d0.getDay() + 6) % 7 === 0;
+                          const dowIdx = (d0.getDay() + 6) % 7;
+                          const dowLetter = TURNI_DOW_LETTERS[dowIdx];
+                          const weekStart = dowIdx === 0;
+                          const outMonth = !cell.inCurrentMonth;
+                          const isToday = cell.isoDate === todayIso;
                           return (
                             <th
                               key={cell.isoDate}
-                              className={`min-w-[52px] px-1 py-2 text-center font-semibold ${
-                                monStart ? "border-l-4 border-l-pitch-accent" : ""
-                              } ${cell.inCurrentMonth ? "" : "opacity-40"} ${
-                                cell.isoDate === todayIso
-                                  ? "ring-1 ring-[#FFFA00]"
-                                  : ""
-                              }`}
+                              className={`w-9 shrink-0 px-0 py-2 text-center ${
+                                weekStart ? "border-l-2 border-[#FFFA00]" : ""
+                              } ${outMonth ? "opacity-30" : ""}`}
                             >
-                              <div>{dow}</div>
-                              <div>{cell.day}</div>
+                              <div className="text-xs text-gray-500">
+                                {dowLetter}
+                              </div>
+                              <div className="mt-0.5 flex justify-center">
+                                {isToday ? (
+                                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#FFFA00] text-xs font-semibold text-black">
+                                    {cell.day}
+                                  </span>
+                                ) : (
+                                  <span className="text-xs font-semibold text-white">
+                                    {cell.day}
+                                  </span>
+                                )}
+                              </div>
                             </th>
                           );
                         })}
                       </tr>
                     </thead>
                     <tbody>
-                      {turniMembers.map((mem) => (
-                        <tr key={mem.id} className="border-t border-pitch-gray-dark">
-                          <td className="sticky left-0 z-10 bg-[#111] px-2 py-2 font-medium text-pitch-white">
-                            {mem.surname} {mem.name}
-                          </td>
-                          {turniCells.map((cell) => {
-                            const d0 = new Date(`${cell.isoDate}T12:00:00`);
-                            const editable = canEditTurniCell(turniTeam);
-                            const st = shiftForStaffDate(mem.id, cell.isoDate);
-                            const monStart = (d0.getDay() + 6) % 7 === 0;
-                            return (
-                              <td
-                                key={cell.isoDate}
-                                className={`relative px-0.5 py-1 text-center ${monStart ? "border-l-4 border-l-pitch-accent/40" : ""}`}
-                              >
-                                <button
-                                  type="button"
-                                  disabled={!editable}
-                                  onClick={(ev) =>
-                                    editable &&
-                                    setPopover({
-                                      staffId: mem.id,
-                                      date: cell.isoDate,
-                                      x: ev.clientX,
-                                      y: ev.clientY,
-                                    })
-                                  }
-                                  className={`min-h-[36px] w-full rounded p-1 ${
-                                    editable ? "cursor-pointer hover:bg-white/5" : ""
+                      {turniMembers.map((mem, rowIdx) => {
+                        const rowBg = rowIdx % 2 === 0 ? "#111" : "#141414";
+                        return (
+                          <tr
+                            key={mem.id}
+                            className="h-11"
+                            style={{
+                              height: 44,
+                              borderBottom: "1px solid #1e1e1e",
+                              backgroundColor: rowBg,
+                            }}
+                          >
+                            <td
+                              className="sticky left-0 z-10 px-2 py-0 text-sm font-medium text-white"
+                              style={{
+                                backgroundColor: rowBg,
+                                minWidth: 140,
+                              }}
+                            >
+                              {mem.surname} {mem.name}
+                            </td>
+                            {turniCells.map((cell) => {
+                              const d0 = new Date(`${cell.isoDate}T12:00:00`);
+                              const editable = canEditTurniCell(turniTeam);
+                              const st = shiftForStaffDate(mem.id, cell.isoDate);
+                              const weekStart = (d0.getDay() + 6) % 7 === 0;
+                              const css = st ? TURNI_GRID_SHIFT_STYLE[st] : null;
+                              return (
+                                <td
+                                  key={cell.isoDate}
+                                  className={`relative w-9 px-0 py-1 text-center align-middle ${
+                                    weekStart ? "border-l-2 border-[#FFFA00]" : ""
                                   }`}
+                                  style={{ backgroundColor: rowBg }}
                                 >
-                                  {st ? (
-                                    <ShiftChip type={st} className="!text-[10px]" />
-                                  ) : (
-                                    <span className="text-pitch-gray">—</span>
-                                  )}
-                                </button>
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
+                                  <div className="flex h-11 items-center justify-center">
+                                    {!st ? (
+                                      editable ? (
+                                        <button
+                                          type="button"
+                                          aria-label="Set shift"
+                                          onClick={(ev) =>
+                                            setPopover({
+                                              staffId: mem.id,
+                                              date: cell.isoDate,
+                                              x: ev.clientX,
+                                              y: ev.clientY,
+                                            })
+                                          }
+                                          className="box-border h-[28px] w-[28px] shrink-0 cursor-pointer rounded-[6px] border border-dashed border-[#333] transition-colors hover:border-[#FFFA00]"
+                                        />
+                                      ) : (
+                                        <span className="text-xs text-gray-600">
+                                          —
+                                        </span>
+                                      )
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        aria-label={`Shift ${st}`}
+                                        disabled={!editable}
+                                        onClick={(ev) =>
+                                          editable &&
+                                          setPopover({
+                                            staffId: mem.id,
+                                            date: cell.isoDate,
+                                            x: ev.clientX,
+                                            y: ev.clientY,
+                                          })
+                                        }
+                                        className={`box-border flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-[6px] border border-transparent text-[10px] font-bold leading-none ${
+                                          editable
+                                            ? "cursor-pointer hover:ring-1 hover:ring-[#FFFA00]"
+                                            : "cursor-default"
+                                        }`}
+                                        style={{
+                                          background: css?.bg,
+                                          color: css?.text,
+                                        }}
+                                      >
+                                        {st}
+                                      </button>
+                                    )}
+                                  </div>
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
+                </div>
+
+                <div className="mt-6 border-t border-[#1e1e1e] pt-5">
+                  <p className="mb-3 text-xs uppercase tracking-wide text-gray-500">
+                    Shift legend
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {SHIFT_TYPES.map((t) => {
+                      const cs = TURNI_GRID_SHIFT_STYLE[t];
+                      return (
+                        <span
+                          key={`leg-${t}`}
+                          className="inline-flex h-[28px] min-w-[28px] items-center justify-center rounded-[6px] px-1 text-[10px] font-bold"
+                          style={{ background: cs.bg, color: cs.text }}
+                        >
+                          {t}
+                        </span>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}
 
             {popover ? (
               <div
-                className="fixed z-50 rounded-lg border border-pitch-gray-dark bg-[#1a1a1a] p-2 shadow-xl"
+                className="fixed z-50 w-[220px] rounded-[10px] border border-[#333] bg-[#1a1a1a] p-[10px] shadow-xl"
                 style={{
                   left: Math.min(
                     popover.x,
                     typeof window !== "undefined"
-                      ? window.innerWidth - 220
+                      ? window.innerWidth - 240
                       : 0
                   ),
                   top: Math.min(
                     popover.y,
                     typeof window !== "undefined"
-                      ? window.innerHeight - 280
+                      ? window.innerHeight - 240
                       : 0
                   ),
                 }}
               >
-                <div className="mb-2 grid grid-cols-3 gap-1">
-                  {SHIFT_TYPES.map((t) => (
-                    <button
-                      key={t}
-                      type="button"
-                      className="rounded px-2 py-1 text-xs font-semibold"
-                      style={{
-                        background: SHIFT_CHIP_CLASS[t].bg,
-                        color: SHIFT_CHIP_CLASS[t].text,
-                      }}
-                      onClick={() => {
-                        const k = `${popover.staffId}-${popover.date}`;
-                        setTurniPending((prev) => ({
-                          ...prev,
-                          [k]: t,
-                        }));
-                        setPopover(null);
-                      }}
-                    >
-                      {t}
-                    </button>
-                  ))}
+                <div className="grid grid-cols-5 gap-1">
+                  {SHIFT_TYPES.map((t) => {
+                    const st = TURNI_GRID_SHIFT_STYLE[t];
+                    return (
+                      <button
+                        key={t}
+                        type="button"
+                        className="flex h-9 w-9 items-center justify-center rounded-[6px] text-[10px] font-bold leading-none transition-transform hover:scale-105"
+                        style={{
+                          background: st.bg,
+                          color: st.text,
+                        }}
+                        onClick={() => {
+                          const k = `${popover.staffId}-${popover.date}`;
+                          setTurniPending((prev) => ({
+                            ...prev,
+                            [k]: t,
+                          }));
+                          setPopover(null);
+                        }}
+                      >
+                        {t}
+                      </button>
+                    );
+                  })}
                 </div>
                 <button
                   type="button"
-                  className="mt-1 w-full rounded border border-red-500/40 py-1 text-xs text-red-400"
+                  className="mt-2 w-full rounded-lg border border-[#333] py-2 text-sm text-gray-400 transition-colors hover:border-[#555] hover:text-gray-300"
                   onClick={() => {
                     const k = `${popover.staffId}-${popover.date}`;
                     setTurniPending((prev) => ({
@@ -1555,15 +1680,6 @@ export default function LeMieAssegnazioniPage() {
                 </button>
               </div>
             ) : null}
-
-            <div className="flex flex-wrap gap-2 pt-4">
-              <span className="w-full text-xs font-semibold text-pitch-gray">
-                Shift legend
-              </span>
-              {SHIFT_TYPES.map((t) => (
-                <ShiftChip key={`leg-${t}`} type={t} />
-              ))}
-            </div>
           </div>
         ) : null}
       </div>

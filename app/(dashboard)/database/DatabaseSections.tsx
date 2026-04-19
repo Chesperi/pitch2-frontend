@@ -37,6 +37,8 @@ import { LookupValuesSection } from "./LookupValuesSection";
 import { EventRulesSection } from "./EventRulesSection";
 import { fetchAuthMe } from "@/lib/api/freelanceAssignments";
 import { canSeeFinance } from "@/lib/auth/financeAccess";
+import { fetchLookupValues } from "@/lib/api/lookupValues";
+import type { LookupValue } from "@/lib/types";
 import {
   DB_TH,
   DB_TBODY_TR,
@@ -358,6 +360,11 @@ export function DatabaseSections({
   const [savingStaff, setSavingStaff] = useState(false);
   const [invitingStaffId, setInvitingStaffId] = useState<number | null>(null);
   const [deletingStaffId, setDeletingStaffId] = useState<number | null>(null);
+  const [daznTeamLookupRows, setDaznTeamLookupRows] = useState<LookupValue[]>(
+    []
+  );
+  const [daznTeamLookupFetchFailed, setDaznTeamLookupFetchFailed] =
+    useState(false);
 
   const { levelByPageKey } = usePagePermissions();
   const canEditDatabase = levelByPageKey.database === "edit";
@@ -423,6 +430,47 @@ export function DatabaseSections({
     if (staffFormValues.userLevel) merged.add(staffFormValues.userLevel);
     return sortAsc([...merged]);
   }, [editingStaff, staffFormValues.userLevel]);
+
+  const daznTeamSelectOptions = useMemo(() => {
+    const ordered = [...daznTeamLookupRows]
+      .filter((v) => v.category === "team_dazn")
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map((v) => v.value);
+    const seen = new Set(ordered);
+    const extras = new Set<string>();
+    const cur = staffFormValues.teamDazn.trim();
+    if (cur && !seen.has(cur)) extras.add(cur);
+    const ed = editingStaff?.team_dazn?.trim();
+    if (ed && !seen.has(ed)) extras.add(ed);
+    return [...ordered, ...sortAsc([...extras])];
+  }, [
+    daznTeamLookupRows,
+    staffFormValues.teamDazn,
+    editingStaff?.team_dazn,
+  ]);
+
+  useEffect(() => {
+    if (!isStaffModalOpen) return;
+    let cancelled = false;
+    setDaznTeamLookupFetchFailed(false);
+    (async () => {
+      try {
+        const rows = await fetchLookupValues("team_dazn");
+        if (!cancelled) {
+          setDaznTeamLookupRows(rows);
+          setDaznTeamLookupFetchFailed(false);
+        }
+      } catch {
+        if (!cancelled) {
+          setDaznTeamLookupFetchFailed(true);
+          setDaznTeamLookupRows([]);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isStaffModalOpen]);
 
   useEffect(() => {
     if (!isRoleModalOpen) return;
@@ -2288,18 +2336,39 @@ export function DatabaseSections({
                     >
                       DAZN Team
                     </label>
-                    <input
-                      id="staff-team-dazn"
-                      type="text"
-                      value={staffFormValues.teamDazn}
-                      onChange={(e) =>
-                        setStaffFormValues((v) => ({
-                          ...v,
-                          teamDazn: e.target.value,
-                        }))
-                      }
-                      className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
-                    />
+                    {daznTeamLookupFetchFailed ? (
+                      <input
+                        id="staff-team-dazn"
+                        type="text"
+                        value={staffFormValues.teamDazn}
+                        onChange={(e) =>
+                          setStaffFormValues((v) => ({
+                            ...v,
+                            teamDazn: e.target.value,
+                          }))
+                        }
+                        className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+                      />
+                    ) : (
+                      <select
+                        id="staff-team-dazn"
+                        value={staffFormValues.teamDazn}
+                        onChange={(e) =>
+                          setStaffFormValues((v) => ({
+                            ...v,
+                            teamDazn: e.target.value,
+                          }))
+                        }
+                        className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+                      >
+                        <option value="">— no team —</option>
+                        {daznTeamSelectOptions.map((t) => (
+                          <option key={t} value={t}>
+                            {t}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </div>
                   <div>
                     <label

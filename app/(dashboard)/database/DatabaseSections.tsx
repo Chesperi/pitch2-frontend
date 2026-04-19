@@ -11,9 +11,11 @@ import {
   Fragment,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type FormEvent,
 } from "react";
+import { createPortal } from "react-dom";
 import { usePagePermissions } from "@/hooks/usePagePermissions";
 import {
   type StaffItem,
@@ -151,18 +153,29 @@ function joinPlatesFromThree(
   return parts.join(", ");
 }
 
-function staffRolesSummaryChips(
-  staff: StaffItem,
-  roleLabel: (code: string) => string
-): { visible: string[]; extra: number } {
-  const list = (staff.roles ?? []).filter((r) => r.active);
-  const labels = list.map(
-    (r) => `${roleLabel(r.roleCode)} · ${r.location}`
+function computeStaffRolesTooltipViewportPos(
+  anchorRect: DOMRect,
+  roleRowCount: number
+): { top: number; left: number } {
+  const gap = 6;
+  const pad = 8;
+  const tooltipWidth = 260;
+  const lineH = 22;
+  const tooltipHeight = Math.min(
+    Math.max(roleRowCount, 1) * lineH + 24,
+    280
   );
-  return {
-    visible: labels.slice(0, 2),
-    extra: Math.max(0, labels.length - 2),
-  };
+  let top = anchorRect.bottom + gap;
+  let left = anchorRect.left;
+  const vh = window.innerHeight;
+  const vw = window.innerWidth;
+  if (top + tooltipHeight > vh - pad) {
+    top = anchorRect.top - tooltipHeight - gap;
+  }
+  if (top < pad) top = pad;
+  if (left + tooltipWidth > vw - pad) left = vw - pad - tooltipWidth;
+  if (left < pad) left = pad;
+  return { top, left };
 }
 
 function platesTableDisplay(raw: string | null | undefined): {
@@ -235,6 +248,9 @@ const FORM_SECTION_LABEL =
 
 const STAFF_FILTER_SELECT =
   "w-full rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] px-3 py-1.5 text-[12px] text-pitch-white focus:border-pitch-accent focus:outline-none";
+
+const STAFF_ROLES_COUNT_BADGE =
+  "inline-flex cursor-default items-center gap-1 rounded-md border border-[#2a2a2a] bg-[#1a1a1a] px-2 py-0.5 text-[11px] text-[#ccc]";
 
 const COMBO_ROLE_LOCATION_OPTIONS = ["STADIO", "COLOGNO", "REMOTE"] as const;
 const COMBO_ROLE_LOCATION_SORTED = sortAsc([...COMBO_ROLE_LOCATION_OPTIONS]);
@@ -465,6 +481,39 @@ export function DatabaseSections({
   const [staffFilterDaznTeam, setStaffFilterDaznTeam] = useState("");
   const [staffFilterCompany, setStaffFilterCompany] = useState("");
 
+  const [activeTooltipStaffId, setActiveTooltipStaffId] = useState<
+    number | null
+  >(null);
+  const [staffRolesTooltipPos, setStaffRolesTooltipPos] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
+  const staffRolesTooltipLeaveTimerRef = useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
+
+  const clearStaffRolesTooltip = () => {
+    setActiveTooltipStaffId(null);
+    setStaffRolesTooltipPos(null);
+  };
+
+  const scheduleClearStaffRolesTooltip = () => {
+    if (staffRolesTooltipLeaveTimerRef.current) {
+      clearTimeout(staffRolesTooltipLeaveTimerRef.current);
+    }
+    staffRolesTooltipLeaveTimerRef.current = setTimeout(() => {
+      clearStaffRolesTooltip();
+      staffRolesTooltipLeaveTimerRef.current = null;
+    }, 120);
+  };
+
+  const cancelClearStaffRolesTooltip = () => {
+    if (staffRolesTooltipLeaveTimerRef.current) {
+      clearTimeout(staffRolesTooltipLeaveTimerRef.current);
+      staffRolesTooltipLeaveTimerRef.current = null;
+    }
+  };
+
   const [standardCombos, setStandardCombos] = useState<
     StandardComboWithRequirements[]
   >(initialStandardCombos);
@@ -494,6 +543,14 @@ export function DatabaseSections({
   useEffect(() => {
     setStandardCombos(initialStandardCombos);
   }, [initialStandardCombos]);
+
+  useEffect(() => {
+    return () => {
+      if (staffRolesTooltipLeaveTimerRef.current) {
+        clearTimeout(staffRolesTooltipLeaveTimerRef.current);
+      }
+    };
+  }, []);
 
   const effectiveRoleMap = useMemo(
     () => ({
@@ -1233,7 +1290,7 @@ export function DatabaseSections({
               No matching staff
             </div>
           ) : (
-            <table className="w-full border-collapse">
+            <table className="w-full border-collapse overflow-visible">
               <thead>
                 <tr className="border-b border-[#2a2a2a]">
                   <th className={DB_TH_FIRST}>Last name</th>
@@ -1241,7 +1298,11 @@ export function DatabaseSections({
                   <th className={DB_TH_CELL}>Email</th>
                   <th className={DB_TH_CELL}>Phone</th>
                   <th className={DB_TH_CELL}>Company</th>
-                  <th className={DB_TH_CELL}>Roles</th>
+                  <th
+                    className={`${DB_TH_CELL} min-w-[80px] max-w-[80px] w-[80px] overflow-visible`}
+                  >
+                    Roles
+                  </th>
                   <th className={DB_TH_CELL}>Plate(s)</th>
                   <th className={DB_TH_CELL}>User level</th>
                   <th className={DB_TH_CELL}>DAZN Team</th>
@@ -1254,14 +1315,13 @@ export function DatabaseSections({
                   <th className={DB_TH_CELL}>Actions</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="overflow-visible">
                 {filteredStaff.map((s) => {
                   const notePrev = staffNotesPreview(s.notes);
                   const platesDisp = platesTableDisplay(s.plates);
                   const dobStr = formatBirthDateDisplay(s.date_of_birth);
-                  const rolesChip = staffRolesSummaryChips(s, (code) =>
-                    effectiveRoleMap[code] ?? code
-                  );
+                  const activeRoles = (s.roles ?? []).filter((r) => r.active);
+                  const roleCount = activeRoles.length;
                   return (
                   <tr key={s.id} className={DB_TBODY_TR_COMPACT}>
                     <td className={DB_TD_FIRST}>{s.surname}</td>
@@ -1283,26 +1343,36 @@ export function DatabaseSections({
                     >
                       {s.company ?? "—"}
                     </td>
-                    <td className={DB_TD_CELL}>
-                      <div className="flex flex-nowrap items-center justify-center gap-1">
-                        {rolesChip.visible.length === 0 ? (
+                    <td
+                      className={`${DB_TD_CELL} relative min-w-[80px] max-w-[80px] w-[80px] overflow-visible`}
+                      onMouseEnter={(e) => {
+                        cancelClearStaffRolesTooltip();
+                        if (roleCount === 0) return;
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setActiveTooltipStaffId(s.id);
+                        setStaffRolesTooltipPos(
+                          computeStaffRolesTooltipViewportPos(
+                            rect,
+                            activeRoles.length
+                          )
+                        );
+                      }}
+                      onMouseLeave={() => {
+                        scheduleClearStaffRolesTooltip();
+                      }}
+                    >
+                      <div className="flex justify-center">
+                        {roleCount === 0 ? (
                           <span className="text-[#3F4547]">—</span>
                         ) : (
-                          <>
-                            {rolesChip.visible.map((label) => (
-                              <span
-                                key={label}
-                                className="inline-flex shrink-0 whitespace-nowrap rounded-full border border-[#2a2a2a] bg-[#1a1a1a] px-2 py-0.5 text-[10px] text-[#aaa]"
-                              >
-                                {label}
-                              </span>
-                            ))}
-                            {rolesChip.extra > 0 ? (
-                              <span className="inline-flex shrink-0 rounded-full bg-[#333] px-1.5 py-0.5 text-[10px] font-medium text-[#888]">
-                                +{rolesChip.extra}
-                              </span>
-                            ) : null}
-                          </>
+                          <span className={STAFF_ROLES_COUNT_BADGE}>
+                            <span className="text-[13px] font-medium text-[#FFFA00]">
+                              {roleCount}
+                            </span>
+                            <span>
+                              {roleCount === 1 ? " role" : " roles"}
+                            </span>
+                          </span>
                         )}
                       </div>
                     </td>
@@ -3184,6 +3254,46 @@ export function DatabaseSections({
           </div>
         </div>
       ) : null}
+
+      {typeof document !== "undefined" &&
+        activeTooltipStaffId != null &&
+        staffRolesTooltipPos != null &&
+        (() => {
+          const st = staff.find((x) => x.id === activeTooltipStaffId);
+          const rows = st ? (st.roles ?? []).filter((r) => r.active) : [];
+          if (!st || rows.length === 0) return null;
+          return createPortal(
+            <div
+              role="tooltip"
+              className="pointer-events-auto z-[100] max-h-[280px] max-w-[260px] overflow-y-auto rounded-[8px] bg-[#1a1a1a] px-[10px] py-2 shadow-lg"
+              style={{
+                position: "fixed",
+                top: staffRolesTooltipPos.top,
+                left: staffRolesTooltipPos.left,
+                borderWidth: 0.5,
+                borderStyle: "solid",
+                borderColor: "#333",
+              }}
+              onMouseEnter={cancelClearStaffRolesTooltip}
+              onMouseLeave={scheduleClearStaffRolesTooltip}
+            >
+              <ul className="space-y-2">
+                {rows.map((r) => (
+                  <li key={`${r.id}-${r.roleCode}-${r.location}`}>
+                    <span className="text-[11px] text-[#ccc]">
+                      {effectiveRoleMap[r.roleCode] ?? r.roleCode}
+                    </span>
+                    <span className="text-[10px] text-[#666]"> · </span>
+                    <span className="text-[10px] text-[#666]">
+                      {r.location}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>,
+            document.body
+          );
+        })()}
     </>
   );
 }

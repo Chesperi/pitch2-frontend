@@ -180,104 +180,74 @@ export default function SidebarNav({
 
   return (
     <nav className="flex flex-col" style={{ background: "#000000" }}>
-      {collapsed ? (
-        <>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              height: 56,
-              boxSizing: "border-box",
-              borderBottom: "1px solid #2a2a2a",
-            }}
+      <div className="relative flex h-14 shrink-0 items-center border-b border-[#2a2a2a]">
+        <div
+          className={`flex min-h-0 min-w-0 flex-1 items-center px-3 ${
+            collapsed ? "justify-center" : "justify-start"
+          }`}
+        >
+          <FootballFieldSvg size={collapsed ? 32 : 28} />
+        </div>
+        {onMobileClose ? (
+          <button
+            type="button"
+            className={`absolute right-3 top-1/2 flex min-h-[44px] min-w-[44px] -translate-y-1/2 items-center justify-center rounded-lg text-[#868A8C] transition-opacity duration-300 hover:bg-[#1a1a1a] hover:text-white md:hidden ${
+              collapsed ? "pointer-events-none opacity-0" : "opacity-100"
+            }`}
+            aria-label="Chiudi menu"
+            onClick={onMobileClose}
           >
-            <FootballFieldSvg size={32} />
-          </div>
-          <div className="flex flex-col gap-1 px-3 py-3">
-          {visibleItems.map((item) => {
-            const isActive =
-              pathname === item.href || pathname.startsWith(`${item.href}/`);
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                title={item.label}
-                onClick={() => onNavigate?.()}
-                className={`flex items-center justify-center rounded-lg px-2 py-2.5 transition-colors hover:text-white ${
-                  isActive
-                    ? "bg-[#1a1a1a] text-[#FFFA00]"
-                    : "bg-transparent text-[#868A8C] hover:bg-[#1a1a1a]"
+            <svg
+              className="h-6 w-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        ) : null}
+      </div>
+
+      <div className="flex flex-col gap-1 px-3 py-3">
+        {visibleItems.map((item) => {
+          const isActive =
+            pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const Icon = item.icon;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              title={item.label}
+              onClick={() => onNavigate?.()}
+              className={`flex h-10 shrink-0 items-center rounded-lg transition-colors hover:text-white ${
+                collapsed
+                  ? "justify-center px-2"
+                  : "justify-start gap-3 px-3 text-sm font-medium"
+              } ${
+                isActive
+                  ? "bg-[#1a1a1a] text-[#FFFA00]"
+                  : "bg-transparent text-[#868A8C] hover:bg-[#1a1a1a]"
+              }`}
+            >
+              <Icon size={20} stroke="currentColor" className="shrink-0" />
+              <span
+                className={`min-w-0 whitespace-nowrap overflow-hidden transition-opacity duration-300 ${
+                  collapsed ? "w-0 opacity-0" : "opacity-100"
                 }`}
               >
-                <Icon size={20} stroke="currentColor" />
-              </Link>
-            );
-          })}
-          </div>
-        </>
-      ) : (
-        <>
-          <div
-            className="relative flex items-center justify-between"
-            style={{
-              height: 56,
-              boxSizing: "border-box",
-              paddingLeft: 16,
-              paddingRight: 16,
-              borderBottom: "1px solid #2a2a2a",
-            }}
-          >
-            <FootballFieldSvg size={28} />
-            {onMobileClose ? (
-              <button
-                type="button"
-                className="md:hidden flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg text-[#868A8C] hover:bg-[#1a1a1a] hover:text-white"
-                aria-label="Chiudi menu"
-                onClick={onMobileClose}
-              >
-                <svg
-                  className="h-6 w-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  aria-hidden
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            ) : null}
-          </div>
-          <div className="flex flex-col gap-1 px-3 py-3">
-          {visibleItems.map((item) => {
-            const isActive =
-              pathname === item.href || pathname.startsWith(`${item.href}/`);
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => onNavigate?.()}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors hover:text-white ${
-                  isActive
-                    ? "bg-[#1a1a1a] text-[#FFFA00]"
-                    : "bg-transparent text-[#868A8C] hover:bg-[#1a1a1a]"
-                }`}
-              >
-                <Icon size={20} stroke="currentColor" />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
-          </div>
-        </>
-      )}
+                {item.label}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
     </nav>
   );
 }

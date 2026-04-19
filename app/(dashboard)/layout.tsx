@@ -79,7 +79,7 @@ export default function DashboardLayout({
             />
           ) : null}
           <aside
-            className={`fixed inset-y-0 left-0 z-30 h-screen w-64 overflow-y-auto border-r border-[#2a2a2a] bg-black text-white transition-[transform,width] duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] md:translate-x-0 ${
+            className={`fixed inset-y-0 left-0 z-20 h-screen w-64 overflow-y-auto border-r border-[#2a2a2a] bg-black text-white transition-[width,transform] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] md:translate-x-0 ${
               mobileOpen ? "translate-x-0" : "-translate-x-full"
             } ${collapsed ? "md:w-16" : "md:w-64 md:shadow-xl"}`}
             style={{

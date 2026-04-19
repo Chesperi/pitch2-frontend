@@ -50,7 +50,10 @@ export default function AppNavbar({
   }
 
   return (
-    <header className="sticky top-0 z-20" style={{ background: "#111" }}>
+    <header
+      className="relative z-30 sticky top-0"
+      style={{ background: "#111" }}
+    >
       <div
         className="flex items-center justify-between gap-2 px-3 sm:px-6"
         style={{

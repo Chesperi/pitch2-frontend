@@ -425,10 +425,13 @@ function StaffPicker({
     assignment.role_location ??
     ""
   ).toUpperCase();
-  const candidates = staffList.filter(
-    (s) =>
-      (s.default_role_code ?? "") === roleCode &&
-      (s.default_location ?? "").toUpperCase() === roleLocation
+  const candidates = staffList.filter((s) =>
+    (s.roles ?? []).some(
+      (r) =>
+        r.roleCode === roleCode &&
+        r.location.toUpperCase() === roleLocation &&
+        r.active
+    )
   );
 
   return (
@@ -463,8 +466,17 @@ function StaffPicker({
                 >
                   {s.surname} {s.name}
                   {s.company ? ` – ${s.company}` : ""}
-                  {s.default_role_code ? ` – ${s.default_role_code}` : ""}
-                  {s.default_location ? ` (${s.default_location})` : ""}
+                  {(() => {
+                    const m = (s.roles ?? []).find(
+                      (r) =>
+                        r.roleCode === roleCode &&
+                        r.location.toUpperCase() === roleLocation &&
+                        r.active
+                    );
+                    return m
+                      ? ` – ${m.roleCode} (${m.location})`
+                      : "";
+                  })()}
                 </button>
               </li>
             ))
@@ -599,7 +611,7 @@ export default function DesignazioniEventPage() {
   }, [staffPickerForId]);
 
   useEffect(() => {
-    fetchStaff({ limit: 1000 })
+    fetchStaff({ limit: 1000, includeRoles: true })
       .then((r) => setStaffList(r.items ?? []))
       .catch(console.error);
   }, []);

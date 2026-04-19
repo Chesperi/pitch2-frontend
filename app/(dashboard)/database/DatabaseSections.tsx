@@ -18,6 +18,13 @@ import {
   updateStaff,
 } from "@/lib/api/staff";
 import {
+  type StaffRoleFee,
+  deleteStaffRole,
+  fetchRolesByStaff,
+  updateStaffRole,
+  upsertStaffRole,
+} from "@/lib/api/staffRoles";
+import {
   type Role,
   createRole,
   fetchRoles,
@@ -63,8 +70,6 @@ const ROLE_LOCATION_OPTIONS = [
   "LEEDS",
   "REMOTE",
 ] as const;
-
-const STAFF_DEFAULT_LOCATION_OPTIONS = ROLE_LOCATION_OPTIONS;
 
 const USER_LEVEL_OPTIONS = [
   "FREELANCE",
@@ -130,6 +135,20 @@ function joinPlatesFromThree(
   return parts.join(", ");
 }
 
+function staffRolesSummaryChips(
+  staff: StaffItem,
+  roleLabel: (code: string) => string
+): { visible: string[]; extra: number } {
+  const list = (staff.roles ?? []).filter((r) => r.active);
+  const labels = list.map(
+    (r) => `${roleLabel(r.roleCode)} · ${r.location}`
+  );
+  return {
+    visible: labels.slice(0, 2),
+    extra: Math.max(0, labels.length - 2),
+  };
+}
+
 function platesTableDisplay(raw: string | null | undefined): {
   text: string;
   empty: boolean;
@@ -155,10 +174,7 @@ type StaffFormValues = {
   email: string;
   phone: string;
   company: string;
-  defaultRoleCode: string;
-  defaultLocation: string;
   userLevel: string;
-  fee: string;
   plate1: string;
   plate2: string;
   plate3: string;
@@ -167,7 +183,6 @@ type StaffFormValues = {
   dateOfBirth: string;
   residentialAddress: string;
   idNumber: string;
-  extraFee: string;
   teamDazn: string;
   staffNotes: string;
   financeVisibility: boolean;
@@ -337,10 +352,7 @@ export function DatabaseSections({
     email: "",
     phone: "",
     company: "",
-    defaultRoleCode: "",
-    defaultLocation: "STADIO",
     userLevel: "FREELANCE",
-    fee: "",
     plate1: "",
     plate2: "",
     plate3: "",
@@ -349,11 +361,19 @@ export function DatabaseSections({
     dateOfBirth: "",
     residentialAddress: "",
     idNumber: "",
-    extraFee: "",
     teamDazn: "",
     staffNotes: "",
     financeVisibility: false,
   });
+  const [staffRolesDraft, setStaffRolesDraft] = useState<StaffRoleFee[]>([]);
+  const [staffRolesBaseline, setStaffRolesBaseline] = useState<StaffRoleFee[]>(
+    []
+  );
+  const [newRoleCombo, setNewRoleCombo] = useState("");
+  const [newRoleLoc, setNewRoleLoc] = useState("STADIO");
+  const [newRoleFee, setNewRoleFee] = useState("");
+  const [newRoleExtra, setNewRoleExtra] = useState("");
+  const [newRolePrimary, setNewRolePrimary] = useState(false);
   const [staffOffset, setStaffOffset] = useState(0);
   const [staffTotal, setStaffTotal] = useState(initialStaffTotal);
   const [staffLoadingMore, setStaffLoadingMore] = useState(false);
@@ -415,14 +435,13 @@ export function DatabaseSections({
     [roleMap, roles]
   );
 
-  const staffDefaultLocationSelectOptions = useMemo(() => {
-    const set = new Set<string>([...STAFF_DEFAULT_LOCATION_OPTIONS]);
-    if (editingStaff?.default_location)
-      set.add(editingStaff.default_location);
-    if (staffFormValues.defaultLocation)
-      set.add(staffFormValues.defaultLocation);
+  const staffRoleLocationOptions = useMemo(() => {
+    const set = new Set<string>([...ROLE_LOCATION_OPTIONS]);
+    for (const r of staffRolesDraft) {
+      if (r.location) set.add(r.location);
+    }
     return sortAsc([...set]);
-  }, [editingStaff, staffFormValues.defaultLocation]);
+  }, [staffRolesDraft]);
 
   const userLevelSelectOptions = useMemo(() => {
     const merged = new Set<string>([...USER_LEVEL_OPTIONS]);
@@ -473,6 +492,40 @@ export function DatabaseSections({
   }, [isStaffModalOpen]);
 
   useEffect(() => {
+    if (!isStaffModalOpen) return;
+    let cancelled = false;
+    (async () => {
+      if (editingStaff) {
+        try {
+          const rows = await fetchRolesByStaff(editingStaff.id);
+          if (!cancelled) {
+            setStaffRolesDraft(rows);
+            setStaffRolesBaseline(
+              JSON.parse(JSON.stringify(rows)) as StaffRoleFee[]
+            );
+          }
+        } catch {
+          if (!cancelled) {
+            setStaffRolesDraft([]);
+            setStaffRolesBaseline([]);
+          }
+        }
+      } else {
+        setStaffRolesDraft([]);
+        setStaffRolesBaseline([]);
+        setNewRoleCombo("");
+        setNewRoleLoc("STADIO");
+        setNewRoleFee("");
+        setNewRoleExtra("");
+        setNewRolePrimary(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isStaffModalOpen, editingStaff]);
+
+  useEffect(() => {
     if (!isRoleModalOpen) return;
     setRoleFormValues(
       editingRole ? roleToForm(editingRole) : emptyRoleForm()
@@ -492,26 +545,6 @@ export function DatabaseSections({
       ),
     [roles]
   );
-
-  const staffRolePairInCatalog = useMemo(() => {
-    const code = staffFormValues.defaultRoleCode.trim();
-    const loc = staffFormValues.defaultLocation.trim();
-    if (!code || !loc) return true;
-    const composite = `${code}__${loc}`;
-    return rolesSortedForSelect.some(
-      (r) => `${r.code}__${r.location}` === composite
-    );
-  }, [
-    rolesSortedForSelect,
-    staffFormValues.defaultRoleCode,
-    staffFormValues.defaultLocation,
-  ]);
-
-  const staffDefaultRoleSelectValue =
-    staffFormValues.defaultRoleCode.trim() &&
-    staffFormValues.defaultLocation.trim()
-      ? `${staffFormValues.defaultRoleCode.trim()}__${staffFormValues.defaultLocation.trim()}`
-      : "";
 
   const comboHeaderDatalistOptions = useMemo(() => {
     const onsite = sortAsc(
@@ -582,32 +615,19 @@ export function DatabaseSections({
     const surname = staffFormValues.surname.trim();
     const name = staffFormValues.name.trim();
     const email = staffFormValues.email.trim();
-    const defaultRoleCode = staffFormValues.defaultRoleCode.trim();
-    const defaultLocation = staffFormValues.defaultLocation.trim();
 
-    if (!surname || !name || !email || !defaultRoleCode || !defaultLocation) {
+    if (!surname || !name || !email) {
       setStaffFormError(
-        "Last name, first name, email, role and location are required."
+        "Last name, first name, and email are required."
       );
       return;
     }
-
-    const feeTrimmed = staffFormValues.fee.trim();
-    const feeNum = feeTrimmed ? Number(feeTrimmed) : NaN;
-    const feeForEdit =
-      feeTrimmed === ""
-        ? null
-        : Number.isFinite(feeNum)
-          ? feeNum
-          : undefined;
-    const feeForCreate = feeTrimmed === "" ? undefined : feeForEdit;
 
     const extraStaffFields = {
       placeOfBirth: staffFormValues.placeOfBirth.trim() || null,
       dateOfBirth: staffFormValues.dateOfBirth.trim() || null,
       residentialAddress: staffFormValues.residentialAddress.trim() || null,
       idNumber: staffFormValues.idNumber.trim() || null,
-      extraFee: showFinance ? (staffFormValues.extraFee.trim() || null) : undefined,
       teamDazn: staffFormValues.teamDazn.trim() || null,
       notes: staffFormValues.staffNotes.trim() || null,
       financeVisibility: staffFormValues.financeVisibility
@@ -615,50 +635,100 @@ export function DatabaseSections({
         : ("HIDDEN" as const),
     };
 
-    const financeFieldsForEdit = showFinance ? { fee: feeForEdit } : {};
-    const financeFieldsForCreate = showFinance ? { fee: feeForCreate } : {};
-
     const platesJoined = joinPlatesFromThree(
       staffFormValues.plate1,
       staffFormValues.plate2,
       staffFormValues.plate3
     );
 
+    const syncRoles = async (staffId: number) => {
+      const baseline = staffRolesBaseline;
+      const draft = staffRolesDraft;
+      const baseIds = new Set(
+        baseline.filter((r) => r.id > 0).map((r) => r.id)
+      );
+      const draftKeep = new Set(
+        draft.filter((r) => r.id > 0).map((r) => r.id)
+      );
+      for (const id of baseIds) {
+        if (!draftKeep.has(id)) await deleteStaffRole(id);
+      }
+      for (const row of draft) {
+        if (row.id <= 0) {
+          await upsertStaffRole({
+            staffId,
+            roleCode: row.roleCode,
+            location: row.location,
+            fee: row.fee,
+            extraFee: row.extraFee,
+            isPrimary: row.isPrimary,
+            notes: row.notes ?? null,
+            active: row.active,
+          });
+        } else {
+          const prev = baseline.find((x) => x.id === row.id);
+          if (
+            prev &&
+            (prev.roleCode !== row.roleCode ||
+              prev.location !== row.location ||
+              prev.fee !== row.fee ||
+              prev.extraFee !== row.extraFee ||
+              prev.isPrimary !== row.isPrimary ||
+              prev.active !== row.active ||
+              (prev.notes ?? "") !== (row.notes ?? ""))
+          ) {
+            await updateStaffRole(row.id, {
+              staffId,
+              roleCode: row.roleCode,
+              location: row.location,
+              fee: row.fee,
+              extraFee: row.extraFee,
+              isPrimary: row.isPrimary,
+              notes: row.notes,
+              active: row.active,
+            });
+          }
+        }
+      }
+    };
+
     setSavingStaff(true);
     try {
       if (editingStaff) {
-        const updated = await updateStaff(editingStaff.id, {
+        await updateStaff(editingStaff.id, {
           surname,
           name,
           email,
-          defaultRoleCode,
-          defaultLocation,
           userLevel: staffFormValues.userLevel || undefined,
           active: staffFormValues.active,
           phone: staffFormValues.phone.trim() || undefined,
           company: staffFormValues.company.trim() || undefined,
-          ...financeFieldsForEdit,
           plates: platesJoined ?? null,
           ...extraStaffFields,
         });
-        setStaff((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+        await syncRoles(editingStaff.id);
       } else {
         const created = await createStaff({
           surname,
           name,
           email,
-          defaultRoleCode,
-          defaultLocation,
           userLevel: staffFormValues.userLevel || undefined,
           active: staffFormValues.active,
           phone: staffFormValues.phone.trim() || undefined,
           company: staffFormValues.company.trim() || undefined,
-          ...financeFieldsForCreate,
           plates: platesJoined,
           ...extraStaffFields,
         });
-        setStaff((prev) => [...prev, created]);
+        await syncRoles(created.id);
       }
+      const refreshed = await fetchStaff({
+        limit: Math.max(STAFF_PAGE_SIZE, staff.length),
+        offset: 0,
+        includeRoles: true,
+      });
+      setStaff(refreshed.items ?? []);
+      setStaffOffset(0);
+      setStaffTotal(refreshed.total ?? 0);
       setIsStaffModalOpen(false);
       setEditingStaff(null);
     } catch (err) {
@@ -702,6 +772,7 @@ export function DatabaseSections({
       const data = await fetchStaff({
         limit: STAFF_PAGE_SIZE,
         offset: 0,
+        includeRoles: true,
       });
       setStaff(data.items ?? []);
       setStaffOffset(0);
@@ -874,7 +945,7 @@ export function DatabaseSections({
     <>
       <CollapsibleSection
         title="Staff"
-        description="Directory of people with default role and location; used in Assignments and for role–slot compatibility when assigning."
+        description="People directory; roles and fees per venue live on each profile and drive assignment compatibility."
         open={staffOpen}
         onToggle={() => setStaffOpen(!staffOpen)}
       >
@@ -891,10 +962,7 @@ export function DatabaseSections({
                 email: "",
                 phone: "",
                 company: "",
-                defaultRoleCode: "",
-                defaultLocation: "STADIO",
                 userLevel: "FREELANCE",
-                fee: "",
                 plate1: "",
                 plate2: "",
                 plate3: "",
@@ -903,7 +971,6 @@ export function DatabaseSections({
                 dateOfBirth: "",
                 residentialAddress: "",
                 idNumber: "",
-                extraFee: "",
                 teamDazn: "",
                 staffNotes: "",
                 financeVisibility: false,
@@ -928,12 +995,9 @@ export function DatabaseSections({
                   <th className={DB_TH}>Email</th>
                   <th className={DB_TH}>Phone</th>
                   <th className={DB_TH}>Company</th>
-                  <th className={DB_TH}>Role</th>
-                  <th className={DB_TH}>Location</th>
-                  {showFinance ? <th className={DB_TH}>Fee</th> : null}
+                  <th className={DB_TH}>Roles</th>
                   <th className={DB_TH}>Plate(s)</th>
                   <th className={DB_TH}>User level</th>
-                  {showFinance ? <th className={DB_TH}>Extra fee</th> : null}
                   <th className={DB_TH}>DAZN Team</th>
                   <th className={DB_TH}>Notes</th>
                   <th className={DB_TH}>Place of birth</th>
@@ -949,10 +1013,9 @@ export function DatabaseSections({
                   const notePrev = staffNotesPreview(s.notes);
                   const platesDisp = platesTableDisplay(s.plates);
                   const dobStr = formatBirthDateDisplay(s.date_of_birth);
-                  const roleLabel = s.default_role_code
-                    ? effectiveRoleMap[s.default_role_code] ??
-                      s.default_role_code
-                    : null;
+                  const rolesChip = staffRolesSummaryChips(s, (code) =>
+                    effectiveRoleMap[code] ?? code
+                  );
                   return (
                   <tr key={s.id} className={DB_TBODY_TR}>
                     <td className={DB_TD}>{s.surname}</td>
@@ -974,44 +1037,35 @@ export function DatabaseSections({
                     >
                       {s.company ?? "—"}
                     </td>
-                    <td
-                      className={roleLabel ? DB_TD : DB_TD_EMPTY}
-                    >
-                      {roleLabel ?? "—"}
+                    <td className={DB_TD}>
+                      <div className="flex flex-wrap gap-1">
+                        {rolesChip.visible.length === 0 ? (
+                          <span className="text-[#3F4547]">—</span>
+                        ) : (
+                          <>
+                            {rolesChip.visible.map((label) => (
+                              <span
+                                key={label}
+                                className="inline-flex rounded-full border border-[#2a2a2a] px-2 py-0.5 text-[11px] text-pitch-gray-light"
+                              >
+                                {label}
+                              </span>
+                            ))}
+                            {rolesChip.extra > 0 ? (
+                              <span className="text-[11px] text-gray-500">
+                                +{rolesChip.extra} more
+                              </span>
+                            ) : null}
+                          </>
+                        )}
+                      </div>
                     </td>
-                    <td
-                      className={
-                        s.default_location ? DB_TD : DB_TD_EMPTY
-                      }
-                    >
-                      {s.default_location ?? "—"}
-                    </td>
-                    {showFinance ? (
-                      <td
-                        className={
-                          s.fee != null && String(s.fee) !== ""
-                            ? DB_TD
-                            : DB_TD_EMPTY
-                        }
-                      >
-                        {s.fee != null && String(s.fee) !== ""
-                          ? String(s.fee)
-                          : "—"}
-                      </td>
-                    ) : null}
                     <td
                       className={platesDisp.empty ? DB_TD_EMPTY : DB_TD}
                     >
                       {platesDisp.text}
                     </td>
                     <td className={DB_TD}>{s.user_level}</td>
-                    {showFinance ? (
-                      <td
-                        className={s.extra_fee ? DB_TD : DB_TD_EMPTY}
-                      >
-                        {s.extra_fee ?? "—"}
-                      </td>
-                    ) : null}
                     <td
                       className={
                         s.team_dazn ? DB_TD : DB_TD_EMPTY
@@ -1076,10 +1130,7 @@ export function DatabaseSections({
                                 email: s.email ?? "",
                                 phone: s.phone ?? "",
                                 company: s.company ?? "",
-                                defaultRoleCode: s.default_role_code ?? "",
-                                defaultLocation: s.default_location ?? "STADIO",
                                 userLevel: s.user_level ?? "FREELANCE",
-                                fee: s.fee != null ? String(s.fee) : "",
                                 ...(() => {
                                   const [p1, p2, p3] = splitPlatesToThree(
                                     s.plates
@@ -1097,7 +1148,6 @@ export function DatabaseSections({
                                 ),
                                 residentialAddress: s.residential_address ?? "",
                                 idNumber: s.id_number ?? "",
-                                extraFee: s.extra_fee ?? "",
                                 teamDazn: s.team_dazn ?? "",
                                 staffNotes: s.notes ?? "",
                                 financeVisibility: s.finance_visibility === "VISIBLE",
@@ -1158,6 +1208,7 @@ export function DatabaseSections({
                   const data = await fetchStaff({
                     limit: STAFF_PAGE_SIZE,
                     offset: newOffset,
+                    includeRoles: true,
                   });
                   const items = data.items ?? [];
                   setStaff((prev) => [...prev, ...items]);
@@ -2307,28 +2358,6 @@ export function DatabaseSections({
                   Contract details
                 </p>
                 <div className="space-y-2">
-                  {showFinance ? (
-                    <div>
-                      <label
-                        htmlFor="staff-extra-fee"
-                        className="mb-1 block text-xs text-pitch-gray"
-                      >
-                        Extra fee
-                      </label>
-                      <input
-                        id="staff-extra-fee"
-                        type="text"
-                        value={staffFormValues.extraFee}
-                        onChange={(e) =>
-                          setStaffFormValues((v) => ({
-                            ...v,
-                            extraFee: e.target.value,
-                          }))
-                        }
-                        className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
-                      />
-                    </div>
-                  ) : null}
                   <div>
                     <label
                       htmlFor="staff-team-dazn"
@@ -2390,6 +2419,180 @@ export function DatabaseSections({
                       className="w-full resize-y rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
                     />
                   </div>
+                </div>
+              </div>
+
+              <div className="rounded-[10px] border border-[#1e1e1e] bg-[#0d0d0d] p-4">
+                <p className="mb-3 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                  Roles & fees
+                </p>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[640px] border-collapse text-sm">
+                    <thead>
+                      <tr className="border-b border-[#1e1e1e] text-[10px] font-semibold uppercase text-gray-500">
+                        <th className="h-11 px-2 text-left">Role</th>
+                        <th className="h-11 px-2 text-left">Location</th>
+                        <th className="h-11 px-2 text-left">Fee (€)</th>
+                        <th className="h-11 px-2 text-left">Extra fee (€)</th>
+                        <th className="h-11 px-2 text-left">Primary</th>
+                        <th className="h-11 px-2 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {staffRolesDraft.map((row, idx) => (
+                        <tr
+                          key={row.id}
+                          className={`h-11 border-b border-[#1e1e1e] ${
+                            idx % 2 === 0 ? "bg-[#111]" : "bg-[#141414]"
+                          }`}
+                        >
+                          <td className="px-2 text-pitch-white">
+                            {effectiveRoleMap[row.roleCode] ?? row.roleCode}
+                          </td>
+                          <td className="px-2 text-gray-500">{row.location}</td>
+                          <td className="px-2">
+                            <span className="inline-block rounded px-2 py-0.5 text-xs font-medium text-pitch-bg bg-[#FFFA00]">
+                              {showFinance ? row.fee : "—"}
+                            </span>
+                          </td>
+                          <td className="px-2 text-pitch-gray-light">
+                            {showFinance ? row.extraFee : "—"}
+                          </td>
+                          <td className="px-2">
+                            {row.isPrimary ? (
+                              <span className="text-[10px] font-semibold uppercase text-[#FFFA00]">
+                                Primary
+                              </span>
+                            ) : (
+                              <span className="text-gray-600">—</span>
+                            )}
+                          </td>
+                          <td className="px-2 text-right">
+                            <button
+                              type="button"
+                              className="text-lg leading-none text-gray-500 hover:text-red-400"
+                              title="Remove role"
+                              onClick={() =>
+                                setStaffRolesDraft((d) =>
+                                  d.filter((x) => x.id !== row.id)
+                                )
+                              }
+                            >
+                              ×
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="mt-4 flex flex-wrap items-end gap-2 border-t border-[#1e1e1e] pt-4">
+                  <div className="min-w-[200px] flex-1">
+                    <label className="mb-1 block text-[10px] uppercase text-gray-500">
+                      Role
+                    </label>
+                    <select
+                      value={newRoleCombo}
+                      onChange={(e) => setNewRoleCombo(e.target.value)}
+                      className="w-full rounded border border-[#2a2a2a] bg-[#111] px-2 py-2 text-sm text-pitch-white"
+                    >
+                      <option value="">Select role…</option>
+                      {rolesSortedForSelect.map((r) => (
+                        <option
+                          key={r.id}
+                          value={`${r.code}__${r.location}`}
+                        >
+                          {r.name || r.code} ({r.location})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="w-28">
+                    <label className="mb-1 block text-[10px] uppercase text-gray-500">
+                      Location
+                    </label>
+                    <select
+                      value={newRoleLoc}
+                      onChange={(e) => setNewRoleLoc(e.target.value)}
+                      className="w-full rounded border border-[#2a2a2a] bg-[#111] px-2 py-2 text-sm text-pitch-white"
+                    >
+                      {staffRoleLocationOptions.map((loc) => (
+                        <option key={loc} value={loc}>
+                          {loc}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {showFinance ? (
+                    <>
+                      <div className="w-24">
+                        <label className="mb-1 block text-[10px] uppercase text-gray-500">
+                          Fee
+                        </label>
+                        <input
+                          type="number"
+                          value={newRoleFee}
+                          onChange={(e) => setNewRoleFee(e.target.value)}
+                          className="w-full rounded border border-[#2a2a2a] bg-[#111] px-2 py-2 text-sm text-pitch-white"
+                        />
+                      </div>
+                      <div className="w-24">
+                        <label className="mb-1 block text-[10px] uppercase text-gray-500">
+                          Extra
+                        </label>
+                        <input
+                          type="number"
+                          value={newRoleExtra}
+                          onChange={(e) => setNewRoleExtra(e.target.value)}
+                          className="w-full rounded border border-[#2a2a2a] bg-[#111] px-2 py-2 text-sm text-pitch-white"
+                        />
+                      </div>
+                    </>
+                  ) : null}
+                  <label className="flex cursor-pointer items-center gap-2 pb-2 text-xs text-gray-400">
+                    <input
+                      type="checkbox"
+                      checked={newRolePrimary}
+                      onChange={(e) => setNewRolePrimary(e.target.checked)}
+                      className="rounded border-[#2a2a2a]"
+                    />
+                    Primary
+                  </label>
+                  <button
+                    type="button"
+                    className="rounded bg-[#FFFA00] px-3 py-2 text-sm font-semibold text-pitch-bg hover:bg-yellow-200"
+                    onClick={() => {
+                      const v = newRoleCombo.trim();
+                      if (!v) return;
+                      const i = v.indexOf("__");
+                      if (i < 0) return;
+                      const code = v.slice(0, i);
+                      const locFromCombo = v.slice(i + 2).toUpperCase();
+                      const loc = newRoleLoc.trim() || locFromCombo;
+                      const nf = parseFloat(newRoleFee.replace(",", "."));
+                      const ef = parseFloat(newRoleExtra.replace(",", "."));
+                      setStaffRolesDraft((d) => [
+                        ...d,
+                        {
+                          id: -Date.now(),
+                          staffId: editingStaff?.id ?? -1,
+                          roleCode: code,
+                          location: loc,
+                          fee: Number.isFinite(nf) ? nf : 0,
+                          extraFee: Number.isFinite(ef) ? ef : 0,
+                          isPrimary: newRolePrimary,
+                          active: true,
+                        },
+                      ]);
+                      setNewRoleCombo("");
+                      setNewRoleLoc("STADIO");
+                      setNewRoleFee("");
+                      setNewRoleExtra("");
+                      setNewRolePrimary(false);
+                    }}
+                  >
+                    + Add
+                  </button>
                 </div>
               </div>
 
@@ -2516,84 +2719,6 @@ export function DatabaseSections({
               </div>
               <div>
                 <label
-                  htmlFor="staff-default-role"
-                  className="mb-1 block text-xs text-pitch-gray"
-                >
-                  Default role <span className="text-red-400">*</span>
-                </label>
-                <select
-                  id="staff-default-role"
-                  required
-                  value={staffDefaultRoleSelectValue}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setStaffFormValues((prev) => {
-                      if (!v) {
-                        return { ...prev, defaultRoleCode: "" };
-                      }
-                      const idx = v.indexOf("__");
-                      const code = idx >= 0 ? v.slice(0, idx) : v;
-                      const loc =
-                        idx >= 0
-                          ? v.slice(idx + 2).toUpperCase()
-                          : prev.defaultLocation;
-                      return {
-                        ...prev,
-                        defaultRoleCode: code,
-                        defaultLocation:
-                          idx >= 0 ? loc : prev.defaultLocation,
-                      };
-                    });
-                  }}
-                  className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
-                >
-                  <option value="">Select role…</option>
-                  {!staffRolePairInCatalog && staffDefaultRoleSelectValue ? (
-                    <option value={staffDefaultRoleSelectValue}>
-                      {`${
-                        effectiveRoleMap[staffFormValues.defaultRoleCode] ??
-                        staffFormValues.defaultRoleCode
-                      } (${staffFormValues.defaultLocation})`}
-                    </option>
-                  ) : null}
-                  {rolesSortedForSelect.map((r) => (
-                    <option
-                      key={r.id}
-                      value={`${r.code}__${r.location}`}
-                    >
-                      {r.name || r.code} ({r.location})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label
-                  htmlFor="staff-default-loc"
-                  className="mb-1 block text-xs text-pitch-gray"
-                >
-                  Default location <span className="text-red-400">*</span>
-                </label>
-                <select
-                  id="staff-default-loc"
-                  required
-                  value={staffFormValues.defaultLocation}
-                  onChange={(e) =>
-                    setStaffFormValues((v) => ({
-                      ...v,
-                      defaultLocation: e.target.value,
-                    }))
-                  }
-                  className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
-                >
-                  {staffDefaultLocationSelectOptions.map((loc) => (
-                    <option key={loc} value={loc}>
-                      {loc}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label
                   htmlFor="staff-user-level"
                   className="mb-1 block text-xs text-pitch-gray"
                 >
@@ -2617,25 +2742,6 @@ export function DatabaseSections({
                   ))}
                 </select>
               </div>
-              {showFinance ? (
-                <div>
-                  <label
-                    htmlFor="staff-fee"
-                    className="mb-1 block text-xs text-pitch-gray"
-                  >
-                    Fee
-                  </label>
-                  <input
-                    id="staff-fee"
-                    type="number"
-                    value={staffFormValues.fee}
-                    onChange={(e) =>
-                      setStaffFormValues((v) => ({ ...v, fee: e.target.value }))
-                    }
-                    className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
-                  />
-                </div>
-              ) : null}
               <div className="grid gap-3 sm:grid-cols-3">
                 <div>
                   <label

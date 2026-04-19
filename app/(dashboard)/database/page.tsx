@@ -22,7 +22,10 @@ export default async function DatabasePage() {
 
   const [roles, staffData, standardCombos] = await Promise.all([
     fetchRoles({ cookieHeader }),
-    fetchStaff({ limit: 50, offset: 0 }, { cookieHeader }),
+    fetchStaff(
+      { limit: 50, offset: 0, includeRoles: true },
+      { cookieHeader }
+    ),
     fetchStandardCombos({ cookieHeader }),
   ]);
   const staff = staffData.items ?? [];

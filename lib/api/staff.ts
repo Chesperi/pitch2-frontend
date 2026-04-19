@@ -1,4 +1,5 @@
 import { apiFetch, apiFetchServer } from "./apiFetch";
+import type { StaffRoleFee } from "./staffRoles";
 
 export type StaffItem = {
   id: number;
@@ -7,9 +8,6 @@ export type StaffItem = {
   email: string | null;
   phone: string | null;
   company: string | null;
-  default_role_code: string | null;
-  default_location: string | null;
-  fee: number | null;
   plates: string | null;
   user_level: string;
   active: boolean;
@@ -17,12 +15,13 @@ export type StaffItem = {
   date_of_birth: string | null;
   residential_address: string | null;
   id_number: string | null;
-  extra_fee: string | null;
   team_dazn: string | null;
   notes: string | null;
   finance_visibility: "HIDDEN" | "VISIBLE" | null;
   shifts_management?: boolean;
   managed_teams?: string[] | null;
+  /** Present when loaded with includeRoles=true or from detail GET /api/staff/:id */
+  roles?: StaffRoleFee[];
 };
 
 export type StaffListResponse = {
@@ -34,20 +33,16 @@ export type CreateStaffPayload = {
   surname: string;
   name: string;
   email: string;
-  defaultRoleCode: string;
-  defaultLocation: string;
   userLevel?: string;
   active?: boolean;
   phone?: string | null;
   company?: string | null;
-  fee?: number | null;
   plates?: string | null;
-  place_of_birth?: string | null;
-  date_of_birth?: string | null;
-  residential_address?: string | null;
-  id_number?: string | null;
-  extra_fee?: string | null;
-  team_dazn?: string | null;
+  placeOfBirth?: string | null;
+  dateOfBirth?: string | null;
+  residentialAddress?: string | null;
+  idNumber?: string | null;
+  teamDazn?: string | null;
   notes?: string | null;
   financeVisibility?: "HIDDEN" | "VISIBLE" | null;
 };
@@ -81,6 +76,8 @@ export async function fetchStaff(
     location?: string;
     limit?: number;
     offset?: number;
+    /** When true, each item includes roles[] from staff_role_fees */
+    includeRoles?: boolean;
   },
   options?: StaffFetchOptions
 ): Promise<StaffListResponse> {
@@ -90,6 +87,7 @@ export async function fetchStaff(
   if (params?.location) searchParams.set("location", params.location);
   if (params?.limit != null) searchParams.set("limit", String(params.limit));
   if (params?.offset != null) searchParams.set("offset", String(params.offset));
+  if (params?.includeRoles) searchParams.set("includeRoles", "true");
 
   const qs = searchParams.toString();
   const path = `/api/staff${qs ? `?${qs}` : ""}`;

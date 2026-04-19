@@ -120,13 +120,8 @@ export function LookupValuesSection({
   useEffect(() => {
     setOpenByCat((prev) => {
       const next: Record<string, boolean> = {};
-      let hadAnyPrevKey = false;
       for (const k of categoryKeys) {
-        if (k in prev) hadAnyPrevKey = true;
         next[k] = prev[k] ?? false;
-      }
-      if (categoryKeys.length > 0 && !hadAnyPrevKey) {
-        next[categoryKeys[0]] = true;
       }
       return next;
     });

@@ -21,6 +21,7 @@ export {
   fetchRoles,
   createRole,
   updateRole,
+  deleteRole,
   type Role,
   type CreateRolePayload,
   type UpdateRolePayload,

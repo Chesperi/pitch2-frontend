@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { PageHeader } from "@/components/PageHeader";
-import { SearchBar } from "@/components/SearchBar";
 import {
   fetchRoles,
   fetchStaff,
@@ -38,9 +37,6 @@ export default async function DatabasePage() {
     <>
       <PageHeader title="Database" />
       <DesktopRecommended />
-      <div className="mt-4">
-        <SearchBar placeholder="Search database..." />
-      </div>
 
       <div className="mt-8">
         <Suspense fallback={<PageLoading />}>

@@ -73,3 +73,14 @@ export async function updateRole(
   }
   return (await res.json()) as Role;
 }
+
+export async function deleteRole(id: number): Promise<void> {
+  const res = await apiFetch(`/api/roles/${id}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    throw new Error(
+      await readRoleErrorMessage(res, `Failed to delete role: ${res.status}`)
+    );
+  }
+}

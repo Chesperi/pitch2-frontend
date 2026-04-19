@@ -7,7 +7,13 @@
  * - Pacchetti standard: lista combo + CRUD /api/standard-combos.
  */
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import {
+  Fragment,
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+} from "react";
 import { usePagePermissions } from "@/hooks/usePagePermissions";
 import {
   type StaffItem,
@@ -27,6 +33,7 @@ import {
 import {
   type Role,
   createRole,
+  deleteRole,
   fetchRoles,
   updateRole,
 } from "@/lib/api/roles";
@@ -69,6 +76,7 @@ const _databaseApiReadRef = {
   fetchStandardCombos,
   createRole,
   updateRole,
+  deleteRole,
 };
 void _databaseApiReadRef;
 
@@ -169,6 +177,29 @@ function platesTableDisplay(raw: string | null | undefined): {
   return { text: parts.join(" · "), empty: false };
 }
 
+function staffMatchesClientFilters(
+  s: StaffItem,
+  query: string,
+  roleLabel: (code: string) => string
+): boolean {
+  const qq = query.trim().toLowerCase();
+  if (!qq) return true;
+  const chunks: string[] = [
+    s.surname ?? "",
+    s.name ?? "",
+    s.email ?? "",
+    s.user_level ?? "",
+    s.team_dazn ?? "",
+    s.company ?? "",
+  ];
+  for (const r of s.roles ?? []) {
+    if (!r.active) continue;
+    const lab = roleLabel(r.roleCode);
+    chunks.push(lab, r.location, `${lab} · ${r.location}`);
+  }
+  return chunks.some((c) => c.toLowerCase().includes(qq));
+}
+
 type RoleFormValues = {
   roleCode: string;
   name: string;
@@ -201,6 +232,9 @@ const PRIMARY_BTN_SM =
 
 const FORM_SECTION_LABEL =
   "mb-3 border-b border-[#1e1e1e] pb-2 text-[10px] font-medium uppercase tracking-widest text-[#555]";
+
+const STAFF_FILTER_SELECT =
+  "w-full rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] px-3 py-1.5 text-[12px] text-pitch-white focus:border-pitch-accent focus:outline-none";
 
 const COMBO_ROLE_LOCATION_OPTIONS = ["STADIO", "COLOGNO", "REMOTE"] as const;
 const COMBO_ROLE_LOCATION_SORTED = sortAsc([...COMBO_ROLE_LOCATION_OPTIONS]);
@@ -298,9 +332,15 @@ function CollapsibleSection({
         </span>
         <span className="text-pitch-gray">{open ? "▼" : "▶"}</span>
       </button>
-      {open ? (
-        <div className="border-t border-pitch-gray-dark/60 p-4">{children}</div>
-      ) : null}
+      <div
+        className={
+          open
+            ? "border-t border-pitch-gray-dark/60 p-4"
+            : "hidden border-t border-pitch-gray-dark/60 p-4"
+        }
+      >
+        {children}
+      </div>
     </section>
   );
 }
@@ -313,7 +353,7 @@ export function DatabaseSections({
   roleMap,
 }: DatabaseSectionsProps) {
   const [showFinance, setShowFinance] = useState(false);
-  const [staffOpen, setStaffOpen] = useState(true);
+  const [staffOpen, setStaffOpen] = useState(false);
   const [rolesOpen, setRolesOpen] = useState(false);
   const [standardOpen, setStandardOpen] = useState(false);
   const [lookupOpen, setLookupOpen] = useState(false);
@@ -412,6 +452,18 @@ export function DatabaseSections({
   const [roleFormValues, setRoleFormValues] =
     useState<RoleFormValues>(emptyRoleForm);
   const [savingRole, setSavingRole] = useState(false);
+  const [roleDeleteConfirmId, setRoleDeleteConfirmId] = useState<number | null>(
+    null
+  );
+  const [deletingRoleId, setDeletingRoleId] = useState<number | null>(null);
+  const [roleRowDeleteError, setRoleRowDeleteError] = useState<
+    Record<number, string>
+  >({});
+
+  const [staffSearchQuery, setStaffSearchQuery] = useState("");
+  const [staffFilterUserLevel, setStaffFilterUserLevel] = useState("");
+  const [staffFilterDaznTeam, setStaffFilterDaznTeam] = useState("");
+  const [staffFilterCompany, setStaffFilterCompany] = useState("");
 
   const [standardCombos, setStandardCombos] = useState<
     StandardComboWithRequirements[]
@@ -554,13 +606,81 @@ export function DatabaseSections({
     return sortAsc([...set]);
   }, [editingRole]);
 
-  const rolesSortedForSelect = useMemo(
+  /** Ordine alfabetico per etichetta visiva (nome · sede), coerente con UX tabella Ruoli */
+  const rolesSortedDisplay = useMemo(
     () =>
-      [...roles].sort((a, b) =>
-        (a.name || a.code).localeCompare(b.name || b.code, "it")
-      ),
+      [...roles].sort((a, b) => {
+        const la = `${a.name || a.code} · ${a.location}`;
+        const lb = `${b.name || b.code} · ${b.location}`;
+        return la.localeCompare(lb, "en", { sensitivity: "base" });
+      }),
     [roles]
   );
+
+  const rolesSortedForSelect = rolesSortedDisplay;
+
+  const staffFilterOptions = useMemo(() => {
+    const levels = new Set<string>();
+    const teams = new Set<string>();
+    const companies = new Set<string>();
+    for (const row of staff) {
+      if (row.user_level) levels.add(row.user_level);
+      const t = row.team_dazn?.trim();
+      if (t) teams.add(t);
+      const c = row.company?.trim();
+      if (c) companies.add(c);
+    }
+    return {
+      levels: sortAsc([...levels]),
+      teams: sortAsc([...teams]),
+      companies: sortAsc([...companies]),
+    };
+  }, [staff]);
+
+  const filteredStaff = useMemo(() => {
+    return staff.filter((s) => {
+      if (staffFilterUserLevel && s.user_level !== staffFilterUserLevel) {
+        return false;
+      }
+      if (
+        staffFilterDaznTeam &&
+        (s.team_dazn ?? "").trim() !== staffFilterDaznTeam
+      ) {
+        return false;
+      }
+      if (staffFilterCompany && (s.company ?? "").trim() !== staffFilterCompany) {
+        return false;
+      }
+      return staffMatchesClientFilters(s, staffSearchQuery, (code) =>
+        effectiveRoleMap[code] ?? code
+      );
+    });
+  }, [
+    staff,
+    staffSearchQuery,
+    staffFilterUserLevel,
+    staffFilterDaznTeam,
+    staffFilterCompany,
+    effectiveRoleMap,
+  ]);
+
+  const staffFiltersActive = useMemo(
+    () =>
+      staffSearchQuery.trim() !== "" ||
+      staffFilterUserLevel !== "" ||
+      staffFilterDaznTeam !== "" ||
+      staffFilterCompany !== "",
+    [
+      staffSearchQuery,
+      staffFilterUserLevel,
+      staffFilterDaznTeam,
+      staffFilterCompany,
+    ]
+  );
+
+  const staffSectionTitle = staffFiltersActive
+    ? `Staff (${filteredStaff.length} di ${staffTotal})`
+    : `Staff (${staffTotal})`;
 
   const comboHeaderDatalistOptions = useMemo(() => {
     const onsite = sortAsc(
@@ -598,18 +718,22 @@ export function DatabaseSections({
     }
     const nameTrim = roleFormValues.name.trim();
     const descTrim = roleFormValues.description.trim();
-    const payload = {
-      roleCode: code,
-      name: nameTrim || undefined,
-      location: roleFormValues.location,
-      description: descTrim ? descTrim : null,
-    };
     setSavingRole(true);
     try {
       if (editingRole) {
-        await updateRole(editingRole.id, payload);
+        const displayText = descTrim || nameTrim;
+        await updateRole(editingRole.id, {
+          roleCode: code,
+          location: roleFormValues.location,
+          description: displayText === "" ? null : displayText,
+        });
       } else {
-        await createRole(payload);
+        await createRole({
+          roleCode: code,
+          name: nameTrim || undefined,
+          location: roleFormValues.location,
+          description: descTrim ? descTrim : undefined,
+        });
       }
       const refreshed = await fetchRoles();
       setRoles(refreshed);
@@ -621,6 +745,29 @@ export function DatabaseSections({
       );
     } finally {
       setSavingRole(false);
+    }
+  };
+
+  const handleConfirmDeleteRole = async (id: number) => {
+    setDeletingRoleId(id);
+    setRoleRowDeleteError((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    try {
+      await deleteRole(id);
+      setRoles((prev) => prev.filter((r) => r.id !== id));
+      setRoleDeleteConfirmId(null);
+    } catch (err) {
+      setRoleRowDeleteError((prev) => ({
+        ...prev,
+        [id]:
+          err instanceof Error ? err.message : "Delete failed.",
+      }));
+      setRoleDeleteConfirmId(null);
+    } finally {
+      setDeletingRoleId(null);
     }
   };
 
@@ -987,8 +1134,60 @@ export function DatabaseSections({
 
   return (
     <>
+      <div className="mb-6 space-y-3">
+        <input
+          type="search"
+          value={staffSearchQuery}
+          onChange={(e) => setStaffSearchQuery(e.target.value)}
+          placeholder="Search database…"
+          className="w-full rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] px-3 py-2 text-sm text-pitch-white placeholder:text-pitch-gray focus:border-pitch-accent focus:outline-none"
+          aria-label="Search staff"
+        />
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <select
+            value={staffFilterUserLevel}
+            onChange={(e) => setStaffFilterUserLevel(e.target.value)}
+            className={STAFF_FILTER_SELECT}
+            aria-label="Filter by user level"
+          >
+            <option value="">All user levels</option>
+            {staffFilterOptions.levels.map((lvl) => (
+              <option key={lvl} value={lvl}>
+                {lvl}
+              </option>
+            ))}
+          </select>
+          <select
+            value={staffFilterDaznTeam}
+            onChange={(e) => setStaffFilterDaznTeam(e.target.value)}
+            className={STAFF_FILTER_SELECT}
+            aria-label="Filter by DAZN team"
+          >
+            <option value="">All DAZN teams</option>
+            {staffFilterOptions.teams.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+          <select
+            value={staffFilterCompany}
+            onChange={(e) => setStaffFilterCompany(e.target.value)}
+            className={STAFF_FILTER_SELECT}
+            aria-label="Filter by company"
+          >
+            <option value="">All companies</option>
+            {staffFilterOptions.companies.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       <CollapsibleSection
-        title={`Staff (${staffTotal})`}
+        title={staffSectionTitle}
         open={staffOpen}
         onToggle={() => setStaffOpen(!staffOpen)}
       >
@@ -1029,6 +1228,10 @@ export function DatabaseSections({
             <div className="rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-6 text-pitch-gray">
               No staff
             </div>
+          ) : filteredStaff.length === 0 ? (
+            <div className="rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-6 text-pitch-gray">
+              No matching staff
+            </div>
           ) : (
             <table className="w-full border-collapse">
               <thead>
@@ -1052,7 +1255,7 @@ export function DatabaseSections({
                 </tr>
               </thead>
               <tbody>
-                {staff.map((s) => {
+                {filteredStaff.map((s) => {
                   const notePrev = staffNotesPreview(s.notes);
                   const platesDisp = platesTableDisplay(s.plates);
                   const dobStr = formatBirthDateDisplay(s.date_of_birth);
@@ -1308,31 +1511,90 @@ export function DatabaseSections({
                 </tr>
               </thead>
               <tbody>
-                {roles.map((r) => (
-                  <tr key={r.id} className={DB_TBODY_TR_COMPACT}>
-                    <td className={DB_TD_FIRST}>{r.code}</td>
-                    <td className={DB_TD_CELL}>{r.location}</td>
-                    <td
-                      className={
-                        r.description ? DB_TD_CELL : DB_TD_EMPTY_CELL
-                      }
-                    >
-                      {r.description ?? "—"}
-                    </td>
-                    <td className={`${DB_TD_CELL} whitespace-nowrap`}>
-                      <button
-                        type="button"
-                        className="text-xs text-pitch-accent underline-offset-2 hover:underline"
-                        onClick={() => {
-                          setEditingRole(r);
-                          setRoleFormError(null);
-                          setIsRoleModalOpen(true);
-                        }}
+                {rolesSortedDisplay.map((r) => (
+                  <Fragment key={r.id}>
+                    <tr className={DB_TBODY_TR_COMPACT}>
+                      <td className={DB_TD_FIRST}>{r.code}</td>
+                      <td className={DB_TD_CELL}>{r.location}</td>
+                      <td
+                        className={
+                          (r.description ?? "").trim() || (r.name ?? "").trim()
+                            ? DB_TD_CELL
+                            : DB_TD_EMPTY_CELL
+                        }
                       >
-                        Edit
-                      </button>
-                    </td>
-                  </tr>
+                        {(r.description ?? "").trim() ||
+                          r.name?.trim() ||
+                          "—"}
+                      </td>
+                      <td className={`${DB_TD_CELL} whitespace-nowrap`}>
+                        {roleDeleteConfirmId === r.id ? (
+                          <div className="inline-flex flex-wrap items-center justify-center gap-2">
+                            <span className="text-[11px] text-pitch-gray">
+                              Confirm delete?
+                            </span>
+                            <button
+                              type="button"
+                              disabled={deletingRoleId === r.id}
+                              className="rounded bg-red-700 px-2 py-0.5 text-[11px] font-medium text-white hover:bg-red-600 disabled:opacity-50"
+                              onClick={() => void handleConfirmDeleteRole(r.id)}
+                            >
+                              {deletingRoleId === r.id ? "…" : "Yes"}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={deletingRoleId === r.id}
+                              className="rounded border border-pitch-gray-dark px-2 py-0.5 text-[11px] text-pitch-gray-light hover:bg-pitch-gray-dark/40 disabled:opacity-50"
+                              onClick={() => setRoleDeleteConfirmId(null)}
+                            >
+                              No
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="inline-flex flex-wrap items-center justify-center gap-3">
+                            <button
+                              type="button"
+                              className="text-xs text-pitch-accent underline-offset-2 hover:underline"
+                              onClick={() => {
+                                setEditingRole(r);
+                                setRoleFormError(null);
+                                setRoleDeleteConfirmId(null);
+                                setIsRoleModalOpen(true);
+                              }}
+                            >
+                              Edit
+                            </button>
+                            {canEditDatabase ? (
+                              <button
+                                type="button"
+                                className="text-xs text-red-400 underline-offset-2 hover:underline"
+                                onClick={() => {
+                                  setRoleDeleteConfirmId(r.id);
+                                  setRoleRowDeleteError((prev) => {
+                                    const next = { ...prev };
+                                    delete next[r.id];
+                                    return next;
+                                  });
+                                }}
+                              >
+                                Delete
+                              </button>
+                            ) : null}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                    {roleRowDeleteError[r.id] ? (
+                      <tr className={DB_TBODY_TR_COMPACT}>
+                        <td
+                          colSpan={4}
+                          className="py-1 text-center text-[11px] text-red-400"
+                        >
+                          {roleRowDeleteError[r.id]}
+                        </td>
+                      </tr>
+                    ) : null}
+                  </Fragment>
                 ))}
               </tbody>
             </table>

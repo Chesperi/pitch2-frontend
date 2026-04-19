@@ -79,7 +79,7 @@ export default function DashboardLayout({
             />
           ) : null}
           <aside
-            className={`fixed inset-y-0 left-0 z-30 h-screen w-64 overflow-y-auto border-r border-[#2a2a2a] bg-black text-white transition-transform duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] md:translate-x-0 ${
+            className={`fixed inset-y-0 left-0 z-30 h-screen w-64 overflow-y-auto border-r border-[#2a2a2a] bg-black text-white transition-[transform,width] duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] md:translate-x-0 ${
               mobileOpen ? "translate-x-0" : "-translate-x-full"
             } ${collapsed ? "md:w-16" : "md:w-64 md:shadow-xl"}`}
             style={{
@@ -107,7 +107,7 @@ export default function DashboardLayout({
         />
         {!isFreelance ? (
           <div
-            className="flex h-14 shrink-0 items-center border-b border-[#2a2a2a] px-4 py-2 md:hidden"
+            className="flex items-center border-b border-[#2a2a2a] px-4 py-2 md:hidden"
             style={{ background: "#111" }}
           >
             <button
@@ -133,9 +133,7 @@ export default function DashboardLayout({
             </button>
           </div>
         ) : null}
-        <main className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-0 md:px-6 md:pb-6">
-          {children}
-        </main>
+        <main className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
       </div>
     </div>
   );

@@ -62,18 +62,26 @@ export default function DashboardLayout({
   const navCollapsed = mobileOpen ? false : collapsed;
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh" }}>
+    <div className="relative min-h-screen">
       {!isFreelance ? (
         <>
           <div
-            className={`fixed inset-0 z-40 bg-black/40 md:hidden transition-opacity duration-300 ease-out pointer-events-none ${mobileOpen ? "opacity-100 pointer-events-auto" : "opacity-0"}`}
+            className={`fixed inset-0 z-20 bg-black/40 transition-opacity duration-300 ease-out md:hidden pointer-events-none ${mobileOpen ? "opacity-100 pointer-events-auto" : "opacity-0"}`}
             onClick={() => setMobileOpen(false)}
             aria-hidden={!mobileOpen}
           />
+          {!collapsed ? (
+            <button
+              type="button"
+              className="fixed inset-y-0 left-16 right-0 z-[25] hidden cursor-default bg-black/10 md:block"
+              aria-label="Chiudi espansione menu laterale"
+              onClick={() => setCollapsed(true)}
+            />
+          ) : null}
           <aside
-            className={`will-change-transform fixed inset-y-0 left-0 z-50 h-screen w-64 flex-shrink-0 overflow-y-auto border-r border-[#2a2a2a] bg-black text-white transition-[transform,width] duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] md:relative md:inset-auto md:sticky md:top-0 md:z-auto md:h-screen md:self-start md:translate-x-0 ${
+            className={`fixed inset-y-0 left-0 z-30 h-screen w-64 overflow-y-auto border-r border-[#2a2a2a] bg-black text-white transition-[transform,width] duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] md:translate-x-0 ${
               mobileOpen ? "translate-x-0" : "-translate-x-full"
-            } ${collapsed ? "md:w-16" : "md:w-64"}`}
+            } ${collapsed ? "md:w-16" : "md:w-64 md:shadow-xl"}`}
             style={{
               color: "#FFFFFF",
             }}
@@ -89,12 +97,7 @@ export default function DashboardLayout({
         </>
       ) : null}
       <div
-        style={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          minWidth: 0,
-        }}
+        className={`flex min-h-screen min-w-0 flex-col ${isFreelance ? "ml-0 w-full" : "ml-0 w-full md:ml-16"}`}
       >
         <AppNavbar
           userName={userName}
@@ -130,7 +133,7 @@ export default function DashboardLayout({
             </button>
           </div>
         ) : null}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
+        <main className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
       </div>
     </div>
   );

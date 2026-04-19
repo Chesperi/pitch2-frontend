@@ -52,17 +52,16 @@ export default function AppNavbar({
   return (
     <header className="sticky top-0 z-20" style={{ background: "#111" }}>
       <div
-        className="flex items-center justify-between gap-4"
+        className="flex items-center justify-between gap-2 px-3 sm:px-6"
         style={{
           height: 56,
           boxSizing: "border-box",
           borderBottom: "1px solid #2a2a2a",
-          padding: "0 24px",
           background: "#111",
         }}
       >
         <div
-          className="flex items-center gap-3"
+          className="flex min-w-0 shrink items-center gap-2"
           style={{ paddingLeft: 0, marginLeft: 0 }}
         >
           <div
@@ -96,7 +95,7 @@ export default function AppNavbar({
           ) : null}
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-2">
           <div className="relative">
             <button
               type="button"
@@ -134,9 +133,9 @@ export default function AppNavbar({
             <button
               type="button"
               onClick={() => setIsUserMenuOpen((s) => !s)}
-              className="flex items-center gap-3"
+              className="flex items-center gap-2"
             >
-              <div className="text-right">
+              <div className="hidden text-right sm:block">
                 <div className="text-sm text-white">{userName || "Utente"}</div>
               </div>
               <div

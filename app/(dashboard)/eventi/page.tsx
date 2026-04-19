@@ -87,16 +87,16 @@ function toDatetimeLocalValueFromEvent(event: EventItem): string {
 function eventStatusBadgeEl(status: string | null): ReactNode {
   const value = status?.toUpperCase() ?? "";
   if (value === "TBC" || value === "TBD") {
-    return <StatusBadge variant="pending" label="To confirm" />;
+    return <StatusBadge variant="pending" label="Da confermare" />;
   }
   if (value === "OK") {
     return <StatusBadge variant="complete" label="OK" />;
   }
   if (value === "CONFIRMED") {
-    return <StatusBadge variant="confirmed" label="Confirmed" />;
+    return <StatusBadge variant="confirmed" label="Confermato" />;
   }
   if (value === "CANCELLED" || value === "CANCELED") {
-    return <StatusBadge variant="cancelled" label="Cancelled" />;
+    return <StatusBadge variant="cancelled" label="Annullato" />;
   }
   if (!status?.trim()) {
     return <span className="text-xs text-pitch-gray">—</span>;
@@ -116,11 +116,11 @@ function assignmentsStatusBadgeEl(
   }
   switch (status) {
     case "DRAFT":
-      return <StatusBadge variant="draft" label="Draft" />;
+      return <StatusBadge variant="draft" label="Bozza" />;
     case "READY_TO_SEND":
-      return <StatusBadge variant="pending" label="Ready" />;
+      return <StatusBadge variant="pending" label="Pronto" />;
     case "SENT":
-      return <StatusBadge variant="accepted" label="Sent" />;
+      return <StatusBadge variant="accepted" label="Inviato" />;
     default:
       return (
         <span className="rounded-full bg-pitch-gray-dark px-2 py-0.5 text-xs text-pitch-gray-light">
@@ -371,7 +371,7 @@ function EventModal({
           >
             <div>
               <label className="mb-1 block text-xs text-pitch-gray">
-                Category
+                Categoria
               </label>
               <select
                 value={form.category}
@@ -388,7 +388,7 @@ function EventModal({
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs text-pitch-gray">Status</label>
+              <label className="mb-1 block text-xs text-pitch-gray">Stato</label>
               <select
                 value={form.status}
                 onChange={(e) =>
@@ -1005,7 +1005,7 @@ export default function EventiPage() {
   return (
     <>
       <PageHeader
-        title="Events"
+        title="Eventi"
         actions={
           <div className="flex flex-wrap gap-2">
             {canImportMatches ? (
@@ -1015,7 +1015,7 @@ export default function EventiPage() {
                 onClick={() => setImportModalOpen(true)}
                 className="border-pitch-accent text-pitch-accent hover:bg-pitch-accent/10"
               >
-                Import matches
+                Importa partite
               </PrimaryButton>
             ) : null}
             <PrimaryButton
@@ -1026,7 +1026,7 @@ export default function EventiPage() {
                 setIsCreateModalOpen(true);
               }}
             >
-              New event
+              Nuovo evento
             </PrimaryButton>
           </div>
         }
@@ -1052,7 +1052,7 @@ export default function EventiPage() {
       <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
         <div className="min-w-[200px] flex-1">
           <SearchBar
-            placeholder="Search events..."
+            placeholder="Cerca eventi..."
             onSearchChange={setSearch}
           />
         </div>
@@ -1064,22 +1064,22 @@ export default function EventiPage() {
               disabled={autoMatchingCombos}
               className="rounded border border-pitch-accent px-3 py-2 text-sm font-medium text-pitch-accent hover:bg-pitch-accent/10 disabled:opacity-50"
             >
-              {autoMatchingCombos ? "Auto-matching..." : "Auto-match standards"}
+              {autoMatchingCombos ? "Associazione in corso…" : "Associa standard"}
             </button>
           </div>
         ) : null}
-        <div className="flex flex-wrap gap-4">
+        <div className="flex flex-wrap gap-2">
           <div>
-            <label className="mb-1 block text-xs text-pitch-gray">Status</label>
-            <div className="flex flex-wrap gap-1.5 rounded border border-pitch-gray-dark bg-pitch-gray-dark p-1.5">
+            <label className="mb-1 block text-xs text-pitch-gray">Stato</label>
+            <div className="flex flex-wrap gap-2 rounded border border-pitch-gray-dark bg-pitch-gray-dark p-1.5">
               {[
-                { id: "ALL", label: "All" },
+                { id: "ALL", label: "Tutti" },
                 { id: "TBC", label: "TBC" },
                 { id: "TBD", label: "TBD" },
                 { id: "OK", label: "OK" },
-                { id: "CONFIRMED", label: "Confirmed" },
-                { id: "TO_CONFIRM", label: "To confirm" },
-                { id: "CANCELLED", label: "Cancelled" },
+                { id: "CONFIRMED", label: "Confermato" },
+                { id: "TO_CONFIRM", label: "Da confermare" },
+                { id: "CANCELLED", label: "Annullato" },
               ].map((opt) => {
                 const active = selectedStatuses.includes(opt.id);
                 return (
@@ -1109,11 +1109,11 @@ export default function EventiPage() {
           </div>
           <div>
             <label className="mb-1 block text-xs text-pitch-gray">
-              Category
+              Categoria
             </label>
-            <div className="flex flex-wrap gap-1.5 rounded border border-pitch-gray-dark bg-pitch-gray-dark p-1.5">
+            <div className="flex flex-wrap gap-2 rounded border border-pitch-gray-dark bg-pitch-gray-dark p-1.5">
               {[
-                { id: "ALL", label: "All" },
+                { id: "ALL", label: "Tutti" },
                 { id: "MATCH", label: "MATCH" },
                 { id: "STUDIO SHOW", label: "STUDIO SHOW" },
                 { id: "MEDIA CONTENT", label: "MEDIA CONTENT" },
@@ -1147,14 +1147,14 @@ export default function EventiPage() {
           </div>
           <div>
             <label className="mb-1 block text-xs text-pitch-gray">
-              Assignment status
+              Stato designazioni
             </label>
-            <div className="flex flex-wrap gap-1.5 rounded border border-pitch-gray-dark bg-pitch-gray-dark p-1.5">
+            <div className="flex flex-wrap gap-2 rounded border border-pitch-gray-dark bg-pitch-gray-dark p-1.5">
               {[
-                { id: "ALL", label: "All" },
-                { id: "DRAFT", label: "Draft" },
-                { id: "READY_TO_SEND", label: "Ready" },
-                { id: "SENT", label: "Sent" },
+                { id: "ALL", label: "Tutti" },
+                { id: "DRAFT", label: "Bozza" },
+                { id: "READY_TO_SEND", label: "Pronto" },
+                { id: "SENT", label: "Inviato" },
               ].map((opt) => {
                 const active = selectedAssignmentStatuses.includes(opt.id);
                 return (
@@ -1245,6 +1245,7 @@ export default function EventiPage() {
             <EmptyState message="Nessun evento trovato" icon="calendar" />
           </div>
         ) : (
+          <>
           <ResponsiveTable minWidth="1260px">
           <table className="w-full border-collapse">
             <thead>
@@ -1259,13 +1260,13 @@ export default function EventiPage() {
                   />
                 </th>
                 <th className="min-w-[140px] px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Match
+                  Partita
                 </th>
                 <th className="min-w-[100px] px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Competition
+                  Competizione
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Category
+                  Categoria
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
                   Rights
@@ -1295,10 +1296,10 @@ export default function EventiPage() {
                   Show
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Status
+                  Stato
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Assignments
+                  Designazioni
                 </th>
               </tr>
             </thead>
@@ -1440,6 +1441,10 @@ export default function EventiPage() {
             </tbody>
           </table>
           </ResponsiveTable>
+          <p className="mt-2 text-xs text-pitch-gray-light md:hidden">
+            ← Scorri per vedere tutte le colonne
+          </p>
+          </>
         )}
       </div>
 

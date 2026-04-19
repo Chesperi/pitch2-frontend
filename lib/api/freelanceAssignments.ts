@@ -7,6 +7,9 @@ export type UserProfile = {
   user_level: string;
   finance_visibility: "HIDDEN" | "VISIBLE";
   email?: string | null;
+  team_dazn?: string | null;
+  shifts_management?: boolean;
+  managed_teams?: string[];
 };
 
 export type MyAssignmentListItem = {
@@ -215,6 +218,10 @@ export async function fetchAuthMe(): Promise<UserProfile> {
     throw err;
   }
   const data = (await res.json()) as Record<string, unknown>;
+  const mt = data.managed_teams ?? data.managedTeams;
+  const managedTeams = Array.isArray(mt)
+    ? mt.map((x) => String(x).trim()).filter(Boolean)
+    : [];
   return {
     id: Number(data.id),
     name: String(data.name ?? ""),
@@ -223,6 +230,14 @@ export async function fetchAuthMe(): Promise<UserProfile> {
     finance_visibility:
       data.finance_visibility === "VISIBLE" ? "VISIBLE" : "HIDDEN",
     email: data.email != null ? String(data.email) : null,
+    team_dazn:
+      data.team_dazn != null && String(data.team_dazn).trim() !== ""
+        ? String(data.team_dazn)
+        : data.teamDazn != null && String(data.teamDazn).trim() !== ""
+          ? String(data.teamDazn)
+          : null,
+    shifts_management: Boolean(data.shifts_management ?? data.shiftsManagement),
+    managed_teams: managedTeams,
   };
 }
 

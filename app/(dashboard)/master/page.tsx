@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { apiFetch } from "@/lib/api/apiFetch";
+import { updateStaff } from "@/lib/api/staff";
+import { fetchDistinctTeamNames } from "@/lib/api/shifts";
 import ResponsiveTable from "@/components/ui/ResponsiveTable";
 import PageLoading from "@/components/ui/PageLoading";
 import DesktopRecommended from "@/components/ui/DesktopRecommended";
@@ -20,6 +22,8 @@ type StaffPermissionsItem = {
   email: string;
   userLevel: string;
   financeVisibility: "HIDDEN" | "VISIBLE";
+  shiftsManagement: boolean;
+  managedTeams: string[];
   permissions: StaffPagePermission[];
 };
 
@@ -59,6 +63,7 @@ export default function MasterPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [savingKeys, setSavingKeys] = useState<Set<string>>(() => new Set());
+  const [teamNameOptions, setTeamNameOptions] = useState<string[]>([]);
   const setSaving = useCallback((key: string, on: boolean) => {
     setSavingKeys((prev) => {
       const next = new Set(prev);
@@ -93,6 +98,21 @@ export default function MasterPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    let c = false;
+    (async () => {
+      try {
+        const t = await fetchDistinctTeamNames();
+        if (!c) setTeamNameOptions(t);
+      } catch {
+        if (!c) setTeamNameOptions([]);
+      }
+    })();
+    return () => {
+      c = true;
+    };
+  }, []);
 
   const pageKeysOrdered = useMemo(() => {
     if (items.length === 0) return [];
@@ -158,6 +178,81 @@ export default function MasterPage() {
         e instanceof Error
           ? e.message
           : "Error saving permissions."
+      );
+    } finally {
+      setSaving(savingKey, false);
+    }
+  };
+
+  const handleShiftsToggle = async (
+    staffId: number,
+    current: boolean
+  ) => {
+    const row = items.find((r) => r.staffId === staffId);
+    if (row && (isSystemMaster(row) || isFreelanceOrProvider(row))) return;
+
+    const next = !current;
+    const savingKey = `shifts:${staffId}`;
+    setActionError(null);
+    setSaving(savingKey, true);
+
+    const prevItems = items;
+    setItems((currentItems) =>
+      currentItems.map((item) =>
+        item.staffId === staffId
+          ? {
+              ...item,
+              shiftsManagement: next,
+              managedTeams: next ? item.managedTeams : [],
+            }
+          : item
+      )
+    );
+
+    try {
+      await updateStaff(staffId, {
+        shiftsManagement: next,
+        managedTeams: next ? row?.managedTeams ?? [] : [],
+      });
+    } catch (e) {
+      setItems(prevItems);
+      setActionError(
+        e instanceof Error ? e.message : "Errore salvataggio turni."
+      );
+    } finally {
+      setSaving(savingKey, false);
+    }
+  };
+
+  const handleManagedTeamsChange = async (
+    staffId: number,
+    teams: string[]
+  ) => {
+    const row = items.find((r) => r.staffId === staffId);
+    if (row && (isSystemMaster(row) || isFreelanceOrProvider(row))) return;
+
+    const savingKey = `shiftsTeams:${staffId}`;
+    setActionError(null);
+    setSaving(savingKey, true);
+
+    const prevItems = items;
+    setItems((currentItems) =>
+      currentItems.map((item) =>
+        item.staffId === staffId
+          ? { ...item, managedTeams: teams }
+          : item
+      )
+    );
+
+    try {
+      await updateStaff(staffId, {
+        shiftsManagement: true,
+        managedTeams: teams,
+      });
+    } catch (e) {
+      setItems(prevItems);
+      setActionError(
+        e instanceof Error ? e.message : "Errore salvataggio team gestiti."
       );
     } finally {
       setSaving(savingKey, false);
@@ -290,6 +385,9 @@ export default function MasterPage() {
                 <th className="min-w-[160px] whitespace-nowrap px-3 py-2 text-left font-medium text-pitch-gray">
                   Visib. finanziaria
                 </th>
+                <th className="min-w-[200px] whitespace-nowrap px-3 py-2 text-left font-medium text-pitch-gray">
+                  Turni
+                </th>
                 {pageKeysOrdered.map((pk) => (
                   <th
                     key={pk}
@@ -325,7 +423,7 @@ export default function MasterPage() {
                       {row.userLevel}
                     </span>
                   </td>
-                  <td className="whitespace-nowrap px-4 py-2 text-xs">
+                  <td className="whitespace-nowrap px-4 py-2 text-xs align-top">
                     <button
                       type="button"
                       onClick={() =>
@@ -348,6 +446,59 @@ export default function MasterPage() {
                     >
                       {row.financeVisibility}
                     </button>
+                  </td>
+                  <td className="min-w-[200px] px-4 py-2 text-xs align-top">
+                    <div className="flex flex-col gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleShiftsToggle(
+                            row.staffId,
+                            row.shiftsManagement
+                          )
+                        }
+                        disabled={
+                          isSystemMaster(row) ||
+                          isFreelanceOrProvider(row) ||
+                          savingKeys.has(`shifts:${row.staffId}`)
+                        }
+                        className={`inline-flex min-w-[120px] items-center justify-center rounded border px-2 py-1.5 text-xs font-semibold transition-colors duration-150 ease-out ${
+                          row.shiftsManagement
+                            ? "border-pitch-accent bg-pitch-accent/20 text-pitch-accent"
+                            : "border-pitch-gray-dark bg-pitch-gray-dark/30 text-pitch-gray"
+                        } ${
+                          isSystemMaster(row) || isFreelanceOrProvider(row)
+                            ? "cursor-not-allowed opacity-50"
+                            : "hover:opacity-90"
+                        }`}
+                      >
+                        {row.shiftsManagement ? "ON" : "OFF"}
+                      </button>
+                      {row.shiftsManagement &&
+                      !isFreelanceOrProvider(row) &&
+                      !isSystemMaster(row) ? (
+                        <select
+                          multiple
+                          size={Math.min(6, Math.max(3, teamNameOptions.length))}
+                          value={row.managedTeams}
+                          disabled={savingKeys.has(`shiftsTeams:${row.staffId}`)}
+                          onChange={(e) => {
+                            const selected = Array.from(
+                              e.target.selectedOptions,
+                              (o) => o.value
+                            );
+                            void handleManagedTeamsChange(row.staffId, selected);
+                          }}
+                          className="w-full max-w-[220px] rounded border border-pitch-gray-dark bg-pitch-bg px-2 py-1 text-[11px] text-pitch-white"
+                        >
+                          {teamNameOptions.map((t) => (
+                            <option key={t} value={t}>
+                              {t}
+                            </option>
+                          ))}
+                        </select>
+                      ) : null}
+                    </div>
                   </td>
                   {row.permissions.map((perm) => (
                     <td key={perm.pageKey} className="whitespace-nowrap px-4 py-2 text-xs">

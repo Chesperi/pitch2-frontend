@@ -21,6 +21,8 @@ export type StaffItem = {
   team_dazn: string | null;
   notes: string | null;
   finance_visibility: "HIDDEN" | "VISIBLE" | null;
+  shifts_management?: boolean;
+  managed_teams?: string[] | null;
 };
 
 export type StaffListResponse = {
@@ -50,7 +52,10 @@ export type CreateStaffPayload = {
   financeVisibility?: "HIDDEN" | "VISIBLE" | null;
 };
 
-export type UpdateStaffPayload = Partial<CreateStaffPayload>;
+export type UpdateStaffPayload = Partial<CreateStaffPayload> & {
+  shiftsManagement?: boolean;
+  managedTeams?: string[];
+};
 
 export type StaffFetchOptions = {
   /** Per Server Components: header Cookie da `cookies()` */

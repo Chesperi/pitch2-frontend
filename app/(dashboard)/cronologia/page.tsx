@@ -28,45 +28,61 @@ type AuditLogResponse = {
 const FILTER_SELECT_CLASS =
   "rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none";
 
-/** Etichette UI (stesso dizionario del backend per i tipi noti). */
-const ENTITY_LABELS_IT: Record<string, string> = {
-  assignment: "Assegnazione",
-  event: "Evento",
-  role: "Ruolo",
-  staff: "Staff",
-  cookies_task: "Attività",
-  standard: "Standard",
+/** App area where the change occurred (derived from entity_type). */
+const PAGE_BY_ENTITY_TYPE: Record<string, string> = {
+  event: "Events",
+  assignment: "Assignments",
+  staff: "Database",
+  role: "Database",
+  standard: "Database",
+  cookies_task: "Cookies Jar",
 };
 
-function entityTypeLabelIt(entityType: string): string {
-  const t = entityType.trim();
-  return ENTITY_LABELS_IT[t] ?? t;
+function pageColumn(entityType: string): string {
+  return PAGE_BY_ENTITY_TYPE[entityType] ?? entityType;
 }
 
-/** Colonna Entity: nome da metadata se presente, altrimenti solo tipo in italiano (senza ID). */
-function entityColumnDisplay(item: AuditLogItem): string {
+function trimStr(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  const t = v.trim();
+  return t ? t : null;
+}
+
+/** Match metadata keys that carry home/away labels for events. */
+function homeAwayDisplay(m: Record<string, unknown>): string | null {
+  const home =
+    trimStr(m.homeTeam) ??
+    trimStr(m.homeTeamNameShort) ??
+    trimStr(m.home_team_name_short);
+  const away =
+    trimStr(m.awayTeam) ??
+    trimStr(m.awayTeamNameShort) ??
+    trimStr(m.away_team_name_short);
+  if (home && away) return `${home} v ${away}`;
+  return null;
+}
+
+function elementColumn(item: AuditLogItem): string {
   const m = metaRecord(item.metadata);
   if (m) {
-    if (
-      typeof m.entityName === "string" &&
-      m.entityName.trim()
-    ) {
-      return m.entityName.trim();
-    }
-    if (typeof m.name === "string" && m.name.trim()) {
-      return m.name.trim();
-    }
-    if (typeof m.title === "string" && m.title.trim()) {
-      return m.title.trim();
-    }
+    const ha = homeAwayDisplay(m);
+    if (ha) return ha;
+    const byName =
+      trimStr(m.name) ??
+      trimStr(m.title) ??
+      trimStr(m.entityName);
+    if (byName) return byName;
+    const byStaffRole =
+      trimStr(m.staffName) ?? trimStr(m.roleName);
+    if (byStaffRole) return byStaffRole;
   }
-  return entityTypeLabelIt(item.entityType);
+  return `${item.entityType} #${item.entityId}`;
 }
 
-function formatDateTimeIt(iso: string): string {
+function formatDateTimeEn(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "—";
-  return new Intl.DateTimeFormat("it-IT", {
+  return new Intl.DateTimeFormat("en-GB", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -87,19 +103,20 @@ function metaRecord(meta: unknown): Record<string, unknown> | null {
   return null;
 }
 
-function fieldColumn(meta: unknown): string {
+function fieldColumn(meta: unknown, action: string): string {
+  if (action === "create") return "—";
+  if (action === "status_change") return "status";
   const m = metaRecord(meta);
   if (!m) return "—";
-  const field = m.field;
-  if (typeof field === "string" && field.trim()) return field.trim();
+  const single = trimStr(m.field);
+  if (single) return single;
   const cf = m.changedFields;
-  if (
-    Array.isArray(cf) &&
-    cf.length > 0 &&
-    typeof cf[0] === "string" &&
-    cf[0].trim()
-  ) {
-    return cf[0].trim();
+  if (Array.isArray(cf) && cf.length > 0) {
+    const parts = cf
+      .filter((x): x is string => typeof x === "string")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (parts.length) return parts.join(", ");
   }
   return "—";
 }
@@ -117,7 +134,6 @@ function oldValueColumn(meta: unknown, action: string): string {
   return "—";
 }
 
-/** Per action create: primo valore utile nei campi tipici, poi primo primitivo non vuoto. */
 function firstSignificantCreateValue(meta: unknown): string {
   const m = metaRecord(meta);
   if (!m) return "—";
@@ -167,6 +183,21 @@ function fullMetadataJson(meta: unknown): string {
   } catch {
     return String(meta);
   }
+}
+
+const FILTER_ENTITY_OPTIONS: { value: string; label: string }[] = [
+  { value: "", label: "All entities" },
+  { value: "assignment", label: "Assignment" },
+  { value: "event", label: "Event" },
+  { value: "role", label: "Role" },
+  { value: "staff", label: "Staff" },
+  { value: "cookies_task", label: "Task" },
+  { value: "standard", label: "Standard" },
+];
+
+function filterLabelForEntityType(type: string): string {
+  const found = FILTER_ENTITY_OPTIONS.find((o) => o.value === type);
+  return found?.label ?? type;
 }
 
 export default function CronologiaPage() {
@@ -221,20 +252,11 @@ export default function CronologiaPage() {
   }, [load]);
 
   const entityTypeOptions = useMemo(() => {
-    const predefined: { value: string; label: string }[] = [
-      { value: "", label: "Tutte le entità" },
-      { value: "assignment", label: ENTITY_LABELS_IT.assignment },
-      { value: "event", label: ENTITY_LABELS_IT.event },
-      { value: "role", label: ENTITY_LABELS_IT.role },
-      { value: "staff", label: ENTITY_LABELS_IT.staff },
-      { value: "cookies_task", label: ENTITY_LABELS_IT.cookies_task },
-      { value: "standard", label: ENTITY_LABELS_IT.standard },
-    ];
-    const known = new Set(predefined.map((o) => o.value));
+    const known = new Set(FILTER_ENTITY_OPTIONS.map((o) => o.value));
     const extra = seenEntityTypes
       .filter((t) => t && !known.has(t))
-      .map((t) => ({ value: t, label: entityTypeLabelIt(t) }));
-    return [...predefined, ...extra];
+      .map((t) => ({ value: t, label: filterLabelForEntityType(t) }));
+    return [...FILTER_ENTITY_OPTIONS, ...extra];
   }, [seenEntityTypes]);
 
   return (
@@ -247,7 +269,7 @@ export default function CronologiaPage() {
             htmlFor="cronologia-entity-type"
             className="mb-1 block text-xs text-pitch-gray"
           >
-            Tipo entità
+            Entity type
           </label>
           <select
             id="cronologia-entity-type"
@@ -289,7 +311,7 @@ export default function CronologiaPage() {
 
       {!loading && !error && items.length > 0 ? (
         <div className="mt-6 overflow-x-auto rounded-lg border border-pitch-gray-dark">
-          <table className="w-full min-w-[1100px] border-collapse text-sm">
+          <table className="w-full min-w-[1280px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-pitch-gray-dark bg-pitch-gray-dark/30">
                 <th className="px-4 py-3 text-left font-medium text-pitch-gray">
@@ -299,19 +321,22 @@ export default function CronologiaPage() {
                   User
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-pitch-gray">
-                  Entity
+                  Page
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-pitch-gray">
+                  Element
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-pitch-gray">
+                  Field
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-pitch-gray">
                   Action
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-pitch-gray">
-                  Campo
+                  Previous value
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-pitch-gray">
-                  Valore precedente
-                </th>
-                <th className="px-4 py-3 text-left font-medium text-pitch-gray">
-                  Nuovo valore
+                  New value
                 </th>
               </tr>
             </thead>
@@ -323,19 +348,22 @@ export default function CronologiaPage() {
                   title={fullMetadataJson(row.metadata)}
                 >
                   <td className="whitespace-nowrap px-4 py-3 text-pitch-gray-light">
-                    {formatDateTimeIt(row.createdAt)}
+                    {formatDateTimeEn(row.createdAt)}
                   </td>
                   <td className="px-4 py-3 text-pitch-gray-light">
-                    {row.actorName ?? "Sistema"}
-                  </td>
-                  <td className="px-4 py-3 text-pitch-white">
-                    {entityColumnDisplay(row)}
+                    {row.actorName ?? "System"}
                   </td>
                   <td className="px-4 py-3 text-pitch-gray-light">
+                    {pageColumn(row.entityType)}
+                  </td>
+                  <td className="max-w-[220px] break-words px-4 py-3 text-pitch-white">
+                    {elementColumn(row)}
+                  </td>
+                  <td className="max-w-[160px] px-4 py-3 text-xs text-pitch-gray-light">
+                    {fieldColumn(row.metadata, row.action)}
+                  </td>
+                  <td className="max-w-[180px] px-4 py-3 text-pitch-gray-light">
                     {row.actionLabel}
-                  </td>
-                  <td className="max-w-[140px] px-4 py-3 text-xs text-pitch-gray-light">
-                    {fieldColumn(row.metadata)}
                   </td>
                   <td className="max-w-[180px] break-words px-4 py-3 text-xs text-pitch-gray">
                     {oldValueColumn(row.metadata, row.action)}

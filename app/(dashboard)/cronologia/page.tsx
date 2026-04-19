@@ -103,6 +103,39 @@ function metaRecord(meta: unknown): Record<string, unknown> | null {
   return null;
 }
 
+function isStaffChangeEntry(
+  v: unknown
+): v is { field: string; oldValue: unknown; newValue: unknown } {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return false;
+  const o = v as Record<string, unknown>;
+  return (
+    typeof o.field === "string" &&
+    "oldValue" in o &&
+    "newValue" in o
+  );
+}
+
+/** First structured staff field change (old/new pair). */
+function firstChangedFieldPair(meta: unknown): {
+  oldV: string;
+  newV: string;
+} | null {
+  const m = metaRecord(meta);
+  if (!m || !Array.isArray(m.changedFields)) return null;
+  const first = m.changedFields[0];
+  if (!isStaffChangeEntry(first)) return null;
+  return {
+    oldV:
+      first.oldValue === null || first.oldValue === undefined
+        ? "—"
+        : String(first.oldValue),
+    newV:
+      first.newValue === null || first.newValue === undefined
+        ? "—"
+        : String(first.newValue),
+  };
+}
+
 function fieldColumn(meta: unknown, action: string): string {
   if (action === "create") return "—";
   if (action === "status_change") return "status";
@@ -112,6 +145,13 @@ function fieldColumn(meta: unknown, action: string): string {
   if (single) return single;
   const cf = m.changedFields;
   if (Array.isArray(cf) && cf.length > 0) {
+    if (isStaffChangeEntry(cf[0])) {
+      const names = cf
+        .filter(isStaffChangeEntry)
+        .map((x) => String(x.field).trim())
+        .filter(Boolean);
+      if (names.length) return names.join(", ");
+    }
     const parts = cf
       .filter((x): x is string => typeof x === "string")
       .map((s) => s.trim())
@@ -123,6 +163,8 @@ function fieldColumn(meta: unknown, action: string): string {
 
 function oldValueColumn(meta: unknown, action: string): string {
   if (action === "create") return "—";
+  const pair = firstChangedFieldPair(meta);
+  if (pair) return pair.oldV;
   const m = metaRecord(meta);
   if (!m) return "—";
   if ("from" in m && m.from !== undefined && m.from !== null) {
@@ -166,6 +208,8 @@ function newValueColumn(meta: unknown, action: string): string {
   if (action === "create") {
     return firstSignificantCreateValue(meta);
   }
+  const pair = firstChangedFieldPair(meta);
+  if (pair) return pair.newV;
   const m = metaRecord(meta);
   if (!m) return "—";
   if ("to" in m && m.to !== undefined && m.to !== null) {

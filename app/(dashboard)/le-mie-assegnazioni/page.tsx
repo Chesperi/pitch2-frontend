@@ -227,9 +227,9 @@ export default function LeMieAssegnazioniPage() {
   if (loading) {
     return (
       <>
-        <PageHeader title="My assignments" />
+        <PageHeader title="Le mie assegnazioni" />
         <div className="mt-4">
-          <SearchBar placeholder="Search assignments..." />
+          <SearchBar placeholder="Cerca per competizione, squadre, show..." />
         </div>
         <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30">
           <PageLoading />
@@ -241,7 +241,7 @@ export default function LeMieAssegnazioniPage() {
   if (blockedMessage) {
     return (
       <>
-        <PageHeader title="My assignments" />
+        <PageHeader title="Le mie assegnazioni" />
         <div className="mt-6 rounded-lg border border-yellow-900/50 bg-yellow-900/20 p-6 text-yellow-300">
           {blockedMessage}
         </div>
@@ -252,9 +252,9 @@ export default function LeMieAssegnazioniPage() {
   if (error) {
     return (
       <>
-        <PageHeader title="My assignments" />
+        <PageHeader title="Le mie assegnazioni" />
         <div className="mt-4">
-          <SearchBar placeholder="Search assignments..." />
+          <SearchBar placeholder="Cerca per competizione, squadre, show..." />
         </div>
         <div className="mt-6 rounded-lg border border-red-900/50 bg-red-900/20 p-6 text-red-300">
           {error}
@@ -265,10 +265,10 @@ export default function LeMieAssegnazioniPage() {
 
   return (
     <>
-      <PageHeader title="My assignments" />
+      <PageHeader title="Le mie assegnazioni" />
       <div className="mt-4">
         <SearchBar
-          placeholder="Search by competition, teams, show..."
+          placeholder="Cerca per competizione, squadre, show..."
           onSearchChange={setSearch}
         />
       </div>
@@ -304,13 +304,13 @@ export default function LeMieAssegnazioniPage() {
             <thead>
               <tr className="border-b border-pitch-gray-dark">
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  KO date
+                  Data KO
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Match
+                  Partita
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Competition
+                  Competizione
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
                   Venue

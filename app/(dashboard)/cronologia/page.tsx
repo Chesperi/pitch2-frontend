@@ -6,6 +6,7 @@ import { apiFetch } from "@/lib/api/apiFetch";
 import ResponsiveTable from "@/components/ui/ResponsiveTable";
 import PageLoading from "@/components/ui/PageLoading";
 import EmptyState from "@/components/ui/EmptyState";
+import DesktopRecommended from "@/components/ui/DesktopRecommended";
 
 type AuditLogItem = {
   id: number;
@@ -233,7 +234,7 @@ function fullMetadataJson(meta: unknown): string {
 }
 
 const FILTER_ENTITY_OPTIONS: { value: string; label: string }[] = [
-  { value: "", label: "All entities" },
+  { value: "", label: "Tutte le entità" },
   { value: "assignment", label: "Assignment" },
   { value: "event", label: "Event" },
   { value: "role", label: "Role" },
@@ -308,7 +309,8 @@ export default function CronologiaPage() {
 
   return (
     <>
-      <PageHeader title="History" />
+      <PageHeader title="Cronologia" />
+      <DesktopRecommended />
 
       <div className="mt-4 flex flex-wrap items-end gap-2">
         <div>
@@ -316,7 +318,7 @@ export default function CronologiaPage() {
             htmlFor="cronologia-entity-type"
             className="mb-1 block text-xs text-pitch-gray"
           >
-            Entity type
+            Tipo entità
           </label>
           <select
             id="cronologia-entity-type"
@@ -334,8 +336,8 @@ export default function CronologiaPage() {
         </div>
         {!loading && !error ? (
           <p className="text-xs text-pitch-gray">
-            {items.length} entries shown
-            {total > items.length ? ` (total filtered: ${total})` : null}
+            {items.length} voci mostrate
+            {total > items.length ? ` (totale filtrate: ${total})` : null}
           </p>
         ) : null}
       </div>
@@ -367,13 +369,13 @@ export default function CronologiaPage() {
             <thead>
               <tr className="border-b border-pitch-gray-dark bg-pitch-gray-dark/30">
                 <th className="px-4 py-3 text-left font-medium text-pitch-gray">
-                  Date/Time
+                  Data/Ora
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-pitch-gray">
-                  User
+                  Utente
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-pitch-gray">
-                  Page
+                  Pagina
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-pitch-gray">
                   Element

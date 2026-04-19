@@ -76,6 +76,14 @@ function eventTitle(event: AccreditoEvent): string {
   return event.competitionName || event.id;
 }
 
+function displayAssignmentsStatusUi(
+  status: string | null | undefined
+): string {
+  const u = String(status ?? "").trim().toUpperCase();
+  if (u === "DRAFT") return "Bozza";
+  return String(status ?? "").trim() || "—";
+}
+
 function requirementsCoverageLine(event: AccreditoEvent): ReactNode {
   const covered = event.coveredAssignments;
   const total = event.totalAssignments;
@@ -391,7 +399,7 @@ export default function AccreditiPage() {
                       {event.competitionName || "—"}
                     </td>
                     <td className="px-3 py-2 text-pitch-gray-light">
-                      {event.assignmentsStatus}
+                      {displayAssignmentsStatusUi(event.assignmentsStatus)}
                     </td>
                     <td className="px-3 py-2">
                       <button
@@ -423,7 +431,7 @@ export default function AccreditiPage() {
                 {selectedEvent.venueCity ? `, ${selectedEvent.venueCity}` : ""}
               </div>
               <div className="text-sm text-pitch-gray-light">
-                Competition: {selectedEvent.competitionName ?? "—"}
+                Competizione: {selectedEvent.competitionName ?? "—"}
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">

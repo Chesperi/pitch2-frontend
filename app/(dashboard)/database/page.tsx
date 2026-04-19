@@ -8,6 +8,7 @@ import {
 } from "@/lib/api";
 import { fetchStandardCombos } from "@/lib/api/standardCombos";
 import PageLoading from "@/components/ui/PageLoading";
+import DesktopRecommended from "@/components/ui/DesktopRecommended";
 import { DatabaseSections } from "./DatabaseSections";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +34,7 @@ export default async function DatabasePage() {
   return (
     <>
       <PageHeader title="Database" />
+      <DesktopRecommended />
       <p className="mt-3 text-xs leading-relaxed text-pitch-gray">
         System directory data (roles, staff, standard packages) used in navigation and
         other flows — for example Events, Assignments and accreditations. Roles, staff

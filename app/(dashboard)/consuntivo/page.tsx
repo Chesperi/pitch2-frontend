@@ -11,6 +11,7 @@ import MultiSelectFilter, {
 import ResponsiveTable from "@/components/ui/ResponsiveTable";
 import PageLoading from "@/components/ui/PageLoading";
 import EmptyState from "@/components/ui/EmptyState";
+import DesktopRecommended from "@/components/ui/DesktopRecommended";
 
 type ConsuntivoRow = {
   eventId: string;
@@ -466,7 +467,8 @@ export default function ConsuntivoPage() {
 
   return (
     <>
-      <PageHeader title="Scorecard" />
+      <PageHeader title="Consuntivo" />
+      <DesktopRecommended />
 
       <div className="mt-4 space-y-4 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/10 p-4">
         <div className="flex flex-wrap items-end gap-2">
@@ -495,7 +497,7 @@ export default function ConsuntivoPage() {
             options={matchdayOptions}
             selected={selectedMatchdays}
             onChange={handleMatchdaysChange}
-            placeholder="Select MD"
+            placeholder="Seleziona MD"
             disabled={areOptionFiltersDisabled}
           />
           <MultiSelectFilter
@@ -503,7 +505,7 @@ export default function ConsuntivoPage() {
             options={competitionOptions}
             selected={selectedCompetitions}
             onChange={handleCompetitionsChange}
-            placeholder="Select competition"
+            placeholder="Seleziona competizione"
             disabled={areOptionFiltersDisabled}
           />
           <MultiSelectFilter
@@ -511,7 +513,7 @@ export default function ConsuntivoPage() {
             options={staffOptions}
             selected={selectedStaffIds}
             onChange={handleStaffIdsChange}
-            placeholder="Select staff"
+            placeholder="Seleziona staff"
             disabled={areOptionFiltersDisabled}
           />
           <MultiSelectFilter
@@ -519,7 +521,7 @@ export default function ConsuntivoPage() {
             options={roleOptions}
             selected={selectedRoleCodes}
             onChange={handleRoleCodesChange}
-            placeholder="Select role"
+            placeholder="Seleziona ruolo"
             disabled={areOptionFiltersDisabled}
           />
           <MultiSelectFilter
@@ -527,7 +529,7 @@ export default function ConsuntivoPage() {
             options={providerOptions}
             selected={selectedProviderIds}
             onChange={handleProviderIdsChange}
-            placeholder="Select provider"
+            placeholder="Seleziona provider"
             disabled={areOptionFiltersDisabled}
           />
           <MultiSelectFilter
@@ -535,7 +537,7 @@ export default function ConsuntivoPage() {
             options={statusOptions}
             selected={selectedStatuses}
             onChange={handleStatusesChange}
-            placeholder="Select status"
+            placeholder="Seleziona stato"
             disabled={areOptionFiltersDisabled}
           />
         </div>
@@ -547,7 +549,7 @@ export default function ConsuntivoPage() {
             disabled={loading}
             onClick={handleApplyFilters}
           >
-            Apply filters
+            Applica filtri
           </button>
         </div>
       </div>
@@ -572,11 +574,12 @@ export default function ConsuntivoPage() {
 
       <div className="mt-4 flex flex-wrap gap-6 text-sm text-pitch-gray-light">
         <span>
-          Rows: <strong className="text-pitch-white">{filteredItems.length}</strong>
+          Righe:{" "}
+          <strong className="text-pitch-white">{filteredItems.length}</strong>
         </span>
         {showFinance ? (
           <span>
-            Total fee (visible rows):{" "}
+            Totale fee (righe visibili):{" "}
             <strong className="text-pitch-white">
               {eur.format(visibleTotalFee)}
             </strong>
@@ -599,13 +602,13 @@ export default function ConsuntivoPage() {
             <thead>
               <tr className="border-b border-pitch-gray-dark bg-pitch-gray-dark/30">
                 <th className="px-4 py-3 text-left font-medium text-pitch-gray">
-                  Event date
+                  Data evento
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-pitch-gray">
                   MD
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-pitch-gray">
-                  Competition
+                  Competizione
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-pitch-gray">
                   Staff

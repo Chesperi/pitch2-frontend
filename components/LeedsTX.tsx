@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { fetchAuthMe } from "@/lib/api/freelanceAssignments";
 import ResponsiveTable from "@/components/ui/ResponsiveTable";
 import PageLoading from "@/components/ui/PageLoading";
+import DesktopRecommended from "@/components/ui/DesktopRecommended";
 import {
   createProductionContactLeeds,
   deleteProductionContactLeeds,
@@ -327,6 +328,8 @@ export default function LeedsTX() {
           </button>
         }
       />
+
+      <DesktopRecommended />
 
       {listError ? (
         <p className="mt-4 rounded border border-red-900/50 bg-red-950/40 px-3 py-2 text-xs text-red-200">

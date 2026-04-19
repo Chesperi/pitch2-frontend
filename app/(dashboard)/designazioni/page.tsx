@@ -42,11 +42,11 @@ function renderAssignmentsStatusBadge(
 ): React.ReactNode {
   switch (status) {
     case "DRAFT":
-      return <StatusBadge variant="draft" label="Draft" />;
+      return <StatusBadge variant="draft" label="Bozza" />;
     case "READY_TO_SEND":
-      return <StatusBadge variant="pending" label="Ready" />;
+      return <StatusBadge variant="pending" label="Pronto" />;
     case "SENT":
-      return <StatusBadge variant="accepted" label="Sent" />;
+      return <StatusBadge variant="accepted" label="Inviato" />;
     default:
       return (
         <span className="rounded-full bg-pitch-gray-dark px-2 py-0.5 text-xs text-pitch-gray-light">
@@ -59,15 +59,15 @@ function renderAssignmentsStatusBadge(
 function getAssignmentStatusLabel(status: string): string {
   switch (status) {
     case "DRAFT":
-      return "Draft";
+      return "Bozza";
     case "READY":
-      return "Ready";
+      return "Pronto";
     case "SENT":
-      return "Sent";
+      return "Inviato";
     case "CONFIRMED":
-      return "Confirmed";
+      return "Confermato";
     case "REJECTED":
-      return "Declined";
+      return "Rifiutato";
     default:
       return status;
   }
@@ -105,10 +105,10 @@ const ASSIGNMENTS_STATUS_OPTIONS: {
   value: "" | EventAssignmentsStatus;
   label: string;
 }[] = [
-  { value: "", label: "All" },
-  { value: "DRAFT", label: "Draft" },
-  { value: "READY_TO_SEND", label: "Ready" },
-  { value: "SENT", label: "Sent" },
+  { value: "", label: "Tutti" },
+  { value: "DRAFT", label: "Bozza" },
+  { value: "READY_TO_SEND", label: "Pronto" },
+  { value: "SENT", label: "Inviato" },
 ];
 
 type ListScope = "designable" | "all";
@@ -269,7 +269,7 @@ export default function DesignazioniPage() {
   if (loading) {
     return (
       <>
-        <PageHeader title="Assignments" />
+        <PageHeader title="Designazioni" />
         <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30">
           <PageLoading />
         </div>
@@ -280,7 +280,7 @@ export default function DesignazioniPage() {
   if (error) {
     return (
       <>
-        <PageHeader title="Assignments" />
+        <PageHeader title="Designazioni" />
         <div className="mt-6 rounded-lg border border-red-900/50 bg-red-900/20 p-6 text-red-300">
           {error}
         </div>
@@ -290,17 +290,15 @@ export default function DesignazioniPage() {
 
   return (
     <>
-      <PageHeader title="Assignments" />
+      <PageHeader title="Designazioni" />
 
       <p className="mt-2 max-w-3xl text-sm text-pitch-gray">
-        Event list for assigners. Choose whether to see only assignable candidates
-        (consistent standards and event state) or all events in the list. Open
-        the detail to manage staffing and sends.
+        Lista eventi per i designatori. Scegli se vedere solo gli eventi designabili o tutti. Apri il dettaglio per gestire lo staff e gli invii.
       </p>
 
       <div className="mt-4 flex flex-wrap items-end gap-2">
         <div>
-          <label className="mb-1 block text-xs text-pitch-gray">View</label>
+          <label className="mb-1 block text-xs text-pitch-gray">Vista</label>
           <div className="flex rounded-lg border border-pitch-gray-dark p-0.5">
             <button
               type="button"
@@ -311,7 +309,7 @@ export default function DesignazioniPage() {
                   : "text-pitch-gray-light hover:text-pitch-white"
               }`}
             >
-              Assignable
+              Designabili
             </button>
             <button
               type="button"
@@ -322,13 +320,13 @@ export default function DesignazioniPage() {
                   : "text-pitch-gray-light hover:text-pitch-white"
               }`}
             >
-              All events
+              Tutti gli eventi
             </button>
           </div>
         </div>
         <div>
           <label className="mb-1 block text-xs text-pitch-gray">
-            Assignment status
+            Stato designazioni
           </label>
           <select
             value={assignmentsStatusFilter}
@@ -350,7 +348,7 @@ export default function DesignazioniPage() {
 
       <div className="mt-4">
         <SearchBar
-          placeholder="Search by competition, match, show..."
+          placeholder="Cerca per competizione, partita, show..."
           onSearchChange={setSearch}
         />
       </div>
@@ -376,22 +374,22 @@ export default function DesignazioniPage() {
             <thead>
               <tr className="border-b border-pitch-gray-dark">
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Date & KO
+                  Data & KO
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Event
+                  Evento
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Category
+                  Categoria
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Competition
+                  Competizione
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Assignment status
+                  Stato designazioni
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Actions
+                  Azioni
                 </th>
               </tr>
             </thead>
@@ -424,7 +422,7 @@ export default function DesignazioniPage() {
                       href={`/designazioni/${event.id}`}
                       className="inline-flex min-h-[44px] items-center rounded bg-pitch-accent px-4 py-2 text-sm font-medium text-pitch-bg hover:bg-yellow-200"
                     >
-                      Manage
+                      Gestisci
                     </Link>
                   </td>
                 </tr>
@@ -437,16 +435,15 @@ export default function DesignazioniPage() {
 
       <section className="mt-10 border-t border-pitch-gray-dark pt-8">
         <h2 className="mb-2 text-sm font-semibold text-pitch-white">
-          Assignments by person
+          Designazioni per persona
         </h2>
         <p className="mb-4 text-xs text-pitch-gray">
-          Group assignments by period and send communications (operational step
-          separate from the event list above).
+          Raggruppa le designazioni per periodo e invia comunicazioni (step operativo separato dalla lista eventi).
         </p>
 
         <div className="mb-4 flex flex-wrap items-end gap-3">
           <div>
-            <label className="mb-1 block text-xs text-pitch-gray">From</label>
+            <label className="mb-1 block text-xs text-pitch-gray">Dal</label>
             <input
               type="date"
               value={startDate ?? ""}
@@ -455,7 +452,7 @@ export default function DesignazioniPage() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-pitch-gray">To</label>
+            <label className="mb-1 block text-xs text-pitch-gray">Al</label>
             <input
               type="date"
               value={endDate ?? ""}
@@ -495,7 +492,7 @@ export default function DesignazioniPage() {
             <table className="w-full border-collapse text-xs">
               <thead>
                 <tr className="border-b border-pitch-gray-dark text-left text-pitch-gray">
-                  <th className="px-4 py-2">Person</th>
+                  <th className="px-4 py-2">Persona</th>
                   <th className="px-4 py-2">Ruoli</th>
                   <th className="px-4 py-2">N. events</th>
                   <th className="px-4 py-2"></th>
@@ -543,10 +540,10 @@ export default function DesignazioniPage() {
                           <table className="mt-1 w-full text-[11px]">
                             <thead>
                               <tr className="text-pitch-gray">
-                                <th className="py-1 text-left">Event</th>
-                                <th className="py-1 text-left">Match</th>
-                                <th className="py-1 text-left">Role</th>
-                                <th className="py-1 text-left">Status</th>
+                                <th className="py-1 text-left">Evento</th>
+                                <th className="py-1 text-left">Partita</th>
+                                <th className="py-1 text-left">Ruolo</th>
+                                <th className="py-1 text-left">Stato</th>
                                 <th className="py-1 text-right"></th>
                               </tr>
                             </thead>
@@ -601,7 +598,7 @@ export default function DesignazioniPage() {
                                         href={`/designazioni/${eventId}`}
                                         className="text-pitch-accent hover:underline"
                                       >
-                                        Open assignments
+                                        Apri designazioni
                                       </Link>
                                     </td>
                                   </tr>

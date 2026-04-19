@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { apiFetch } from "@/lib/api/apiFetch";
 import ResponsiveTable from "@/components/ui/ResponsiveTable";
 import PageLoading from "@/components/ui/PageLoading";
+import DesktopRecommended from "@/components/ui/DesktopRecommended";
 
 type AccessLevel = "none" | "view" | "edit";
 
@@ -27,7 +28,7 @@ type StaffPagePermissionsResponse = {
 };
 
 const PAGE_KEY_LABELS: Record<string, string> = {
-  le_mie_assegnazioni: "My assignments",
+  le_mie_assegnazioni: "Le mie ass.",
   eventi: "Events",
   designazioni: "Designations",
   accrediti: "Accreditations",
@@ -247,7 +248,8 @@ export default function MasterPage() {
 
   return (
     <>
-      <PageHeader title="Master permissions" />
+      <PageHeader title="Permessi Master" />
+      <DesktopRecommended />
 
       {loadError ? (
         <p className="mt-4 rounded border border-red-900/50 bg-red-950/40 px-3 py-2 text-sm text-red-200">
@@ -280,13 +282,13 @@ export default function MasterPage() {
             <thead>
               <tr className="border-b border-pitch-gray-dark bg-pitch-gray-dark/30">
                 <th className="sticky left-0 z-10 min-w-[220px] bg-pitch-gray-dark/40 px-3 py-2 text-left font-medium text-pitch-gray">
-                  Full name
+                  Nome
                 </th>
                 <th className="min-w-[120px] px-3 py-2 text-left font-medium text-pitch-gray">
                   User level
                 </th>
                 <th className="min-w-[160px] px-3 py-2 text-left font-medium text-pitch-gray">
-                  Finance visibility
+                  Visib. finanziaria
                 </th>
                 {pageKeysOrdered.map((pk) => (
                   <th

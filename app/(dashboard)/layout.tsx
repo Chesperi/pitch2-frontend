@@ -4,6 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import SidebarNav from "@/components/SidebarNav";
 import { fetchAuthMe } from "@/lib/api/freelanceAssignments";
 import AppNavbar from "@/components/AppNavbar";
+import {
+  DashboardNavbarCenterProvider,
+  useDashboardNavbarCenter,
+} from "@/components/DashboardNavbarCenter";
 
 function getInitials(name: string, surname: string): string {
   const a = name.trim().charAt(0).toUpperCase();
@@ -112,45 +116,80 @@ export default function DashboardLayout({
           </aside>
         </>
       ) : null}
-      <div
-        className={`flex min-h-screen min-w-0 flex-col ${isFreelance ? "ml-0 w-full" : "ml-0 w-full md:ml-16 md:w-[calc(100%-4rem)]"}`}
-      >
-        <AppNavbar
+      <DashboardNavbarCenterProvider>
+        <DashboardMainSection
+          isFreelance={isFreelance}
+          setMobileOpen={setMobileOpen}
           userName={userName}
           userEmail={userEmail}
           userInitials={userInitials}
-          pendingCount={0}
-        />
-        {!isFreelance ? (
-          <div
-            className="flex items-center border-b border-[#2a2a2a] px-4 py-2 md:hidden"
-            style={{ background: "#111" }}
+        >
+          {children}
+        </DashboardMainSection>
+      </DashboardNavbarCenterProvider>
+    </div>
+  );
+}
+
+function DashboardMainSection({
+  children,
+  isFreelance,
+  setMobileOpen,
+  userName,
+  userEmail,
+  userInitials,
+}: {
+  children: React.ReactNode;
+  isFreelance: boolean;
+  setMobileOpen: (open: boolean) => void;
+  userName: string;
+  userEmail: string;
+  userInitials: string;
+}) {
+  const { centerContent } = useDashboardNavbarCenter();
+
+  return (
+    <div
+      className={`flex min-h-screen min-w-0 flex-col ${isFreelance ? "ml-0 w-full" : "ml-0 w-full md:ml-16 md:w-[calc(100%-4rem)]"}`}
+    >
+      <AppNavbar
+        userName={userName}
+        userEmail={userEmail}
+        userInitials={userInitials}
+        pendingCount={0}
+        centerContent={isFreelance ? undefined : centerContent}
+      />
+      {!isFreelance ? (
+        <div
+          className="flex items-center border-b border-[#2a2a2a] px-4 py-2 md:hidden"
+          style={{ background: "#111" }}
+        >
+          <button
+            type="button"
+            onClick={() => setMobileOpen(true)}
+            className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-white hover:bg-white/10"
+            aria-label="Open menu"
           >
-            <button
-              type="button"
-              onClick={() => setMobileOpen(true)}
-              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-white hover:bg-white/10"
-              aria-label="Apri menu"
+            <svg
+              className="h-6 w-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden
             >
-              <svg
-                className="h-6 w-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                aria-hidden
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
-              </svg>
-            </button>
-          </div>
-        ) : null}
-        <main className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
-      </div>
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 6h16M4 12h16M4 18h16"
+              />
+            </svg>
+          </button>
+        </div>
+      ) : null}
+      <main className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6">
+        {children}
+      </main>
     </div>
   );
 }

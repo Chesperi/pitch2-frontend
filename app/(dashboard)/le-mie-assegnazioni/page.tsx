@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { PageHeader } from "@/components/PageHeader";
 import { SearchBar } from "@/components/SearchBar";
+import { apiFetch } from "@/lib/api/apiFetch";
+import { useDashboardNavbarCenter } from "@/components/DashboardNavbarCenter";
 import {
   type FetchMyAssignmentsStaffError,
   type MyAssignmentStaffItem,
@@ -20,7 +21,6 @@ import { canSeeFinance } from "@/lib/auth/financeAccess";
 import StatusBadge, {
   type StatusBadgeVariant,
 } from "@/components/ui/StatusBadge";
-import ResponsiveTable from "@/components/ui/ResponsiveTable";
 import PageLoading from "@/components/ui/PageLoading";
 import EmptyState from "@/components/ui/EmptyState";
 import PrimaryButton from "@/components/ui/PrimaryButton";
@@ -35,11 +35,18 @@ import {
 } from "@/lib/api/shifts";
 import { SHIFT_CHIP_CLASS, SHIFT_TYPES, ShiftChip } from "./shiftUi";
 
+type ColleagueSlot = {
+  id: number;
+  staffName: string;
+  roleCode: string;
+  roleLocation: string;
+};
+
 function formatKoItaly(koItaly: string | null): string {
   if (!koItaly) return "—";
   try {
     const date = new Date(koItaly);
-    return new Intl.DateTimeFormat("it-IT", {
+    return new Intl.DateTimeFormat("en-GB", {
       day: "2-digit",
       month: "2-digit",
       year: "2-digit",
@@ -49,6 +56,18 @@ function formatKoItaly(koItaly: string | null): string {
   } catch {
     return koItaly;
   }
+}
+
+function eventTitleFromRow(row: MyAssignmentStaffItem): string {
+  const { event } = row;
+  if (event.home_team_name_short && event.away_team_name_short) {
+    return `${event.home_team_name_short} vs ${event.away_team_name_short}`;
+  }
+  return (
+    event.show_name ??
+    event.competition_name ??
+    "—"
+  );
 }
 
 function assignmentDayIso(row: MyAssignmentStaffItem): string {
@@ -61,13 +80,13 @@ function assignmentStatusBadgeProps(status: string): {
   variant: StatusBadgeVariant;
   label: string;
 } {
-  switch (status) {
+  switch (status.toUpperCase()) {
     case "CONFIRMED":
-      return { variant: "accepted", label: "Confermata" };
+      return { variant: "accepted", label: "Confirmed" };
     case "REJECTED":
-      return { variant: "declined", label: "Rifiutata" };
+      return { variant: "declined", label: "Declined" };
     default:
-      return { variant: "pending", label: "Da confermare" };
+      return { variant: "pending", label: "Pending confirmation" };
   }
 }
 
@@ -108,7 +127,6 @@ function toIsoDate(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-/** Lunedì della settimana ISO contenente `d`. */
 function mondayOfWeekContaining(d: Date): Date {
   const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   const dow = (x.getDay() + 6) % 7;
@@ -153,10 +171,93 @@ function initials(n: string, s: string): string {
   return `${a || "?"}${b || ""}`;
 }
 
+async function fetchAssignmentColleagues(
+  eventId: string
+): Promise<ColleagueSlot[]> {
+  const res = await apiFetch(
+    `/api/assignments?eventId=${encodeURIComponent(eventId)}`,
+    { cache: "no-store" }
+  );
+  if (!res.ok) return [];
+  const data = (await res.json()) as { items?: Record<string, unknown>[] };
+  const rows = Array.isArray(data.items) ? data.items : [];
+  return rows.map((r) => ({
+    id: Number(r.id ?? 0),
+    staffName:
+      `${String(r.staffName ?? "").trim()} ${String(
+        r.staffSurname ?? ""
+      ).trim()}`.trim() || "Unassigned slot",
+    roleCode: String(r.roleCode ?? "—"),
+    roleLocation: String(r.roleLocation ?? "—").toUpperCase(),
+  }));
+}
+
+function groupColleaguesByLocation(items: ColleagueSlot[]) {
+  const groups: Record<"STADIO" | "COLOGNO" | "REMOTE", ColleagueSlot[]> = {
+    STADIO: [],
+    COLOGNO: [],
+    REMOTE: [],
+  };
+  for (const c of items) {
+    const key = c.roleLocation.includes("STADIO")
+      ? "STADIO"
+      : c.roleLocation.includes("COLOGNO")
+        ? "COLOGNO"
+        : "REMOTE";
+    groups[key].push(c);
+  }
+  return groups;
+}
+
+function ColleaguesGrouped({ items }: { items: ColleagueSlot[] }) {
+  const groupedColleagues = useMemo(() => groupColleaguesByLocation(items), [items]);
+
+  if (items.length === 0) {
+    return (
+      <p className="text-sm" style={{ color: "#888" }}>
+        No other colleagues assigned.
+      </p>
+    );
+  }
+
+  return (
+    <div className="mt-4 space-y-4">
+      {(["STADIO", "COLOGNO", "REMOTE"] as const).map((group) => (
+        <div key={group}>
+          <div className="mb-2 text-xs font-bold uppercase" style={{ color: "#FFFA00" }}>
+            {group}
+          </div>
+          <div className="space-y-2">
+            {groupedColleagues[group].length === 0 ? (
+              <p className="text-xs" style={{ color: "#666" }}>
+                None
+              </p>
+            ) : (
+              groupedColleagues[group].map((c) => (
+                <div
+                  key={`${group}-${c.id}-${c.roleCode}`}
+                  className="rounded border p-2"
+                  style={{ borderColor: "#2a2a2a", background: "#1a1a1a" }}
+                >
+                  <div className="text-sm font-bold text-white">{c.staffName}</div>
+                  <div className="text-xs" style={{ color: "#888" }}>
+                    {c.roleCode} - {c.roleLocation}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 type TabId = "lista" | "calendario" | "turni";
 
 export default function LeMieAssegnazioniPage() {
   const router = useRouter();
+  const { setCenter } = useDashboardNavbarCenter();
   const [tab, setTab] = useState<TabId>("lista");
   const [profile, setProfile] = useState<UserProfile | null>(null);
 
@@ -170,10 +271,18 @@ export default function LeMieAssegnazioniPage() {
   const [carPass, setCarPass] = useState<Record<number, boolean>>({});
   const [showFinance, setShowFinance] = useState(false);
   const [plates, setPlates] = useState<string[]>([]);
+  const [showPast, setShowPast] = useState(false);
 
-  const [weeklyShifts, setWeeklyShifts] = useState<Awaited<
-    ReturnType<typeof fetchMyShifts>
-  > >([]);
+  const [crewListModal, setCrewListModal] = useState<{
+    title: string;
+    eventId: string;
+  } | null>(null);
+  const [crewListLoading, setCrewListLoading] = useState(false);
+  const [crewListItems, setCrewListItems] = useState<ColleagueSlot[]>([]);
+
+  const [weeklyShifts, setWeeklyShifts] = useState<
+    Awaited<ReturnType<typeof fetchMyShifts>>
+  >([]);
 
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const d = new Date();
@@ -200,7 +309,6 @@ export default function LeMieAssegnazioniPage() {
   const [turniLoaded, setTurniLoaded] = useState<
     Awaited<ReturnType<typeof fetchShiftsByRange>>
   >([]);
-  /** key staffId-date -> tipo o delete */
   const [turniPending, setTurniPending] = useState<
     Record<string, ShiftType | null>
   >({});
@@ -213,6 +321,49 @@ export default function LeMieAssegnazioniPage() {
   const [turniSaving, setTurniSaving] = useState(false);
 
   const gridRef = useRef<HTMLDivElement | null>(null);
+
+  const levelUpper = profile?.user_level?.toUpperCase() ?? "";
+  const showTurniTab =
+    levelUpper === "MASTER" || !!profile?.shifts_management;
+
+  const navbarCenter = useMemo(
+    () => (
+      <div className="flex items-center gap-4">
+        <button
+          type="button"
+          onClick={() => setTab("lista")}
+          className="text-xs font-bold tracking-wide"
+          style={{ color: tab === "lista" ? "#FFFA00" : "#888" }}
+        >
+          MY ASSIGNMENTS
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab("calendario")}
+          className="text-xs font-bold tracking-wide"
+          style={{ color: tab === "calendario" ? "#FFFA00" : "#888" }}
+        >
+          CALENDAR
+        </button>
+        {showTurniTab ? (
+          <button
+            type="button"
+            onClick={() => setTab("turni")}
+            className="text-xs font-bold tracking-wide"
+            style={{ color: tab === "turni" ? "#FFFA00" : "#888" }}
+          >
+            SHIFTS
+          </button>
+        ) : null}
+      </div>
+    ),
+    [tab, showTurniTab]
+  );
+
+  useEffect(() => {
+    setCenter(navbarCenter);
+    return () => setCenter(null);
+  }, [navbarCenter, setCenter]);
 
   const loadAssignments = useCallback(async () => {
     setLoading(true);
@@ -233,11 +384,11 @@ export default function LeMieAssegnazioniPage() {
         const seconds = err.retryAfterSeconds ?? 600;
         const minutes = Math.ceil(seconds / 60);
         setBlockedMessage(
-          `Troppi tentativi. Riprova tra circa ${minutes} minuti.`
+          `Too many attempts. Try again in about ${minutes} minutes.`
         );
         return;
       }
-      setError("Errore nel caricamento delle assegnazioni.");
+      setError("Could not load assignments.");
     } finally {
       setLoading(false);
     }
@@ -374,10 +525,6 @@ export default function LeMieAssegnazioniPage() {
     };
   }, [turniTeam, turniMonthRange.from, turniMonthRange.to]);
 
-  const levelUpper = profile?.user_level?.toUpperCase() ?? "";
-  const showTurniTab =
-    levelUpper === "MASTER" || !!profile?.shifts_management;
-
   const managedTeamsList = profile?.managed_teams ?? [];
 
   const shiftForStaffDate = useCallback(
@@ -431,7 +578,7 @@ export default function LeMieAssegnazioniPage() {
       setTurniLoaded(sh);
       setTurniPending({});
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Salvataggio non riuscito");
+      alert(e instanceof Error ? e.message : "Save failed");
     } finally {
       setTurniSaving(false);
     }
@@ -469,9 +616,10 @@ export default function LeMieAssegnazioniPage() {
 
   const todayIso = useMemo(() => toIsoDate(new Date()), []);
 
-  const { azione, confermate, passateAlt } = useMemo(() => {
+  const { azione, confermate, declinate, passate } = useMemo(() => {
     const az: MyAssignmentStaffItem[] = [];
     const cf: MyAssignmentStaffItem[] = [];
+    const dc: MyAssignmentStaffItem[] = [];
     const pa: MyAssignmentStaffItem[] = [];
     for (const row of filteredItems) {
       if (!row?.assignment || !row.event) continue;
@@ -484,11 +632,18 @@ export default function LeMieAssegnazioniPage() {
         az.push(row);
       } else if (st === "CONFIRMED") {
         cf.push(row);
+      } else if (st === "REJECTED") {
+        dc.push(row);
       } else {
         pa.push(row);
       }
     }
-    return { azione: az, confermate: cf, passateAlt: pa };
+    return {
+      azione: az,
+      confermate: cf,
+      declinate: dc,
+      passate: pa,
+    };
   }, [filteredItems, todayIso]);
 
   const weeklyByIso = useMemo(() => {
@@ -555,7 +710,7 @@ export default function LeMieAssegnazioniPage() {
         )
       );
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Errore conferma");
+      alert(e instanceof Error ? e.message : "Confirm failed");
     } finally {
       setActionId(null);
     }
@@ -579,7 +734,7 @@ export default function LeMieAssegnazioniPage() {
         )
       );
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Errore rifiuto");
+      alert(e instanceof Error ? e.message : "Decline failed");
     } finally {
       setActionId(null);
     }
@@ -592,7 +747,7 @@ export default function LeMieAssegnazioniPage() {
       await confirmAllMyAssignmentsStaff();
       await loadAssignments();
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Errore conferma multipla");
+      alert(e instanceof Error ? e.message : "Bulk confirm failed");
     } finally {
       setConfirmingAll(false);
     }
@@ -605,170 +760,225 @@ export default function LeMieAssegnazioniPage() {
     }));
   };
 
-  function renderAssignmentsTable(rows: MyAssignmentStaffItem[]) {
+  async function openListCrewModal(row: MyAssignmentStaffItem) {
+    const eventId = row.assignment.event_id;
+    setCrewListModal({
+      title: eventTitleFromRow(row),
+      eventId,
+    });
+    setCrewListLoading(true);
+    setCrewListItems([]);
+    try {
+      const list = await fetchAssignmentColleagues(eventId);
+      setCrewListItems(list);
+    } catch {
+      setCrewListItems([]);
+    } finally {
+      setCrewListLoading(false);
+    }
+  }
+
+  function renderStaffCard(row: MyAssignmentStaffItem) {
+    if (!row || !row.assignment || !row.event) return null;
+    const { assignment, event } = row;
+    const match = eventTitleFromRow(row);
+    const luogo =
+      event.location ??
+      event.venue_name ??
+      event.competition_name ??
+      "—";
+    const canHaveCarPass =
+      assignment.location?.toUpperCase() === "STADIO" &&
+      event.standard_onsite?.toUpperCase() !== "NO ONSITE";
+    const isSent = assignment.status === "SENT";
+    const isActioning = actionId === assignment.id;
+
+    return (
+      <div
+        key={assignment.id}
+        role="button"
+        tabIndex={0}
+        onClick={() => void openListCrewModal(row)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            void openListCrewModal(row);
+          }
+        }}
+        className="w-full cursor-pointer rounded-xl border p-4 text-left"
+        style={{
+          background: "#1a1a1a",
+          borderColor: "#2a2a2a",
+        }}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div
+              className="text-[10px] font-bold uppercase tracking-[2px]"
+              style={{ color: "#FFFA00" }}
+            >
+              {event.competition_name || "EVENT"}
+            </div>
+            <h3
+              className="mt-1 text-[20px] uppercase leading-tight"
+              style={{ color: "#fff", fontWeight: 900 }}
+            >
+              {match}
+            </h3>
+          </div>
+          <StatusBadge {...assignmentStatusBadgeProps(assignment.status)} />
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          {[
+            {
+              label: "KO DATE",
+              value: formatKoItaly(event.ko_italy),
+            },
+            { label: "ROLE", value: assignment.role_code || "—" },
+            { label: "VENUE", value: luogo },
+            {
+              label: "STATUS",
+              value: assignmentStatusBadgeProps(assignment.status).label,
+            },
+          ].map((box) => (
+            <div key={box.label}>
+              <div
+                className="text-[10px] uppercase"
+                style={{ color: "#555", letterSpacing: "1px" }}
+              >
+                {box.label}
+              </div>
+              <div className="text-[13px]" style={{ color: "#ccc" }}>
+                {box.value}
+              </div>
+            </div>
+          ))}
+          {showFinance ? (
+            <div>
+              <div
+                className="text-[10px] uppercase"
+                style={{ color: "#555", letterSpacing: "1px" }}
+              >
+                FEE
+              </div>
+              <div className="text-[13px]" style={{ color: "#ccc" }}>
+                {assignment.fee ?? "—"}
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        <div
+          className="mt-4 flex flex-wrap items-center gap-3 border-t pt-3"
+          style={{ borderColor: "#2a2a2a" }}
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+          role="presentation"
+        >
+          {isSent ? (
+            <div className="inline-flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void handleConfirm(row);
+                }}
+                disabled={isActioning}
+                className="inline-flex min-h-[44px] min-w-[44px] items-center gap-2 rounded px-4 font-bold"
+                style={{ color: "#FFFA00" }}
+              >
+                CONFIRM
+                <span
+                  className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-xs"
+                  style={{ background: "#FFFA00", color: "#111" }}
+                >
+                  ✓
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void handleReject(row);
+                }}
+                disabled={isActioning}
+                className="min-h-[44px] shrink-0 rounded px-4 text-xs font-bold"
+                style={{ color: "#E24B4A" }}
+              >
+                DECLINE
+              </button>
+            </div>
+          ) : null}
+
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            {!canHaveCarPass ? (
+              <span className="text-pitch-gray">—</span>
+            ) : plates.length === 0 ? (
+              <span className="text-pitch-gray">—</span>
+            ) : plates.length === 1 ? (
+              <div className="flex items-center gap-2 text-xs text-[#888]">
+                <span>CAR PASS</span>
+                <span className="text-sm text-pitch-gray-light">{plates[0]}</span>
+                <label className="flex items-center gap-1.5 text-sm text-pitch-gray-light">
+                  <input
+                    type="checkbox"
+                    checked={!!carPass[assignment.id]}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      toggleCarPass(assignment.id);
+                    }}
+                    className="rounded border-pitch-gray-dark bg-pitch-gray-dark text-pitch-accent focus:ring-pitch-accent"
+                  />
+                  Use plate
+                </label>
+              </div>
+            ) : (
+              <label className="flex items-center gap-2 text-xs text-[#888]">
+                CAR PASS
+                <select
+                  defaultValue={plates[0]}
+                  className="rounded-md border px-2 py-1 text-xs"
+                  style={{
+                    background: "#0a0a0a",
+                    borderColor: "#2a2a2a",
+                    color: "#fff",
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {plates.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function renderAssignmentCardGrid(rows: MyAssignmentStaffItem[]) {
     if (rows.length === 0)
       return (
-        <p className="py-6 text-center text-sm text-pitch-gray">
-          Nessuna assegnazione in questa sezione.
+        <p className="text-sm" style={{ color: "#888" }}>
+          No assignments in this section.
         </p>
       );
     return (
-      <ResponsiveTable minWidth="900px">
-        <table className="w-full border-collapse">
-          <thead>
-            <tr className="border-b border-pitch-gray-dark">
-              <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                Data KO
-              </th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                Partita
-              </th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                Competizione
-              </th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                Venue
-              </th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                Ruolo
-              </th>
-              {showFinance ? (
-                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Fee
-                </th>
-              ) : null}
-              <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                Stato
-              </th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                Targa
-              </th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                Azioni
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => {
-              if (!row || !row.assignment || !row.event) return null;
-              const { assignment, event } = row;
-              const match =
-                event.home_team_name_short && event.away_team_name_short
-                  ? `${event.home_team_name_short} vs ${event.away_team_name_short}`
-                  : event.home_team_name_short ??
-                    event.away_team_name_short ??
-                    "—";
-              const luogo =
-                event.location ??
-                event.venue_name ??
-                event.competition_name ??
-                "—";
-              const canHaveCarPass =
-                assignment.location?.toUpperCase() === "STADIO" &&
-                event.standard_onsite?.toUpperCase() !== "NO ONSITE";
-              const isSent = assignment.status === "SENT";
-              const isActioning = actionId === assignment.id;
-
-              return (
-                <tr
-                  key={assignment.id}
-                  className="border-b border-pitch-gray-dark/50 hover:bg-pitch-gray-dark/30"
-                >
-                  <td className="px-4 py-3 text-sm text-pitch-gray-light">
-                    {formatKoItaly(event.ko_italy)}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-pitch-white">
-                    {match}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-pitch-gray-light">
-                    {event.competition_name}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-pitch-gray-light">
-                    {luogo}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-pitch-gray-light">
-                    {assignment.role_code}
-                  </td>
-                  {showFinance ? (
-                    <td className="px-4 py-3 text-sm text-pitch-gray-light">
-                      {assignment.fee ?? "—"}
-                    </td>
-                  ) : null}
-                  <td className="px-4 py-3">
-                    <StatusBadge
-                      {...assignmentStatusBadgeProps(assignment.status)}
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    {!canHaveCarPass ? (
-                      <span className="text-pitch-gray">—</span>
-                    ) : plates.length === 0 ? (
-                      <span className="text-pitch-gray">—</span>
-                    ) : plates.length === 1 ? (
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-pitch-gray-light">
-                          {plates[0]}
-                        </span>
-                        <label className="flex items-center gap-1.5 text-sm text-pitch-gray-light">
-                          <input
-                            type="checkbox"
-                            checked={!!carPass[assignment.id]}
-                            onChange={() => toggleCarPass(assignment.id)}
-                            className="rounded border-pitch-gray-dark bg-pitch-gray-dark text-pitch-accent focus:ring-pitch-accent"
-                          />
-                          Pass auto
-                        </label>
-                      </div>
-                    ) : (
-                      <select
-                        defaultValue={plates[0]}
-                        className="rounded border border-pitch-gray-dark bg-pitch-gray-dark px-2 py-1 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
-                      >
-                        {plates.map((p) => (
-                          <option key={p} value={p}>
-                            {p}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    {isSent && (
-                      <div className="flex flex-wrap items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleConfirm(row)}
-                          disabled={isActioning}
-                          className="min-h-[44px] rounded bg-pitch-accent px-4 py-2 text-sm font-medium text-pitch-bg hover:bg-yellow-200 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          {isActioning ? "..." : "Conferma"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleReject(row)}
-                          disabled={isActioning}
-                          className="min-h-[44px] rounded border border-red-500/50 bg-transparent px-4 py-2 text-sm font-medium text-red-400 hover:bg-red-900/30 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          Rifiuta
-                        </button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </ResponsiveTable>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {rows.map((row) => renderStaffCard(row))}
+      </div>
     );
   }
 
   if (loading) {
     return (
       <>
-        <PageHeader title="Le mie assegnazioni" />
         <div className="mt-4">
-          <SearchBar placeholder="Cerca competizione, squadre, show…" />
+          <SearchBar placeholder="Search competition, teams, show…" />
         </div>
         <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30">
           <PageLoading />
@@ -780,7 +990,6 @@ export default function LeMieAssegnazioniPage() {
   if (blockedMessage) {
     return (
       <>
-        <PageHeader title="Le mie assegnazioni" />
         <div className="mt-6 rounded-lg border border-yellow-900/50 bg-yellow-900/20 p-6 text-yellow-300">
           {blockedMessage}
         </div>
@@ -791,9 +1000,8 @@ export default function LeMieAssegnazioniPage() {
   if (error) {
     return (
       <>
-        <PageHeader title="Le mie assegnazioni" />
         <div className="mt-4">
-          <SearchBar placeholder="Cerca competizione, squadre, show…" />
+          <SearchBar placeholder="Search competition, teams, show…" />
         </div>
         <div className="mt-6 rounded-lg border border-red-900/50 bg-red-900/20 p-6 text-red-300">
           {error}
@@ -807,126 +1015,340 @@ export default function LeMieAssegnazioniPage() {
 
   return (
     <>
-      <PageHeader title="Le mie assegnazioni" />
+      <div className="mx-auto max-w-7xl">
+        <h1
+          className="text-[28px] uppercase"
+          style={{ color: "#fff", fontWeight: 900 }}
+        >
+          MY ASSIGNMENTS
+        </h1>
+        <p className="mt-1 text-sm" style={{ color: "#888" }}>
+          Operational assignments for{" "}
+          <span style={{ color: "#FFFA00" }}>
+            {profile
+              ? `${profile.name ?? ""} ${profile.surname ?? ""}`.trim()
+              : "—"}
+          </span>
+        </p>
 
-      <div className="mt-4 flex flex-wrap gap-2 border-b border-pitch-gray-dark pb-3">
-        {(
-          [
-            ["lista", "Lista"],
-            ["calendario", "Calendario"],
-            ...(showTurniTab ? ([["turni", "Turni"]] as const) : []),
-          ] as const
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setTab(id)}
-            className={`min-h-[44px] rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
-              tab === id
-                ? "bg-pitch-accent text-pitch-bg"
-                : "bg-pitch-gray-dark/50 text-pitch-gray-light hover:bg-pitch-gray-dark"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {tab === "lista" ? (
-        <>
-          <div className="mt-4">
-            <SearchBar
-              placeholder="Cerca competizione, squadre, show…"
-              onSearchChange={setSearch}
-            />
-          </div>
-
-          {sentAssignments.length > 0 && (
+        {tab === "lista" ? (
+          <div className="mt-6 space-y-6">
             <div className="mt-4">
-              <PrimaryButton
-                variant="primary"
-                type="button"
-                onClick={handleConfirmAll}
-                disabled={confirmingAll}
-                loading={confirmingAll}
-              >
-                Conferma tutte
-              </PrimaryButton>
+              <SearchBar
+                placeholder="Search competition, teams, show…"
+                onSearchChange={setSearch}
+              />
             </div>
-          )}
 
-          <section className="mt-8">
-            <h2 className="mb-3 text-lg font-bold text-pitch-accent">
-              Azione richiesta
-            </h2>
-            {renderAssignmentsTable(azione)}
-          </section>
+            {sentAssignments.length > 0 ? (
+              <div className="mt-4">
+                <PrimaryButton
+                  variant="primary"
+                  type="button"
+                  onClick={handleConfirmAll}
+                  disabled={confirmingAll}
+                  loading={confirmingAll}
+                  className="text-xs font-bold uppercase"
+                >
+                  Confirm all
+                </PrimaryButton>
+              </div>
+            ) : null}
 
-          <section className="mt-10">
-            <h2 className="mb-3 text-lg font-bold text-pitch-white">
-              Confermate
-            </h2>
-            {renderAssignmentsTable(confermate)}
-          </section>
+            <section
+              className="rounded-xl border p-4"
+              style={{
+                background: "#111",
+                borderColor: "#2a2a2a",
+                borderLeft: "4px solid #FFFA00",
+              }}
+            >
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-sm font-bold uppercase text-white">
+                  ACTION REQUIRED
+                </h2>
+                <span
+                  className="rounded-full px-2 py-1 text-xs font-bold"
+                  style={{ background: "#FFFA00", color: "#111" }}
+                >
+                  {azione.length}
+                </span>
+              </div>
+              {azione.length === 0 ? (
+                <p className="text-sm" style={{ color: "#888" }}>
+                  No assignments pending confirmation.
+                </p>
+              ) : (
+                renderAssignmentCardGrid(azione)
+              )}
+            </section>
 
-          <section className="mt-10">
-            <h2 className="mb-3 text-lg font-bold text-pitch-gray">
-              Passate / altre
-            </h2>
-            {renderAssignmentsTable(passateAlt)}
-          </section>
+            <section
+              className="rounded-xl border p-4"
+              style={{
+                background: "#111",
+                borderColor: "#2a2a2a",
+                borderLeft: "4px solid #639922",
+              }}
+            >
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-sm font-bold uppercase text-white">
+                  CONFIRMED
+                </h2>
+                <span className="rounded-full bg-[#2a2a2a] px-2 py-1 text-xs font-bold text-[#ccc]">
+                  {confermate.length}
+                </span>
+              </div>
+              {confermate.length === 0 ? (
+                <p className="text-sm" style={{ color: "#888" }}>
+                  No upcoming confirmed assignments.
+                </p>
+              ) : (
+                renderAssignmentCardGrid(confermate)
+              )}
+            </section>
 
-          <section className="mt-10 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/20 p-4">
-            <h2 className="mb-3 text-base font-bold text-pitch-white">
-              Turni settimana corrente
-            </h2>
-            <div className="flex flex-wrap gap-2">
-              {weekDaysIso.map((iso) => {
-                const d = new Date(`${iso}T12:00:00`);
-                const label = new Intl.DateTimeFormat("it-IT", {
-                  weekday: "short",
-                  day: "numeric",
-                }).format(d);
-                const st = weeklyByIso.get(iso);
-                return (
-                  <div
-                    key={iso}
-                    className="flex flex-col items-center gap-1 rounded border border-pitch-gray-dark px-3 py-2"
-                  >
-                    <span className="text-[10px] uppercase text-pitch-gray">
-                      {label}
-                    </span>
-                    {st ? (
-                      <ShiftChip type={st} />
-                    ) : (
-                      <span className="text-xs text-pitch-gray">—</span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </section>
+            <section
+              className="rounded-xl border p-4"
+              style={{
+                background: "#111",
+                borderColor: "#2a2a2a",
+                borderLeft: "4px solid #E24B4A",
+              }}
+            >
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-sm font-bold uppercase text-white">
+                  DECLINED
+                </h2>
+                <span className="rounded-full bg-[#2a2a2a] px-2 py-1 text-xs font-bold text-[#ccc]">
+                  {declinate.length}
+                </span>
+              </div>
+              {declinate.length === 0 ? (
+                <p className="text-sm" style={{ color: "#888" }}>
+                  No upcoming declined assignments.
+                </p>
+              ) : (
+                renderAssignmentCardGrid(declinate)
+              )}
+            </section>
 
-          {filteredItems.length === 0 && items.length === 0 ? (
-            <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30">
-              <EmptyState message="Nessuna assegnazione" icon="calendar" />
-            </div>
-          ) : null}
-        </>
-      ) : null}
-
-      {tab === "calendario" ? (
-        <div className="mt-6 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
+            <section className="rounded-xl border p-4" style={{ background: "#111", borderColor: "#2a2a2a" }}>
               <button
                 type="button"
-                className="rounded border border-pitch-gray-dark px-3 py-2 text-sm text-pitch-white"
+                onClick={() => setShowPast((s) => !s)}
+                className="flex w-full items-center justify-between gap-2 text-left"
+              >
+                <span className="flex items-center gap-2">
+                  <span className="text-sm" style={{ color: "#888" }} aria-hidden>
+                    {showPast ? "▼" : "▶"}
+                  </span>
+                  <h2 className="text-sm font-bold uppercase text-white">
+                    PAST ({passate.length})
+                  </h2>
+                </span>
+              </button>
+              {showPast ? (
+                <div className="mt-3">
+                  {renderAssignmentCardGrid(passate)}
+                </div>
+              ) : null}
+            </section>
+
+            <section className="rounded-xl border p-4" style={{ background: "#111", borderColor: "#2a2a2a" }}>
+              <h2 className="mb-3 text-base font-bold text-pitch-white">
+                CURRENT WEEK SHIFTS
+              </h2>
+              <div className="flex flex-wrap gap-2">
+                {weekDaysIso.map((iso) => {
+                  const d = new Date(`${iso}T12:00:00`);
+                  const label = new Intl.DateTimeFormat("en-US", {
+                    weekday: "short",
+                    day: "numeric",
+                  }).format(d);
+                  const st = weeklyByIso.get(iso);
+                  return (
+                    <div
+                      key={iso}
+                      className="flex flex-col items-center gap-1 rounded border border-pitch-gray-dark px-3 py-2"
+                    >
+                      <span className="text-[10px] uppercase text-pitch-gray">
+                        {label}
+                      </span>
+                      {st ? (
+                        <ShiftChip type={st} />
+                      ) : (
+                        <span className="text-xs text-pitch-gray">—</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+
+            {filteredItems.length === 0 && items.length === 0 ? (
+              <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30">
+                <EmptyState message="No assignments" icon="calendar" />
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {tab === "calendario" ? (
+          <div className="mt-6 space-y-4">
+            <div className="rounded-xl border p-4" style={{ background: "#111", borderColor: "#2a2a2a" }}>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="rounded border border-pitch-gray-dark px-3 py-2 text-sm text-pitch-white"
+                    style={{ color: "#FFFA00" }}
+                    onClick={() =>
+                      setCalendarMonth(
+                        new Date(
+                          calendarMonth.getFullYear(),
+                          calendarMonth.getMonth() - 1,
+                          1
+                        )
+                      )
+                    }
+                  >
+                    ←
+                  </button>
+                  <span className="text-sm font-semibold capitalize text-pitch-white">
+                    {calendarMonth.toLocaleDateString("en-US", {
+                      month: "long",
+                      year: "numeric",
+                    })}
+                  </span>
+                  <button
+                    type="button"
+                    className="rounded border border-pitch-gray-dark px-3 py-2 text-sm text-pitch-white"
+                    style={{ color: "#FFFA00" }}
+                    onClick={() =>
+                      setCalendarMonth(
+                        new Date(
+                          calendarMonth.getFullYear(),
+                          calendarMonth.getMonth() + 1,
+                          1
+                        )
+                      )
+                    }
+                  >
+                    →
+                  </button>
+                </div>
+                <label className="flex items-center gap-2 text-sm text-pitch-gray-light">
+                  Team
+                  <select
+                    value={calTeam}
+                    onChange={(e) => setCalTeam(e.target.value)}
+                    className="rounded border border-pitch-gray-dark bg-pitch-bg px-3 py-2 text-pitch-white"
+                  >
+                    <option value="__tutti__">All</option>
+                    {teamOptions.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              <div className="mt-4 grid grid-cols-7 gap-1 text-center text-[11px] font-semibold uppercase text-pitch-gray">
+                {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+                  <div key={d}>{d}</div>
+                ))}
+              </div>
+              <div className="mt-2 grid grid-cols-7 gap-1">
+                {calCells.map((cell, idx) => {
+                  const st = myShiftByDate.get(cell.isoDate);
+                  const hasEv =
+                    (assignmentsByDay.get(cell.isoDate) ?? []).length > 0;
+                  const isToday = cell.isoDate === todayIso;
+                  return (
+                    <button
+                      key={`${cell.isoDate}-${idx}`}
+                      type="button"
+                      onClick={() => setCalPanelDay(cell.isoDate)}
+                      className={`flex min-h-[72px] flex-col items-start gap-1 rounded border p-1 text-left transition-colors ${
+                        cell.inCurrentMonth ? "opacity-100" : "opacity-40"
+                      } ${isToday ? "ring-2 ring-[#FFFA00]" : "border-pitch-gray-dark"}`}
+                      style={
+                        !isToday ? { borderColor: "#2a2a2a" } : undefined
+                      }
+                    >
+                      <span className="text-sm font-bold text-pitch-white">
+                        {cell.day}
+                      </span>
+                      {st ? (
+                        <ShiftChip type={st} className="!text-[10px]" />
+                      ) : null}
+                      {hasEv ? (
+                        <span
+                          className="mt-auto h-2 w-2 rounded-full bg-green-500"
+                          title="Assigned event"
+                        />
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {calPanelDay ? (
+              <div className="fixed inset-y-0 right-0 z-40 w-full max-w-md overflow-y-auto border-l border-pitch-gray-dark bg-pitch-bg p-4 shadow-xl md:max-w-lg">
+                <div className="mb-4 flex items-center justify-between">
+                  <h3 className="text-lg font-bold text-pitch-white">
+                    {new Intl.DateTimeFormat("en-US", {
+                      dateStyle: "full",
+                    }).format(new Date(`${calPanelDay}T12:00:00`))}
+                  </h3>
+                  <button
+                    type="button"
+                    className="text-pitch-gray hover:text-pitch-white"
+                    onClick={() => setCalPanelDay(null)}
+                  >
+                    ✕
+                  </button>
+                </div>
+                <CalDayPanel
+                  iso={calPanelDay}
+                  assignments={assignmentsByDay.get(calPanelDay) ?? []}
+                  teamFilter={calTeam}
+                  teamShifts={calTeamShifts}
+                  teamOptions={teamOptions}
+                />
+              </div>
+            ) : null}
+
+            <div className="mt-6 flex flex-wrap gap-2 border-t border-pitch-gray-dark pt-4">
+              <span className="w-full text-xs font-semibold text-pitch-gray">
+                Shift legend
+              </span>
+              {SHIFT_TYPES.map((t) => (
+                <ShiftChip key={t} type={t} />
+              ))}
+              <span className="ml-2 inline-flex items-center gap-1 text-xs text-pitch-gray">
+                <span className="h-2 w-2 rounded-full bg-green-500" />
+                Assigned event
+              </span>
+            </div>
+          </div>
+        ) : null}
+
+        {tab === "turni" && showTurniTab ? (
+          <div className="mt-6 space-y-4" ref={gridRef}>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                className="rounded border border-pitch-gray-dark px-3 py-2 text-sm"
+                style={{ color: "#FFFA00" }}
                 onClick={() =>
-                  setCalendarMonth(
+                  setTurniMonth(
                     new Date(
-                      calendarMonth.getFullYear(),
-                      calendarMonth.getMonth() - 1,
+                      turniMonth.getFullYear(),
+                      turniMonth.getMonth() - 1,
                       1
                     )
                   )
@@ -934,20 +1356,21 @@ export default function LeMieAssegnazioniPage() {
               >
                 ←
               </button>
-              <span className="text-sm font-semibold capitalize text-pitch-white">
-                {new Intl.DateTimeFormat("it-IT", {
+              <span className="font-semibold capitalize">
+                {turniMonth.toLocaleDateString("en-US", {
                   month: "long",
                   year: "numeric",
-                }).format(calendarMonth)}
+                })}
               </span>
               <button
                 type="button"
-                className="rounded border border-pitch-gray-dark px-3 py-2 text-sm text-pitch-white"
+                className="rounded border border-pitch-gray-dark px-3 py-2 text-sm"
+                style={{ color: "#FFFA00" }}
                 onClick={() =>
-                  setCalendarMonth(
+                  setTurniMonth(
                     new Date(
-                      calendarMonth.getFullYear(),
-                      calendarMonth.getMonth() + 1,
+                      turniMonth.getFullYear(),
+                      turniMonth.getMonth() + 1,
                       1
                     )
                   )
@@ -955,306 +1378,233 @@ export default function LeMieAssegnazioniPage() {
               >
                 →
               </button>
-            </div>
-            <label className="flex items-center gap-2 text-sm text-pitch-gray-light">
-              Team
               <select
-                value={calTeam}
-                onChange={(e) => setCalTeam(e.target.value)}
-                className="rounded border border-pitch-gray-dark bg-pitch-bg px-3 py-2 text-pitch-white"
+                value={turniTeam}
+                onChange={(e) => setTurniTeam(e.target.value)}
+                className="rounded border border-pitch-gray-dark bg-pitch-bg px-3 py-2"
               >
-                <option value="__tutti__">Tutti</option>
+                <option value="">— Select team —</option>
                 {teamOptions.map((t) => (
                   <option key={t} value={t}>
                     {t}
                   </option>
                 ))}
               </select>
-            </label>
-          </div>
-
-          <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold uppercase text-pitch-gray">
-            {["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"].map((d) => (
-              <div key={d}>{d}</div>
-            ))}
-          </div>
-          <div className="grid grid-cols-7 gap-1">
-            {calCells.map((cell, idx) => {
-              const st = myShiftByDate.get(cell.isoDate);
-              const hasEv = (assignmentsByDay.get(cell.isoDate) ?? []).length > 0;
-              const isToday = cell.isoDate === todayIso;
-              return (
-                <button
-                  key={`${cell.isoDate}-${idx}`}
-                  type="button"
-                  onClick={() => setCalPanelDay(cell.isoDate)}
-                  className={`flex min-h-[72px] flex-col items-start gap-1 rounded border p-1 text-left transition-colors ${
-                    cell.inCurrentMonth ? "opacity-100" : "opacity-40"
-                  } ${isToday ? "ring-2 ring-[#FFFA00]" : "border-pitch-gray-dark"}`}
-                >
-                  <span className="text-sm font-bold text-pitch-white">
-                    {cell.day}
-                  </span>
-                  {st ? <ShiftChip type={st} className="!text-[10px]" /> : null}
-                  {hasEv ? (
-                    <span
-                      className="mt-auto h-2 w-2 rounded-full bg-green-500"
-                      title="Evento assegnato"
-                    />
-                  ) : null}
-                </button>
-              );
-            })}
-          </div>
-
-          {calPanelDay ? (
-            <div className="fixed inset-y-0 right-0 z-40 w-full max-w-md overflow-y-auto border-l border-pitch-gray-dark bg-pitch-bg p-4 shadow-xl md:max-w-lg">
-              <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-lg font-bold text-pitch-white">
-                  {new Intl.DateTimeFormat("it-IT", {
-                    dateStyle: "full",
-                  }).format(new Date(`${calPanelDay}T12:00:00`))}
-                </h3>
-                <button
-                  type="button"
-                  className="text-pitch-gray hover:text-pitch-white"
-                  onClick={() => setCalPanelDay(null)}
-                >
-                  ✕
-                </button>
-              </div>
-              <CalDayPanel
-                iso={calPanelDay}
-                assignments={assignmentsByDay.get(calPanelDay) ?? []}
-                teamFilter={calTeam}
-                teamShifts={calTeamShifts}
-                teamOptions={teamOptions}
-              />
+              <PrimaryButton
+                variant="secondary"
+                type="button"
+                disabled={turniSaving || !turniTeam.trim()}
+                loading={turniSaving}
+                onClick={() => void handleTurniSave()}
+              >
+                Save
+              </PrimaryButton>
+              <PrimaryButton
+                variant="ghost"
+                type="button"
+                disabled={!turniTeam.trim() || turniMembers.length === 0}
+                onClick={handleCopyWeekForward}
+              >
+                Copy week →
+              </PrimaryButton>
             </div>
-          ) : null}
 
-          <div className="mt-6 flex flex-wrap gap-2 border-t border-pitch-gray-dark pt-4">
-            <span className="w-full text-xs font-semibold text-pitch-gray">
-              Legenda turni
-            </span>
-            {SHIFT_TYPES.map((t) => (
-              <ShiftChip key={t} type={t} />
-            ))}
-            <span className="ml-2 inline-flex items-center gap-1 text-xs text-pitch-gray">
-              <span className="h-2 w-2 rounded-full bg-green-500" />
-              Evento assegnato
-            </span>
-          </div>
-        </div>
-      ) : null}
-
-      {tab === "turni" && showTurniTab ? (
-        <div className="mt-6 space-y-4" ref={gridRef}>
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              className="rounded border border-pitch-gray-dark px-3 py-2 text-sm"
-              onClick={() =>
-                setTurniMonth(
-                  new Date(
-                    turniMonth.getFullYear(),
-                    turniMonth.getMonth() - 1,
-                    1
-                  )
-                )
-              }
-            >
-              ←
-            </button>
-            <span className="font-semibold capitalize">
-              {new Intl.DateTimeFormat("it-IT", {
-                month: "long",
-                year: "numeric",
-              }).format(turniMonth)}
-            </span>
-            <button
-              type="button"
-              className="rounded border border-pitch-gray-dark px-3 py-2 text-sm"
-              onClick={() =>
-                setTurniMonth(
-                  new Date(
-                    turniMonth.getFullYear(),
-                    turniMonth.getMonth() + 1,
-                    1
-                  )
-                )
-              }
-            >
-              →
-            </button>
-            <select
-              value={turniTeam}
-              onChange={(e) => setTurniTeam(e.target.value)}
-              className="rounded border border-pitch-gray-dark bg-pitch-bg px-3 py-2"
-            >
-              <option value="">— Seleziona team —</option>
-              {teamOptions.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-            <PrimaryButton
-              variant="secondary"
-              type="button"
-              disabled={turniSaving || !turniTeam.trim()}
-              loading={turniSaving}
-              onClick={() => void handleTurniSave()}
-            >
-              Salva
-            </PrimaryButton>
-            <PrimaryButton
-              variant="ghost"
-              type="button"
-              disabled={!turniTeam.trim() || turniMembers.length === 0}
-              onClick={handleCopyWeekForward}
-            >
-              Copia settimana →
-            </PrimaryButton>
-          </div>
-
-          {!turniTeam.trim() ? (
-            <p className="text-sm text-pitch-gray">
-              Seleziona un team per modificare i turni.
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-max border-collapse text-xs">
-                <thead>
-                  <tr>
-                    <th className="sticky left-0 z-10 min-w-[140px] bg-pitch-bg px-2 py-2 text-left">
-                      Nome
-                    </th>
-                    {turniCells.map((cell) => {
-                      const d0 = new Date(`${cell.isoDate}T12:00:00`);
-                      const dow = ["L", "M", "M", "G", "V", "S", "D"][
-                        (d0.getDay() + 6) % 7
-                      ];
-                      const monStart = (d0.getDay() + 6) % 7 === 0;
-                      return (
-                        <th
-                          key={cell.isoDate}
-                          className={`min-w-[52px] px-1 py-2 text-center font-semibold ${
-                            monStart ? "border-l-4 border-l-pitch-accent" : ""
-                          } ${cell.inCurrentMonth ? "" : "opacity-40"} ${
-                            cell.isoDate === todayIso
-                              ? "ring-1 ring-[#FFFA00]"
-                              : ""
-                          }`}
-                        >
-                          <div>{dow}</div>
-                          <div>{cell.day}</div>
+            {!turniTeam.trim() ? (
+              <p className="text-sm text-pitch-gray">
+                Select a team to edit shifts.
+              </p>
+            ) : (
+              <div
+                className="rounded-xl border border-pitch-gray-dark bg-[#111] p-4"
+                style={{ borderColor: "#2a2a2a" }}
+              >
+                <div className="overflow-x-auto">
+                  <table className="min-w-max border-collapse text-xs">
+                    <thead>
+                      <tr>
+                        <th className="sticky left-0 z-10 min-w-[140px] bg-[#111] px-2 py-2 text-left">
+                          Name
                         </th>
-                      );
-                    })}
-                  </tr>
-                </thead>
-                <tbody>
-                  {turniMembers.map((mem) => (
-                    <tr key={mem.id} className="border-t border-pitch-gray-dark">
-                      <td className="sticky left-0 z-10 bg-pitch-bg px-2 py-2 font-medium text-pitch-white">
-                        {mem.surname} {mem.name}
-                      </td>
-                      {turniCells.map((cell) => {
-                        const d0 = new Date(`${cell.isoDate}T12:00:00`);
-                        const editable = canEditTurniCell(turniTeam);
-                        const st = shiftForStaffDate(mem.id, cell.isoDate);
-                        const monStart = (d0.getDay() + 6) % 7 === 0;
-                        return (
-                          <td
-                            key={cell.isoDate}
-                            className={`relative px-0.5 py-1 text-center ${monStart ? "border-l-4 border-l-pitch-accent/40" : ""}`}
-                          >
-                            <button
-                              type="button"
-                              disabled={!editable}
-                              onClick={(ev) =>
-                                editable &&
-                                setPopover({
-                                  staffId: mem.id,
-                                  date: cell.isoDate,
-                                  x: ev.clientX,
-                                  y: ev.clientY,
-                                })
-                              }
-                              className={`min-h-[36px] w-full rounded p-1 ${
-                                editable ? "cursor-pointer hover:bg-white/5" : ""
+                        {turniCells.map((cell) => {
+                          const d0 = new Date(`${cell.isoDate}T12:00:00`);
+                          const dow = ["M", "T", "W", "T", "F", "S", "S"][
+                            (d0.getDay() + 6) % 7
+                          ];
+                          const monStart = (d0.getDay() + 6) % 7 === 0;
+                          return (
+                            <th
+                              key={cell.isoDate}
+                              className={`min-w-[52px] px-1 py-2 text-center font-semibold ${
+                                monStart ? "border-l-4 border-l-pitch-accent" : ""
+                              } ${cell.inCurrentMonth ? "" : "opacity-40"} ${
+                                cell.isoDate === todayIso
+                                  ? "ring-1 ring-[#FFFA00]"
+                                  : ""
                               }`}
                             >
-                              {st ? (
-                                <ShiftChip type={st} className="!text-[10px]" />
-                              ) : (
-                                <span className="text-pitch-gray">—</span>
-                              )}
-                            </button>
+                              <div>{dow}</div>
+                              <div>{cell.day}</div>
+                            </th>
+                          );
+                        })}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {turniMembers.map((mem) => (
+                        <tr key={mem.id} className="border-t border-pitch-gray-dark">
+                          <td className="sticky left-0 z-10 bg-[#111] px-2 py-2 font-medium text-pitch-white">
+                            {mem.surname} {mem.name}
                           </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {popover ? (
-            <div
-              className="fixed z-50 rounded-lg border border-pitch-gray-dark bg-[#1a1a1a] p-2 shadow-xl"
-              style={{
-                left: Math.min(popover.x, typeof window !== "undefined" ? window.innerWidth - 220 : 0),
-                top: Math.min(popover.y, typeof window !== "undefined" ? window.innerHeight - 280 : 0),
-              }}
-            >
-              <div className="mb-2 grid grid-cols-3 gap-1">
-                {SHIFT_TYPES.map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    className="rounded px-2 py-1 text-xs font-semibold"
-                    style={{
-                      background: SHIFT_CHIP_CLASS[t].bg,
-                      color: SHIFT_CHIP_CLASS[t].text,
-                    }}
-                    onClick={() => {
-                      const k = `${popover.staffId}-${popover.date}`;
-                      setTurniPending((prev) => ({
-                        ...prev,
-                        [k]: t,
-                      }));
-                      setPopover(null);
-                    }}
-                  >
-                    {t}
-                  </button>
-                ))}
+                          {turniCells.map((cell) => {
+                            const d0 = new Date(`${cell.isoDate}T12:00:00`);
+                            const editable = canEditTurniCell(turniTeam);
+                            const st = shiftForStaffDate(mem.id, cell.isoDate);
+                            const monStart = (d0.getDay() + 6) % 7 === 0;
+                            return (
+                              <td
+                                key={cell.isoDate}
+                                className={`relative px-0.5 py-1 text-center ${monStart ? "border-l-4 border-l-pitch-accent/40" : ""}`}
+                              >
+                                <button
+                                  type="button"
+                                  disabled={!editable}
+                                  onClick={(ev) =>
+                                    editable &&
+                                    setPopover({
+                                      staffId: mem.id,
+                                      date: cell.isoDate,
+                                      x: ev.clientX,
+                                      y: ev.clientY,
+                                    })
+                                  }
+                                  className={`min-h-[36px] w-full rounded p-1 ${
+                                    editable ? "cursor-pointer hover:bg-white/5" : ""
+                                  }`}
+                                >
+                                  {st ? (
+                                    <ShiftChip type={st} className="!text-[10px]" />
+                                  ) : (
+                                    <span className="text-pitch-gray">—</span>
+                                  )}
+                                </button>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-              <button
-                type="button"
-                className="mt-1 w-full rounded border border-red-500/40 py-1 text-xs text-red-400"
-                onClick={() => {
-                  const k = `${popover.staffId}-${popover.date}`;
-                  setTurniPending((prev) => ({
-                    ...prev,
-                    [k]: null,
-                  }));
-                  setPopover(null);
+            )}
+
+            {popover ? (
+              <div
+                className="fixed z-50 rounded-lg border border-pitch-gray-dark bg-[#1a1a1a] p-2 shadow-xl"
+                style={{
+                  left: Math.min(
+                    popover.x,
+                    typeof window !== "undefined"
+                      ? window.innerWidth - 220
+                      : 0
+                  ),
+                  top: Math.min(
+                    popover.y,
+                    typeof window !== "undefined"
+                      ? window.innerHeight - 280
+                      : 0
+                  ),
                 }}
               >
-                — Rimuovi
+                <div className="mb-2 grid grid-cols-3 gap-1">
+                  {SHIFT_TYPES.map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      className="rounded px-2 py-1 text-xs font-semibold"
+                      style={{
+                        background: SHIFT_CHIP_CLASS[t].bg,
+                        color: SHIFT_CHIP_CLASS[t].text,
+                      }}
+                      onClick={() => {
+                        const k = `${popover.staffId}-${popover.date}`;
+                        setTurniPending((prev) => ({
+                          ...prev,
+                          [k]: t,
+                        }));
+                        setPopover(null);
+                      }}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  className="mt-1 w-full rounded border border-red-500/40 py-1 text-xs text-red-400"
+                  onClick={() => {
+                    const k = `${popover.staffId}-${popover.date}`;
+                    setTurniPending((prev) => ({
+                      ...prev,
+                      [k]: null,
+                    }));
+                    setPopover(null);
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+            ) : null}
+
+            <div className="flex flex-wrap gap-2 pt-4">
+              <span className="w-full text-xs font-semibold text-pitch-gray">
+                Shift legend
+              </span>
+              {SHIFT_TYPES.map((t) => (
+                <ShiftChip key={`leg-${t}`} type={t} />
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      {crewListModal ? (
+        <div className="fixed inset-0 z-50">
+          <button
+            type="button"
+            className="absolute inset-0"
+            style={{ background: "rgba(0,0,0,0.65)" }}
+            onClick={() => setCrewListModal(null)}
+            aria-label="Close"
+          />
+          <aside
+            className="absolute right-0 top-0 h-full w-full max-w-[400px] border-l p-4"
+            style={{
+              background: "#111",
+              borderColor: "#2a2a2a",
+              overflowY: "auto",
+              maxHeight: "100vh",
+            }}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <h3 className="text-lg font-bold text-white">{crewListModal.title}</h3>
+              <button
+                type="button"
+                onClick={() => setCrewListModal(null)}
+                className="text-sm"
+                style={{ color: "#FFFA00" }}
+              >
+                Close
               </button>
             </div>
-          ) : null}
-
-          <div className="flex flex-wrap gap-2 pt-4">
-            {SHIFT_TYPES.map((t) => (
-              <ShiftChip key={`leg-${t}`} type={t} />
-            ))}
-          </div>
+            <div className="mt-4">
+              {crewListLoading ? (
+                <p style={{ color: "#888" }}>Loading colleagues…</p>
+              ) : (
+                <ColleaguesGrouped items={crewListItems} />
+              )}
+            </div>
+          </aside>
         </div>
       ) : null}
     </>
@@ -1274,6 +1624,18 @@ function CalDayPanel({
   teamFilter: string;
   teamOptions: string[];
 }) {
+  const [crewMode, setCrewMode] = useState<{
+    eventId: string;
+    title: string;
+  } | null>(null);
+  const [crewLoading, setCrewLoading] = useState(false);
+  const [crewItems, setCrewItems] = useState<ColleagueSlot[]>([]);
+
+  useEffect(() => {
+    setCrewMode(null);
+    setCrewItems([]);
+  }, [iso]);
+
   const byStaffShift = useMemo(() => {
     const m = new Map<number, ShiftType>();
     for (const s of teamShifts) {
@@ -1282,27 +1644,63 @@ function CalDayPanel({
     return m;
   }, [teamShifts, iso]);
 
+  async function openCrew(row: MyAssignmentStaffItem) {
+    const eventId = row.assignment.event_id;
+    setCrewMode({ eventId, title: eventTitleFromRow(row) });
+    setCrewLoading(true);
+    try {
+      const list = await fetchAssignmentColleagues(eventId);
+      setCrewItems(list);
+    } catch {
+      setCrewItems([]);
+    } finally {
+      setCrewLoading(false);
+    }
+  }
+
+  if (crewMode) {
+    return (
+      <div className="space-y-4 text-sm">
+        <button
+          type="button"
+          onClick={() => setCrewMode(null)}
+          className="text-xs font-bold"
+          style={{ color: "#FFFA00" }}
+        >
+          ← Back
+        </button>
+        <h4 className="font-bold text-white">{crewMode.title}</h4>
+        {crewLoading ? (
+          <p style={{ color: "#888" }}>Loading colleagues…</p>
+        ) : (
+          <ColleaguesGrouped items={crewItems} />
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 text-sm">
       {assignments.length > 0 ? (
         <div>
-          <h4 className="mb-2 font-bold text-pitch-accent">Le tue assegnazioni</h4>
+          <h4 className="mb-2 font-bold text-pitch-accent">YOUR ASSIGNMENTS</h4>
           <ul className="space-y-2">
             {assignments.map((row) => (
-              <li
-                key={row.assignment.id}
-                className="rounded border border-pitch-gray-dark p-3"
-              >
-                <div className="font-semibold text-pitch-white">
-                  {row.event.home_team_name_short &&
-                  row.event.away_team_name_short
-                    ? `${row.event.home_team_name_short} vs ${row.event.away_team_name_short}`
-                    : row.event.show_name ?? row.event.competition_name}
-                </div>
-                <div className="text-pitch-gray-light">
-                  {row.assignment.role_code} ·{" "}
-                  {formatKoItaly(row.event.ko_italy)}
-                </div>
+              <li key={row.assignment.id}>
+                <button
+                  type="button"
+                  onClick={() => void openCrew(row)}
+                  className="w-full rounded border border-pitch-gray-dark p-3 text-left transition-colors hover:bg-white/5"
+                  style={{ background: "#111" }}
+                >
+                  <div className="font-semibold text-pitch-white">
+                    {eventTitleFromRow(row)}
+                  </div>
+                  <div className="text-pitch-gray-light">
+                    {row.assignment.role_code} ·{" "}
+                    {formatKoItaly(row.event.ko_italy)}
+                  </div>
+                </button>
               </li>
             ))}
           </ul>
@@ -1310,7 +1708,7 @@ function CalDayPanel({
       ) : null}
 
       <div>
-        <h4 className="mb-2 font-bold text-pitch-white">Colleghi</h4>
+        <h4 className="mb-2 font-bold text-pitch-white">COLLEAGUES</h4>
         {teamFilter === "__tutti__" ? (
           teamOptions.map((team) => (
             <TeamColleaguesBlock
@@ -1320,10 +1718,7 @@ function CalDayPanel({
             />
           ))
         ) : (
-          <TeamColleaguesBlock
-            team={teamFilter}
-            shiftMap={byStaffShift}
-          />
+          <TeamColleaguesBlock team={teamFilter} shiftMap={byStaffShift} />
         )}
       </div>
     </div>
@@ -1376,7 +1771,11 @@ function TeamColleaguesBlock({
                   {mem.surname} {mem.name}
                 </span>
               </span>
-              {st ? <ShiftChip type={st} /> : <span className="text-pitch-gray">—</span>}
+              {st ? (
+                <ShiftChip type={st} />
+              ) : (
+                <span className="text-pitch-gray">—</span>
+              )}
             </li>
           );
         })}

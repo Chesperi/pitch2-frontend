@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import SidebarNav from "@/components/SidebarNav";
 import { fetchAuthMe } from "@/lib/api/freelanceAssignments";
 import AppNavbar from "@/components/AppNavbar";
@@ -22,13 +22,6 @@ export default function DashboardLayout({
   const [userName, setUserName] = useState("User");
   const [userEmail, setUserEmail] = useState("Email not available");
   const [userInitials, setUserInitials] = useState("?");
-  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (closeTimer.current) clearTimeout(closeTimer.current);
-    };
-  }, []);
 
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 768px)");
@@ -92,12 +85,12 @@ export default function DashboardLayout({
             style={{
               color: "#FFFFFF",
             }}
-            onMouseEnter={() => {
-              if (closeTimer.current) clearTimeout(closeTimer.current);
-              setCollapsed(false);
-            }}
-            onMouseLeave={() => {
-              closeTimer.current = setTimeout(() => setCollapsed(true), 300);
+            onMouseEnter={() => setCollapsed(false)}
+            onMouseLeave={(e) => {
+              const related = e.relatedTarget as Node | null;
+              const aside = e.currentTarget;
+              if (related && aside.contains(related)) return;
+              setCollapsed(true);
             }}
           >
             <SidebarNav

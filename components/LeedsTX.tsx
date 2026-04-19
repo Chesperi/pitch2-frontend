@@ -381,7 +381,7 @@ export default function LeedsTX() {
               {items.map((row) => (
                 <tr
                   key={row.id}
-                  className="border-b border-pitch-gray-dark/50 hover:bg-pitch-gray-dark/30"
+                  className="border-b border-pitch-gray-dark/50 transition-colors duration-150 hover:bg-pitch-gray-dark/30"
                 >
                   <td className={`${tdClass} text-pitch-white`}>
                     {displayCell(row.competitionName)}

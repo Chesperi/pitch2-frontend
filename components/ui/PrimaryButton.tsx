@@ -60,7 +60,7 @@ export default function PrimaryButton({
     <button
       type={type}
       disabled={isDisabled}
-      className={`inline-flex min-h-[44px] items-center justify-center gap-2 rounded px-4 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-pitch-bg disabled:cursor-not-allowed disabled:opacity-50 ${VARIANT_CLASSES[variant]} ${className}`.trim()}
+      className={`inline-flex min-h-[44px] items-center justify-center gap-2 rounded px-4 text-sm font-medium transition-colors duration-150 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-pitch-bg disabled:cursor-not-allowed disabled:opacity-50 ${VARIANT_CLASSES[variant]} ${className}`.trim()}
       {...rest}
     >
       {loading ? <Spinner /> : null}

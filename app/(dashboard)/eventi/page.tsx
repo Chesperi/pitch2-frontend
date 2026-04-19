@@ -1342,7 +1342,7 @@ export default function EventiPage() {
                         setEditingEvent(full ?? event);
                       })()
                     }
-                    className="cursor-pointer border-b border-pitch-gray-dark/50 hover:bg-pitch-gray-dark/30"
+                    className="cursor-pointer border-b border-pitch-gray-dark/50 transition-colors duration-150 hover:bg-pitch-gray-dark/30"
                   >
                     <td
                       className="px-4 py-3"

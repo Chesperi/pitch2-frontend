@@ -118,7 +118,7 @@ export default function TopBar() {
           <Link
             key={link.href}
             href={link.href}
-            className="text-sm text-pitch-gray-light hover:text-pitch-accent transition-colors whitespace-nowrap"
+            className="text-sm text-pitch-gray-light transition-colors duration-150 ease-out hover:text-pitch-accent whitespace-nowrap"
           >
             {link.label}
           </Link>
@@ -130,7 +130,7 @@ export default function TopBar() {
           <Link
             key={link.href}
             href={link.href}
-            className="text-sm text-pitch-gray-light hover:text-pitch-accent transition-colors whitespace-nowrap shrink-0"
+            className="text-sm text-pitch-gray-light transition-colors duration-150 ease-out hover:text-pitch-accent whitespace-nowrap shrink-0"
           >
             {link.label}
           </Link>
@@ -142,7 +142,7 @@ export default function TopBar() {
           type="button"
           onClick={() => setMenuOpen((o) => !o)}
           disabled={logoutBusy}
-          className="flex max-w-[14rem] items-center gap-2 rounded-lg border border-transparent px-2 py-1 text-left transition-colors hover:border-pitch-gray-dark hover:bg-pitch-gray-dark/40 disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex max-w-[14rem] items-center gap-2 rounded-lg border border-transparent px-2 py-1 text-left transition-colors duration-150 ease-out hover:border-pitch-gray-dark hover:bg-pitch-gray-dark/40 disabled:cursor-not-allowed disabled:opacity-50"
           aria-expanded={menuOpen}
           aria-haspopup="menu"
           aria-label="Menu utente"
@@ -154,7 +154,7 @@ export default function TopBar() {
             {displayName}
           </span>
           <svg
-            className={`hidden h-4 w-4 shrink-0 text-pitch-gray sm:block ${menuOpen ? "rotate-180" : ""} transition-transform`}
+            className={`hidden h-4 w-4 shrink-0 text-pitch-gray sm:block ${menuOpen ? "rotate-180" : ""} transition-transform duration-200 ease-out`}
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"

@@ -65,15 +65,13 @@ export default function DashboardLayout({
     <div style={{ display: "flex", minHeight: "100vh" }}>
       {!isFreelance ? (
         <>
-          {mobileOpen ? (
-            <div
-              className="fixed inset-0 z-40 bg-black/40 md:hidden"
-              onClick={() => setMobileOpen(false)}
-              aria-hidden
-            />
-          ) : null}
+          <div
+            className={`fixed inset-0 z-40 bg-black/40 md:hidden transition-opacity duration-300 ease-out pointer-events-none ${mobileOpen ? "opacity-100 pointer-events-auto" : "opacity-0"}`}
+            onClick={() => setMobileOpen(false)}
+            aria-hidden={!mobileOpen}
+          />
           <aside
-            className={`fixed inset-y-0 left-0 z-50 h-screen w-64 flex-shrink-0 overflow-y-auto border-r border-[#2a2a2a] bg-black text-white transition-[transform,width] duration-200 md:relative md:inset-auto md:sticky md:top-0 md:z-auto md:h-screen md:self-start md:translate-x-0 ${
+            className={`will-change-transform fixed inset-y-0 left-0 z-50 h-screen w-64 flex-shrink-0 overflow-y-auto border-r border-[#2a2a2a] bg-black text-white transition-[transform,width] duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] md:relative md:inset-auto md:sticky md:top-0 md:z-auto md:h-screen md:self-start md:translate-x-0 ${
               mobileOpen ? "translate-x-0" : "-translate-x-full"
             } ${collapsed ? "md:w-16" : "md:w-64"}`}
             style={{

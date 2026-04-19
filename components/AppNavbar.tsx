@@ -100,7 +100,7 @@ export default function AppNavbar({
             <button
               type="button"
               onClick={onBellClick}
-              className="rounded-full p-1 transition hover:bg-white/10"
+              className="rounded-full p-1 transition-colors duration-150 ease-out hover:bg-white/10"
               aria-label="Vai alle azioni richieste"
             >
               <svg

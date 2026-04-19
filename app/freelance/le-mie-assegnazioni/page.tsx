@@ -778,13 +778,12 @@ export default function FreelanceLeMieAssegnazioniPage() {
               <div className="mt-6 space-y-6">
                 <section
                   ref={actionSectionRef}
-                  className="rounded-xl border p-4"
+                  className={`rounded-xl border p-4 ${highlightActionSection ? "ring-2 ring-pitch-accent/40" : ""}`}
                   style={{
                     background: "#111",
                     borderColor: highlightActionSection ? "#E24B4A" : "#2a2a2a",
                     borderLeft: "4px solid #FFFA00",
-                    boxShadow: highlightActionSection ? "0 0 0 2px rgba(226,75,74,0.25)" : "none",
-                    transition: "border-color 180ms ease, box-shadow 180ms ease",
+                    transition: "border-color 200ms ease-out",
                   }}
                 >
                   <div className="mb-3 flex items-center justify-between">

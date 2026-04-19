@@ -65,7 +65,7 @@ export default function StatusBadge({
   const text = label ?? DEFAULT_LABELS[variant];
   return (
     <span
-      className={`inline-flex items-center justify-center ${SIZE_CLASSES[size]} ${VARIANT_CLASSES[variant]} ${className}`.trim()}
+      className={`inline-flex items-center justify-center transition-colors duration-150 ${SIZE_CLASSES[size]} ${VARIANT_CLASSES[variant]} ${className}`.trim()}
     >
       {text}
     </span>

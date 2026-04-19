@@ -1016,7 +1016,7 @@ export default function DesignazioniEventPage() {
     return (
       <div
         key={a.id}
-        className="flex flex-col gap-2 rounded border border-pitch-gray-dark/60 bg-pitch-gray-dark/20 px-3 py-2 md:flex-row md:items-center md:justify-between"
+        className="flex flex-col gap-2 rounded border border-pitch-gray-dark/60 bg-pitch-gray-dark/20 px-3 py-2 transition-colors duration-150 hover:bg-pitch-gray-dark/35 md:flex-row md:items-center md:justify-between"
       >
         <div className="min-w-0">
           <div className="text-sm font-medium text-pitch-white">

@@ -336,7 +336,7 @@ export default function MasterPage() {
                         isFreelanceOrProvider(row) ||
                         savingKeys.has(`finance:${row.staffId}`)
                       }
-                      className={`inline-flex min-w-[120px] items-center justify-center rounded border px-2 py-1.5 text-xs font-semibold transition ${
+                      className={`inline-flex min-w-[120px] items-center justify-center rounded border px-2 py-1.5 text-xs font-semibold transition-colors duration-150 ease-out ${
                         row.financeVisibility === "VISIBLE"
                           ? "border-pitch-accent bg-pitch-accent/20 text-pitch-accent"
                           : "border-pitch-gray-dark bg-pitch-gray-dark/30 text-pitch-gray"
@@ -372,7 +372,7 @@ export default function MasterPage() {
                             isSystemMaster(row) ||
                             savingKeys.has(`${row.staffId}:${perm.pageKey}`)
                           }
-                          className={`inline-flex min-w-[90px] items-center justify-center rounded border px-2 py-1.5 text-xs font-semibold transition ${accessCellClass(
+                          className={`inline-flex min-w-[90px] items-center justify-center rounded border px-2 py-1.5 text-xs font-semibold transition-colors duration-150 ease-out ${accessCellClass(
                             perm.accessLevel
                           )} ${
                             isSystemMaster(row)

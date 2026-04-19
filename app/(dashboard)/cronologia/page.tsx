@@ -28,6 +28,41 @@ type AuditLogResponse = {
 const FILTER_SELECT_CLASS =
   "rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none";
 
+/** Etichette UI (stesso dizionario del backend per i tipi noti). */
+const ENTITY_LABELS_IT: Record<string, string> = {
+  assignment: "Assegnazione",
+  event: "Evento",
+  role: "Ruolo",
+  staff: "Staff",
+  cookies_task: "Attività",
+  standard: "Standard",
+};
+
+function entityTypeLabelIt(entityType: string): string {
+  const t = entityType.trim();
+  return ENTITY_LABELS_IT[t] ?? t;
+}
+
+/** Colonna Entity: nome da metadata se presente, altrimenti solo tipo in italiano (senza ID). */
+function entityColumnDisplay(item: AuditLogItem): string {
+  const m = metaRecord(item.metadata);
+  if (m) {
+    if (
+      typeof m.entityName === "string" &&
+      m.entityName.trim()
+    ) {
+      return m.entityName.trim();
+    }
+    if (typeof m.name === "string" && m.name.trim()) {
+      return m.name.trim();
+    }
+    if (typeof m.title === "string" && m.title.trim()) {
+      return m.title.trim();
+    }
+  }
+  return entityTypeLabelIt(item.entityType);
+}
+
 function formatDateTimeIt(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "—";
@@ -69,7 +104,8 @@ function fieldColumn(meta: unknown): string {
   return "—";
 }
 
-function oldValueColumn(meta: unknown): string {
+function oldValueColumn(meta: unknown, action: string): string {
+  if (action === "create") return "—";
   const m = metaRecord(meta);
   if (!m) return "—";
   if ("from" in m && m.from !== undefined && m.from !== null) {
@@ -81,7 +117,39 @@ function oldValueColumn(meta: unknown): string {
   return "—";
 }
 
-function newValueColumn(meta: unknown): string {
+/** Per action create: primo valore utile nei campi tipici, poi primo primitivo non vuoto. */
+function firstSignificantCreateValue(meta: unknown): string {
+  const m = metaRecord(meta);
+  if (!m) return "—";
+  const priorityKeys = ["name", "title", "code", "entityName"] as const;
+  for (const k of priorityKeys) {
+    const v = m[k];
+    if (v !== undefined && v !== null && String(v).trim() !== "") {
+      return String(v).trim();
+    }
+  }
+  const skip = new Set([
+    "changedFields",
+    "from",
+    "to",
+    "oldValue",
+    "newValue",
+    "field",
+  ]);
+  for (const [k, v] of Object.entries(m)) {
+    if (skip.has(k)) continue;
+    if (v === null || v === undefined) continue;
+    if (typeof v === "object") continue;
+    const s = String(v).trim();
+    if (s !== "") return s;
+  }
+  return "—";
+}
+
+function newValueColumn(meta: unknown, action: string): string {
+  if (action === "create") {
+    return firstSignificantCreateValue(meta);
+  }
   const m = metaRecord(meta);
   if (!m) return "—";
   if ("to" in m && m.to !== undefined && m.to !== null) {
@@ -153,16 +221,20 @@ export default function CronologiaPage() {
   }, [load]);
 
   const entityTypeOptions = useMemo(() => {
-    const base: { value: string; label: string }[] = [
-      { value: "", label: "All entities" },
-      { value: "assignment", label: "Assignment" },
-      { value: "event", label: "Event" },
+    const predefined: { value: string; label: string }[] = [
+      { value: "", label: "Tutte le entità" },
+      { value: "assignment", label: ENTITY_LABELS_IT.assignment },
+      { value: "event", label: ENTITY_LABELS_IT.event },
+      { value: "role", label: ENTITY_LABELS_IT.role },
+      { value: "staff", label: ENTITY_LABELS_IT.staff },
+      { value: "cookies_task", label: ENTITY_LABELS_IT.cookies_task },
+      { value: "standard", label: ENTITY_LABELS_IT.standard },
     ];
-    const known = new Set(["", "assignment", "event"]);
+    const known = new Set(predefined.map((o) => o.value));
     const extra = seenEntityTypes
       .filter((t) => t && !known.has(t))
-      .map((t) => ({ value: t, label: t }));
-    return [...base, ...extra];
+      .map((t) => ({ value: t, label: entityTypeLabelIt(t) }));
+    return [...predefined, ...extra];
   }, [seenEntityTypes]);
 
   return (
@@ -175,7 +247,7 @@ export default function CronologiaPage() {
             htmlFor="cronologia-entity-type"
             className="mb-1 block text-xs text-pitch-gray"
           >
-            Entity type
+            Tipo entità
           </label>
           <select
             id="cronologia-entity-type"
@@ -257,7 +329,7 @@ export default function CronologiaPage() {
                     {row.actorName ?? "Sistema"}
                   </td>
                   <td className="px-4 py-3 text-pitch-white">
-                    {row.entityLabel}
+                    {entityColumnDisplay(row)}
                   </td>
                   <td className="px-4 py-3 text-pitch-gray-light">
                     {row.actionLabel}
@@ -266,10 +338,10 @@ export default function CronologiaPage() {
                     {fieldColumn(row.metadata)}
                   </td>
                   <td className="max-w-[180px] break-words px-4 py-3 text-xs text-pitch-gray">
-                    {oldValueColumn(row.metadata)}
+                    {oldValueColumn(row.metadata, row.action)}
                   </td>
                   <td className="max-w-[180px] break-words px-4 py-3 text-xs text-pitch-gray">
-                    {newValueColumn(row.metadata)}
+                    {newValueColumn(row.metadata, row.action)}
                   </td>
                 </tr>
               ))}

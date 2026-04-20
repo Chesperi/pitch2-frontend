@@ -73,11 +73,11 @@ function renderAssignmentsStatusBadge(
 ): React.ReactNode {
   switch (status) {
     case "DRAFT":
-      return <StatusBadge variant="draft" label="Bozza" />;
+      return <StatusBadge variant="draft" label="Draft" />;
     case "READY_TO_SEND":
-      return <StatusBadge variant="pending" label="Pronto all'invio" />;
+      return <StatusBadge variant="pending" label="Ready to send" />;
     case "SENT":
-      return <StatusBadge variant="accepted" label="Inviato" />;
+      return <StatusBadge variant="accepted" label="Sent" />;
     default:
       return (
         <span className="rounded-full bg-pitch-gray-dark px-2 py-0.5 text-xs text-pitch-gray-light">
@@ -108,15 +108,15 @@ function getAssignmentStatusClasses(status: string): string {
 function getAssignmentStatusLabel(status: string): string {
   switch (status) {
     case "DRAFT":
-      return "Bozza";
+      return "Draft";
     case "READY":
-      return "Pronto";
+      return "Ready";
     case "SENT":
-      return "Inviato";
+      return "Sent";
     case "CONFIRMED":
-      return "Confermato";
+      return "Confirmed";
     case "REJECTED":
-      return "Rifiutato";
+      return "Rejected";
     default:
       return status;
   }
@@ -125,23 +125,23 @@ function getAssignmentStatusLabel(status: string): string {
 /** Valori `EventAssignmentsStatus` (tipo frontend); sul DB compaiono soprattutto DRAFT e READY_TO_SEND. */
 const EVENT_ASSIGNMENTS_STATUS_INFO = {
   DRAFT: {
-    label: "Bozza",
+    label: "Draft",
     description:
-      "Designazioni evento ancora in lavorazione, nessuna email di massa inviata.",
+      "Event assignments still in progress, no bulk email sent yet.",
   },
   READY_TO_SEND: {
-    label: "Pronto all'invio",
+    label: "Ready to send",
     description:
-      "Evento pronto per generare o inviare le email di assegnazione ai freelance.",
+      "Event is ready to generate or send assignment emails to freelancers.",
   },
   SENT: {
-    label: "Inviato",
+    label: "Sent",
     description:
-      "Email inviate; l'esito è sulle singole righe (stato assegnazione).",
+      "Emails sent; outcomes are tracked on each row (assignment status).",
   },
   CONFIRMED: {
-    label: "Confermato",
-    description: "Tutti i freelance hanno confermato le designazioni.",
+    label: "Confirmed",
+    description: "All freelancers confirmed their assignments.",
   },
 } satisfies Record<
   EventAssignmentsStatus,
@@ -151,28 +151,28 @@ const EVENT_ASSIGNMENTS_STATUS_INFO = {
 /** Valori `AssignmentStatus` (allineati a pitch-backend). */
 const ASSIGNMENT_STATUS_INFO = {
   DRAFT: {
-    label: "Bozza",
+    label: "Draft",
     description:
-      "Slot creato o in bozza, spesso senza persona o fuori dal blocco pronto all'invio.",
+      "Slot created or still in draft, often without a person or outside the ready-to-send batch.",
   },
   READY: {
-    label: "Pronto",
+    label: "Ready",
     description:
-      "Riga inclusa nel prossimo invio email (checkbox OK in tabella).",
+      "Row included in the next email batch (checked in the table).",
   },
   SENT: {
-    label: "Inviato",
+    label: "Sent",
     description:
-      "Notifica inviata al freelance, in attesa di accettazione o rifiuto.",
+      "Notification sent to the freelancer, waiting for acceptance or rejection.",
   },
   CONFIRMED: {
-    label: "Confermato",
-    description: "Il freelance ha accettato l'assegnazione.",
+    label: "Confirmed",
+    description: "The freelancer accepted the assignment.",
   },
   REJECTED: {
-    label: "Rifiutato",
+    label: "Rejected",
     description:
-      "Il freelance ha rifiutato; riassegna o modifica lo slot.",
+      "The freelancer rejected it; reassign or edit the slot.",
   },
 } satisfies Record<AssignmentStatus, { label: string; description: string }>;
 
@@ -438,7 +438,7 @@ function StaffPicker({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
       <div className="w-full max-w-md rounded-lg border border-pitch-gray-dark bg-pitch-bg p-4">
         <div className="mb-2 text-sm font-semibold text-pitch-white">
-          Assegna {roleCode || "—"}
+          Assign {roleCode || "—"}
         </div>
         {errorMessage ? (
           <p
@@ -455,7 +455,7 @@ function StaffPicker({
         ) : null}
         <ul className="max-h-64 overflow-auto text-sm">
           {candidates.length === 0 ? (
-            <li className="text-pitch-gray">Nessuna persona compatibile trovata</li>
+            <li className="text-pitch-gray">No compatible person found</li>
           ) : (
             candidates.map((s) => (
               <li key={s.id}>
@@ -487,7 +487,7 @@ function StaffPicker({
           className="mt-3 text-xs text-pitch-gray hover:text-pitch-gray-light"
           onClick={onClose}
         >
-          Chiudi
+          Close
         </button>
       </div>
     </div>
@@ -588,7 +588,7 @@ export default function DesignazioniEventPage() {
       setRoles(rolesData);
       setStandardRequirements(stdData);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Errore di caricamento");
+      setError(e instanceof Error ? e.message : "Loading error");
     } finally {
       setLoading(false);
     }
@@ -770,7 +770,7 @@ export default function DesignazioniEventPage() {
               ? `${staff.surname} ${staff.name}`.trim()
               : `Staff ${staffId}`;
             setConflictWarning(
-              `${staffLabel} è già assegnato in un altro evento in questa data: ${eventLabel}. Puoi comunque procedere.`
+              `${staffLabel} is already assigned to another event on this date: ${eventLabel}. You can still continue.`
             );
           }
         } catch {
@@ -780,7 +780,7 @@ export default function DesignazioniEventPage() {
 
       const row = assignments.find((x) => x.id === assignmentId);
       if (!row) {
-        setPickerError("Slot non trovato.");
+        setPickerError("Slot not found.");
         return;
       }
       await updateDesignatorAssignment(assignmentId, {
@@ -794,7 +794,7 @@ export default function DesignazioniEventPage() {
       setPickerError(
         err instanceof Error
           ? err.message
-          : "Impossibile aggiornare lo slot."
+          : "Unable to update slot."
       );
     }
   };
@@ -820,8 +820,8 @@ export default function DesignazioniEventPage() {
 
     const hasStaff = (row.staffId ?? row.staff_id) != null;
     const message = hasStaff
-      ? "Questo slot ha una persona assegnata. Eliminarlo rimuoverà anche l'assegnazione. Continuare?"
-      : "Eliminare questo slot? L'operazione non è reversibile.";
+      ? "This slot has an assigned person. Deleting it will also remove that assignment. Continue?"
+      : "Delete this slot? This action cannot be undone.";
 
     const ok = window.confirm(message);
     if (!ok) return;
@@ -835,7 +835,7 @@ export default function DesignazioniEventPage() {
         return next;
       });
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Errore eliminazione slot");
+      alert(err instanceof Error ? err.message : "Error deleting slot");
     }
   };
 
@@ -854,7 +854,7 @@ export default function DesignazioniEventPage() {
         prev.map((a) => (a.id === assignmentId ? updated : a))
       );
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Errore");
+      alert(e instanceof Error ? e.message : "Error");
     } finally {
       setActioningId(null);
     }
@@ -863,7 +863,7 @@ export default function DesignazioniEventPage() {
   const handleAddSlot = async (roleId: number) => {
     const role = roles.find((r) => r.id === roleId);
     if (!role) {
-      alert("Ruolo non trovato.");
+      alert("Role not found.");
       return;
     }
     setAddingSlot(true);
@@ -876,7 +876,7 @@ export default function DesignazioniEventPage() {
       );
       await reloadAssignments();
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Errore");
+      alert(e instanceof Error ? e.message : "Error");
     } finally {
       setAddingSlot(false);
     }
@@ -886,7 +886,7 @@ export default function DesignazioniEventPage() {
     if (!event?.id) return;
 
     let message =
-      "Verranno aggiunti solo gli slot mancanti. Le assegnazioni esistenti non verranno toccate.";
+      "Only missing slots will be added. Existing assignments will not be changed.";
     try {
       const assignedCount = assignments.filter(
         (a) => (a.staffId ?? a.staff_id) != null
@@ -913,7 +913,7 @@ export default function DesignazioniEventPage() {
       setShowRegenerateModal(false);
     } catch (err) {
       console.error(err);
-      alert(err instanceof Error ? err.message : "Errore di rigenerazione");
+      alert(err instanceof Error ? err.message : "Regeneration error");
     } finally {
       setIsGeneratingFromStandard(false);
     }
@@ -938,7 +938,7 @@ export default function DesignazioniEventPage() {
       alert(
         e instanceof Error
           ? e.message
-          : "Impossibile segnare le assegnazioni come pronte"
+          : "Unable to mark assignments as ready"
       );
     }
   };
@@ -949,7 +949,7 @@ export default function DesignazioniEventPage() {
       .filter((a) => (a.staffId ?? a.staff_id) != null)
       .map((a) => a.id);
     if (assignedIds.length === 0) {
-      alert("Nessuna assegnazione con persona selezionata.");
+      alert("No assignment with a selected person.");
       return;
     }
 
@@ -1016,7 +1016,7 @@ export default function DesignazioniEventPage() {
       setReadyEventCoverage(null);
     } catch (e) {
       alert(
-        e instanceof Error ? e.message : "Impossibile impostare l'evento come pronto"
+        e instanceof Error ? e.message : "Unable to set event as ready"
       );
     }
   };
@@ -1037,7 +1037,7 @@ export default function DesignazioniEventPage() {
           <div className="text-xs text-pitch-gray-light">
             {isAssigned
               ? `${a.staffSurname ?? a.staff_surname ?? ""} ${a.staffName ?? a.staff_name ?? ""}`.trim()
-              : "Non assegnato"}
+              : "Unassigned"}
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -1051,7 +1051,7 @@ export default function DesignazioniEventPage() {
             onClick={() => setStaffPickerForId(a.id)}
             className={btnSmallYellow}
           >
-            {isAssigned ? "Cambia persona" : "Assegna persona"}
+            {isAssigned ? "Change" : "Assign"}
           </button>
           {isAssigned ? (
             <button
@@ -1059,15 +1059,15 @@ export default function DesignazioniEventPage() {
               onClick={() => void handleClearStaff(a.id)}
               className={btnSmallGrey}
             >
-              Rimuovi
+              Remove
             </button>
           ) : null}
           <button
             type="button"
             onClick={() => void handleDeleteSlot(a.id)}
             className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded border border-red-700/70 px-2 py-1 text-xs font-semibold text-red-300 hover:bg-red-950/40"
-            title="Elimina slot"
-            aria-label="Elimina slot"
+            title="Delete slot"
+            aria-label="Delete slot"
           >
             X
           </button>
@@ -1079,7 +1079,7 @@ export default function DesignazioniEventPage() {
   if (loading && assignments.length === 0) {
     return (
       <>
-        <PageHeader title="Designazioni evento" />
+        <PageHeader title="Event assignments" />
         <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30">
           <PageLoading />
         </div>
@@ -1090,7 +1090,7 @@ export default function DesignazioniEventPage() {
   if (error) {
     return (
       <>
-        <PageHeader title="Designazioni evento" />
+        <PageHeader title="Event assignments" />
         <div className="mt-6 rounded-lg border border-red-900/50 bg-red-900/20 p-6 text-red-300">
           {error}
         </div>
@@ -1101,9 +1101,9 @@ export default function DesignazioniEventPage() {
   if (!event) {
     return (
       <>
-        <PageHeader title="Designazioni evento" />
+        <PageHeader title="Event assignments" />
         <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-8 text-center text-pitch-gray">
-          Evento non trovato
+          Event not found
         </div>
       </>
     );
@@ -1122,13 +1122,13 @@ export default function DesignazioniEventPage() {
   return (
     <>
       <PageHeader
-        title="Designazioni evento"
+        title="Event assignments"
         subtitle={
           <Link
             href="/designazioni"
             className="text-pitch-gray hover:text-pitch-accent"
           >
-            ← Torna alla lista
+            ← Back to list
           </Link>
         }
       />
@@ -1142,14 +1142,14 @@ export default function DesignazioniEventPage() {
               className="mt-1 text-[11px] underline"
               onClick={() => setConflictWarning(null)}
             >
-              Chiudi
+              Close
             </button>
           </div>
         ) : null}
         {standardChanged ? (
           <div className="rounded border border-yellow-700/60 bg-yellow-950/40 px-3 py-2 text-xs text-yellow-200">
             <div>
-              Lo standard di questo evento è cambiato. Vuoi rigenerare i requirements?
+              This event standard has changed. Do you want to regenerate requirements?
             </div>
             <div className="mt-2 flex gap-2">
               <button
@@ -1157,14 +1157,14 @@ export default function DesignazioniEventPage() {
                 onClick={handleRegenerateFromStandard}
                 className="rounded bg-pitch-accent px-2 py-1 font-medium text-pitch-bg hover:bg-yellow-200"
               >
-                Rigenera
+                Regenerate
               </button>
               <button
                 type="button"
                 onClick={() => setStandardBannerIgnored(true)}
                 className="rounded border border-yellow-700/60 px-2 py-1 text-yellow-200 hover:bg-yellow-950/60"
               >
-                Ignora per ora
+                Ignore for now
               </button>
             </div>
           </div>
@@ -1174,7 +1174,7 @@ export default function DesignazioniEventPage() {
       {/* Select evento */}
       <div className="mt-6">
         <label className="mb-2 block text-sm text-pitch-gray">
-          Evento
+          Event
         </label>
         <select
           value={event.id}
@@ -1207,7 +1207,7 @@ export default function DesignazioniEventPage() {
                         ? show
                         : competition
                           ? competition
-                          : "Evento senza titolo";
+                          : "Untitled event";
                   return `${formatKoItaly(ev.koItaly)} – ${title}`;
                 })()}
               </option>
@@ -1220,7 +1220,7 @@ export default function DesignazioniEventPage() {
       <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-6">
         <div className="flex flex-wrap items-center gap-4">
           <div>
-            <span className="text-sm text-pitch-gray">Competizione: </span>
+            <span className="text-sm text-pitch-gray">Competition: </span>
             <span className="text-pitch-white">
               {event.competitionName}
               {event.competitionCode ? ` (${event.competitionCode})` : ""}
@@ -1239,7 +1239,7 @@ export default function DesignazioniEventPage() {
             </span>
           </div>
           <div>
-            <span className="text-sm text-pitch-gray">Strutture: </span>
+            <span className="text-sm text-pitch-gray">Facilities: </span>
             <span className="text-pitch-white">
               {event.facilities ?? "—"}
             </span>
@@ -1255,15 +1255,15 @@ export default function DesignazioniEventPage() {
             <span className="text-pitch-white">{event.showName ?? "—"}</span>
           </div>
           <div>
-            <span className="text-sm text-pitch-gray">Stato evento: </span>
+            <span className="text-sm text-pitch-gray">Event status: </span>
             <span className="text-pitch-white">{event.status}</span>
           </div>
           <div>
-            <span className="text-sm text-pitch-gray">Stato designazioni: </span>
+            <span className="text-sm text-pitch-gray">Assignments status: </span>
             {renderAssignmentsStatusBadge(event.assignmentsStatus)}
           </div>
           <div>
-            <span className="text-sm text-pitch-gray">ID combo: </span>
+            <span className="text-sm text-pitch-gray">Combo ID: </span>
             <span className="text-pitch-white">
               {event.standardComboId != null ? String(event.standardComboId) : "—"}
             </span>
@@ -1276,7 +1276,7 @@ export default function DesignazioniEventPage() {
               disabled={!hasAnyReady}
               className="inline-flex min-h-[44px] items-center rounded bg-pitch-accent px-3 py-2 text-xs font-semibold text-pitch-bg hover:bg-yellow-200 disabled:cursor-not-allowed disabled:bg-pitch-gray-dark disabled:text-pitch-gray"
             >
-              Segna come pronti
+              Mark as ready
             </button>
             <button
               type="button"
@@ -1284,7 +1284,7 @@ export default function DesignazioniEventPage() {
               disabled={assignments.every((a) => (a.staffId ?? a.staff_id) == null)}
               className="inline-flex min-h-[44px] items-center rounded bg-yellow-700 px-3 py-2 text-xs font-semibold text-white hover:bg-yellow-600 disabled:cursor-not-allowed disabled:bg-pitch-gray-dark disabled:text-pitch-gray"
             >
-              Pronto all'invio (evento)
+              Ready to send
             </button>
             <button
               type="button"
@@ -1297,21 +1297,21 @@ export default function DesignazioniEventPage() {
               className="inline-flex min-h-[44px] items-center rounded border border-pitch-gray px-3 py-2 text-xs text-pitch-gray-light hover:bg-pitch-gray-dark disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isGeneratingFromStandard
-                ? "Rigenerazione…"
-                : "Rigenera dallo standard"}
+                ? "Regenerating…"
+                : "Regenerate from standard"}
             </button>
         </div>
       </div>
 
       <section className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/20 p-5">
-        <h3 className="text-base font-semibold text-pitch-white">Requisiti</h3>
+        <h3 className="text-base font-semibold text-pitch-white">Requirements</h3>
         <p className="mt-1 text-xs text-pitch-gray">
-          Slot derivati dallo standard dell&apos;evento.
+          Slots derived from the event standard.
         </p>
         <div className="mt-3 space-y-2">
           {requirementAssignmentsSorted.length === 0 ? (
             <div className="rounded border border-pitch-gray-dark/60 bg-pitch-gray-dark/20 px-3 py-2 text-sm text-pitch-gray">
-              Nessuno slot standard disponibile.
+              No standard slot available.
             </div>
           ) : (
             requirementAssignmentsSorted.map((a) => renderAssignmentListRow(a))
@@ -1320,14 +1320,14 @@ export default function DesignazioniEventPage() {
       </section>
 
       <section className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/20 p-5">
-        <h3 className="text-base font-semibold text-pitch-white">Crew extra</h3>
+        <h3 className="text-base font-semibold text-pitch-white">Extra crew</h3>
         <p className="mt-1 text-xs text-pitch-gray">
-          Slot aggiunti manualmente oltre ai requirements standard.
+          Slots manually added beyond standard requirements.
         </p>
         <div className="mt-3 space-y-2">
           {extraAssignments.length === 0 ? (
             <div className="rounded border border-pitch-gray-dark/60 bg-pitch-gray-dark/20 px-3 py-2 text-sm text-pitch-gray">
-              Nessuno slot extra.
+              No extra slot.
             </div>
           ) : (
             extraAssignments.map((a) => renderAssignmentListRow(a))
@@ -1351,7 +1351,7 @@ export default function DesignazioniEventPage() {
             disabled={addingSlot}
             className="rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
           >
-            <option value="">Aggiungi slot...</option>
+            <option value="">Add slot...</option>
             {rolesForAddSlot.map((r) => (
               <option key={r.id} value={`${r.code}__${r.location}`}>
                 {r.name} ({r.location})
@@ -1367,16 +1367,16 @@ export default function DesignazioniEventPage() {
           onClick={() => setLegendOpen((v) => !v)}
           className="flex w-full items-center justify-between text-left"
         >
-          <h3 className="text-base font-semibold text-pitch-white">Legenda status</h3>
+          <h3 className="text-base font-semibold text-pitch-white">Status legend</h3>
           <span className="text-xs text-pitch-gray">
-            {legendOpen ? "Nascondi" : "Mostra"}
+            {legendOpen ? "Hide" : "Show"}
           </span>
         </button>
         {legendOpen ? (
           <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
             <div className="rounded-md border border-pitch-gray-dark bg-pitch-gray-dark/20 p-2 text-xs">
               <div className="mb-1.5 font-semibold text-pitch-gray-light">
-                Stato designazioni (evento)
+                Event assignments status
               </div>
               {(
                 Object.entries(EVENT_ASSIGNMENTS_STATUS_INFO) as [
@@ -1402,7 +1402,7 @@ export default function DesignazioniEventPage() {
             </div>
             <div className="rounded-md border border-pitch-gray-dark bg-pitch-gray-dark/20 p-2 text-xs">
               <div className="mb-1.5 font-semibold text-pitch-gray-light">
-                Stato singola designazione
+                Single assignment status
               </div>
               {(
                 Object.entries(ASSIGNMENT_STATUS_INFO) as [
@@ -1443,10 +1443,10 @@ export default function DesignazioniEventPage() {
       )}
       {showRegenerateModal ? (
         <ConfirmModal
-          title="Rigenera requirements"
+          title="Regenerate requirements"
           body={<p>{regenerateMessage}</p>}
-          confirmLabel="Rigenera"
-          cancelLabel="Ignora per ora"
+          confirmLabel="Regenerate"
+          cancelLabel="Ignore for now"
           onConfirm={() => {
             void confirmRegenerateFromStandard();
           }}
@@ -1455,27 +1455,27 @@ export default function DesignazioniEventPage() {
       ) : null}
       {showReadyEventModal && readyEventCoverage ? (
         <ConfirmModal
-          title="Pronto all'invio evento"
+          title="Ready to send event"
           body={
             readyEventCoverage.simple ? (
-              <p>Tutti i requirements risultano coperti.</p>
+              <p>All requirements are covered.</p>
             ) : (
               <div className="space-y-2">
                 <p>
-                  {readyEventCoverage.covered} su {readyEventCoverage.totalRequired} requirements coperti.
+                  {readyEventCoverage.covered} of {readyEventCoverage.totalRequired} requirements covered.
                 </p>
-                <p>Posizioni ancora vuote:</p>
+                <p>Still unfilled positions:</p>
                 <ul className="list-disc pl-5">
                   {readyEventCoverage.missingRoles.map((r) => (
                     <li key={r}>{r}</li>
                   ))}
                 </ul>
-                <p>Potrai assegnare le posizioni mancanti e inviarle separatamente.</p>
+                <p>You can assign missing positions and send them separately.</p>
               </div>
             )
           }
-          confirmLabel="Conferma comunque"
-          cancelLabel="Torna e completa"
+          confirmLabel="Confirm anyway"
+          cancelLabel="Go back and complete"
           onConfirm={() => {
             void confirmReadyToSendEvent();
           }}

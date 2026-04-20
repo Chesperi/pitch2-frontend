@@ -1337,7 +1337,7 @@ export default function EventiPage() {
                   Competition
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Categoria
+                  Category
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
                   Rights
@@ -1346,7 +1346,7 @@ export default function EventiPage() {
                   MD
                 </th>
                 <th className="min-w-[130px] px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  KO
+                  Date & KO
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
                   PRE

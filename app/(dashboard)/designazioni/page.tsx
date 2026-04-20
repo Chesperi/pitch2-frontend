@@ -42,11 +42,11 @@ function renderAssignmentsStatusBadge(
 ): React.ReactNode {
   switch (status) {
     case "DRAFT":
-      return <StatusBadge variant="draft" label="Bozza" />;
+      return <StatusBadge variant="draft" label="Draft" />;
     case "READY_TO_SEND":
-      return <StatusBadge variant="pending" label="Pronto" />;
+      return <StatusBadge variant="pending" label="Ready" />;
     case "SENT":
-      return <StatusBadge variant="accepted" label="Inviato" />;
+      return <StatusBadge variant="accepted" label="Sent" />;
     default:
       return (
         <span className="rounded-full bg-pitch-gray-dark px-2 py-0.5 text-xs text-pitch-gray-light">
@@ -59,15 +59,15 @@ function renderAssignmentsStatusBadge(
 function getAssignmentStatusLabel(status: string): string {
   switch (status) {
     case "DRAFT":
-      return "Bozza";
+      return "Draft";
     case "READY":
-      return "Pronto";
+      return "Ready";
     case "SENT":
-      return "Inviato";
+      return "Sent";
     case "CONFIRMED":
-      return "Confermato";
+      return "Confirmed";
     case "REJECTED":
-      return "Rifiutato";
+      return "Rejected";
     default:
       return status;
   }
@@ -81,23 +81,34 @@ function categoryLabel(category: string): string {
   return category.trim() || "—";
 }
 
-/** Match o descrizione per contenuti media. */
-function eventRowDescription(event: EventItem): string {
-  const cat = event.category.toUpperCase();
-  if (cat.includes("MEDIA")) {
-    const parts = [event.showName, event.competitionName].filter(
-      (p): p is string => !!p?.trim()
-    );
-    return parts.length ? parts.join(" · ") : "—";
-  }
+/** Match label fallback aligned with Events page. */
+function eventMatchLabel(event: EventItem): string {
   if (event.homeTeamNameShort?.trim() && event.awayTeamNameShort?.trim()) {
     return `${event.homeTeamNameShort} vs ${event.awayTeamNameShort}`;
   }
   return (
-    event.homeTeamNameShort?.trim() ||
-    event.awayTeamNameShort?.trim() ||
     event.showName?.trim() ||
+    event.competitionName?.trim() ||
     "—"
+  );
+}
+
+function renderEventStatusBadge(status: string | null): React.ReactNode {
+  const value = status?.toUpperCase().trim();
+  if (value === "TBC" || value === "TBD") {
+    return <StatusBadge variant="pending" label="To confirm" />;
+  }
+  if (value === "OK") return <StatusBadge variant="complete" label="OK" />;
+  if (value === "CONFIRMED") {
+    return <StatusBadge variant="confirmed" label="Confirmed" />;
+  }
+  if (value === "CANCELED" || value === "CANCELLED") {
+    return <StatusBadge variant="cancelled" label="Cancelled" />;
+  }
+  return (
+    <span className="rounded-full bg-pitch-gray-dark px-2 py-0.5 text-xs text-pitch-gray-light">
+      {status || "—"}
+    </span>
   );
 }
 
@@ -105,10 +116,10 @@ const ASSIGNMENTS_STATUS_OPTIONS: {
   value: "" | EventAssignmentsStatus;
   label: string;
 }[] = [
-  { value: "", label: "Tutti" },
-  { value: "DRAFT", label: "Bozza" },
-  { value: "READY_TO_SEND", label: "Pronto" },
-  { value: "SENT", label: "Inviato" },
+  { value: "", label: "All" },
+  { value: "DRAFT", label: "Draft" },
+  { value: "READY_TO_SEND", label: "Ready" },
+  { value: "SENT", label: "Sent" },
 ];
 
 type ListScope = "designable" | "all";
@@ -257,7 +268,7 @@ export default function DesignazioniPage() {
     if (!search.trim()) return items;
     const q = search.trim().toLowerCase();
     return items.filter((e) => {
-      const desc = eventRowDescription(e).toLowerCase();
+      const desc = eventMatchLabel(e).toLowerCase();
       return (
         e.competitionName?.toLowerCase().includes(q) ||
         desc.includes(q) ||
@@ -269,7 +280,7 @@ export default function DesignazioniPage() {
   if (loading) {
     return (
       <>
-        <PageHeader title="Designazioni" />
+        <PageHeader title="Assignments" />
         <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30">
           <PageLoading />
         </div>
@@ -280,7 +291,7 @@ export default function DesignazioniPage() {
   if (error) {
     return (
       <>
-        <PageHeader title="Designazioni" />
+        <PageHeader title="Assignments" />
         <div className="mt-6 rounded-lg border border-red-900/50 bg-red-900/20 p-6 text-red-300">
           {error}
         </div>
@@ -290,15 +301,15 @@ export default function DesignazioniPage() {
 
   return (
     <>
-      <PageHeader title="Designazioni" />
+      <PageHeader title="Assignments" />
 
       <p className="mt-2 max-w-3xl text-sm text-pitch-gray">
-        Lista eventi per i designatori. Scegli se vedere solo gli eventi designabili o tutti. Apri il dettaglio per gestire lo staff e gli invii.
+        Event list for assignment management. Choose whether to display only designable events or all events, then open details to manage staff and sends.
       </p>
 
       <div className="mt-4 flex flex-wrap items-end gap-2">
         <div>
-          <label className="mb-1 block text-xs text-pitch-gray">Vista</label>
+          <label className="mb-1 block text-xs text-pitch-gray">View</label>
           <div className="flex rounded-lg border border-pitch-gray-dark p-0.5">
             <button
               type="button"
@@ -309,7 +320,7 @@ export default function DesignazioniPage() {
                   : "text-pitch-gray-light hover:text-pitch-white"
               }`}
             >
-              Designabili
+              Designable
             </button>
             <button
               type="button"
@@ -320,13 +331,13 @@ export default function DesignazioniPage() {
                   : "text-pitch-gray-light hover:text-pitch-white"
               }`}
             >
-              Tutti gli eventi
+              All events
             </button>
           </div>
         </div>
         <div>
           <label className="mb-1 block text-xs text-pitch-gray">
-            Stato designazioni
+            Assignments status
           </label>
           <select
             value={assignmentsStatusFilter}
@@ -348,7 +359,7 @@ export default function DesignazioniPage() {
 
       <div className="mt-4">
         <SearchBar
-          placeholder="Cerca per competizione, partita, show..."
+          placeholder="Search by competition, match, show..."
           onSearchChange={setSearch}
         />
       </div>
@@ -358,12 +369,12 @@ export default function DesignazioniPage() {
           <div className="rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30">
             {items.length === 0 && !search.trim() ? (
               <EmptyState
-                message="Seleziona un periodo per visualizzare le designazioni"
+                message="Select a period to view assignments"
                 icon="calendar"
               />
             ) : (
               <EmptyState
-                message="Nessuna designazione trovata per i filtri selezionati"
+                message="No assignments found for selected filters"
                 icon="search"
               />
             )}
@@ -374,22 +385,28 @@ export default function DesignazioniPage() {
             <thead>
               <tr className="border-b border-pitch-gray-dark">
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Data & KO
+                  Match
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Evento
+                  Competition
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Categoria
+                  Category
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Competizione
+                  MD
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Stato designazioni
+                  Date & KO
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Azioni
+                  Status
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+                  Assignments
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+                  Actions
                 </th>
               </tr>
             </thead>
@@ -399,14 +416,8 @@ export default function DesignazioniPage() {
                   key={event.id}
                   className="border-b border-pitch-gray-dark/50 hover:bg-pitch-gray-dark/30"
                 >
-                  <td className="px-4 py-3 text-sm text-pitch-gray-light">
-                    {formatKoItaly(event.koItaly)}
-                  </td>
                   <td className="px-4 py-3 text-sm text-pitch-white">
-                    {eventRowDescription(event)}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-pitch-gray-light">
-                    {categoryLabel(event.category)}
+                    {eventMatchLabel(event)}
                   </td>
                   <td className="px-4 py-3 text-sm text-pitch-gray-light">
                     {event.competitionName}
@@ -414,6 +425,18 @@ export default function DesignazioniPage() {
                       ? ` (${event.competitionCode})`
                       : ""}
                   </td>
+                  <td className="px-4 py-3 text-sm text-pitch-gray-light">
+                    <span className="inline-flex rounded-full bg-pitch-gray-dark px-2 py-0.5 text-xs text-pitch-gray-light">
+                      {categoryLabel(event.category)}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-pitch-gray-light">
+                    {event.matchDay?.trim() ? event.matchDay : "—"}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-pitch-gray-light">
+                    {formatKoItaly(event.koItaly)}
+                  </td>
+                  <td className="px-4 py-3">{renderEventStatusBadge(event.status)}</td>
                   <td className="px-4 py-3">
                     {renderAssignmentsStatusBadge(event.assignmentsStatus)}
                   </td>
@@ -422,7 +445,7 @@ export default function DesignazioniPage() {
                       href={`/designazioni/${event.id}`}
                       className="inline-flex min-h-[44px] items-center rounded bg-pitch-accent px-4 py-2 text-sm font-medium text-pitch-bg hover:bg-yellow-200"
                     >
-                      Gestisci
+                      Open
                     </Link>
                   </td>
                 </tr>
@@ -435,15 +458,15 @@ export default function DesignazioniPage() {
 
       <section className="mt-10 border-t border-pitch-gray-dark pt-8">
         <h2 className="mb-2 text-sm font-semibold text-pitch-white">
-          Designazioni per persona
+          Assignments by person
         </h2>
         <p className="mb-4 text-xs text-pitch-gray">
-          Raggruppa le designazioni per periodo e invia comunicazioni (step operativo separato dalla lista eventi).
+          Group assignments by period and send notifications (operational step separated from event list).
         </p>
 
         <div className="mb-4 flex flex-wrap items-end gap-3">
           <div>
-            <label className="mb-1 block text-xs text-pitch-gray">Dal</label>
+            <label className="mb-1 block text-xs text-pitch-gray">From</label>
             <input
               type="date"
               value={startDate ?? ""}
@@ -452,7 +475,7 @@ export default function DesignazioniPage() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-pitch-gray">Al</label>
+            <label className="mb-1 block text-xs text-pitch-gray">To</label>
             <input
               type="date"
               value={endDate ?? ""}
@@ -485,15 +508,15 @@ export default function DesignazioniPage() {
           {staffGroups.length === 0 ? (
             <div className="p-6 text-center text-pitch-gray">
               {startDate && endDate
-                ? "Nessuna assegnazione nel periodo selezionato"
-                : "Seleziona un periodo e clicca Filtra periodo"}
+                ? "No assignments in the selected period"
+                : "Select a period and click Filter period"}
             </div>
           ) : (
             <table className="w-full border-collapse text-xs">
               <thead>
                 <tr className="border-b border-pitch-gray-dark text-left text-pitch-gray">
-                  <th className="px-4 py-2">Persona</th>
-                  <th className="px-4 py-2">Ruoli</th>
+                  <th className="px-4 py-2">Person</th>
+                  <th className="px-4 py-2">Roles</th>
                   <th className="px-4 py-2">N. events</th>
                   <th className="px-4 py-2"></th>
                 </tr>
@@ -540,10 +563,10 @@ export default function DesignazioniPage() {
                           <table className="mt-1 w-full text-[11px]">
                             <thead>
                               <tr className="text-pitch-gray">
-                                <th className="py-1 text-left">Evento</th>
-                                <th className="py-1 text-left">Partita</th>
-                                <th className="py-1 text-left">Ruolo</th>
-                                <th className="py-1 text-left">Stato</th>
+                                <th className="py-1 text-left">Event</th>
+                                <th className="py-1 text-left">Match</th>
+                                <th className="py-1 text-left">Role</th>
+                                <th className="py-1 text-left">Status</th>
                                 <th className="py-1 text-right"></th>
                               </tr>
                             </thead>
@@ -598,7 +621,7 @@ export default function DesignazioniPage() {
                                         href={`/designazioni/${eventId}`}
                                         className="text-pitch-accent hover:underline"
                                       >
-                                        Apri designazioni
+                                        Open assignments
                                       </Link>
                                     </td>
                                   </tr>

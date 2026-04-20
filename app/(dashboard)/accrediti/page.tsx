@@ -19,7 +19,7 @@ type StaffSearchItem = {
   surname: string;
   name: string;
   company: string | null;
-  defaultRoleCode: string | null;
+  roles?: Array<{ roleCode: string; isPrimary?: boolean }>;
   plates: string | null;
   notes: string | null;
 };
@@ -33,12 +33,30 @@ function normalizeStaffSearchItem(raw: Record<string, unknown>): StaffSearchItem
       raw.company != null && String(raw.company).trim() !== ""
         ? String(raw.company)
         : null,
-    defaultRoleCode:
-      raw.defaultRoleCode != null && String(raw.defaultRoleCode).trim() !== ""
-        ? String(raw.defaultRoleCode)
-        : raw.default_role_code != null && String(raw.default_role_code).trim() !== ""
-          ? String(raw.default_role_code)
-          : null,
+    roles: Array.isArray(raw.roles)
+      ? raw.roles.reduce<Array<{ roleCode: string; isPrimary?: boolean }>>(
+          (acc, role) => {
+            const rec =
+              role != null && typeof role === "object"
+                ? (role as Record<string, unknown>)
+                : null;
+            if (!rec) return acc;
+            const roleCode =
+              rec.roleCode != null && String(rec.roleCode).trim() !== ""
+                ? String(rec.roleCode).trim()
+                : rec.role_code != null && String(rec.role_code).trim() !== ""
+                  ? String(rec.role_code).trim()
+                  : "";
+            if (!roleCode) return acc;
+            acc.push({
+              roleCode,
+              isPrimary: Boolean(rec.isPrimary ?? rec.is_primary),
+            });
+            return acc;
+          },
+          []
+        )
+      : undefined,
     plates:
       raw.plates != null && String(raw.plates).trim() !== ""
         ? String(raw.plates)
@@ -80,7 +98,10 @@ function displayAssignmentsStatusUi(
   status: string | null | undefined
 ): string {
   const u = String(status ?? "").trim().toUpperCase();
-  if (u === "DRAFT") return "Bozza";
+  if (u === "DRAFT") return "Draft";
+  if (u === "READY") return "Ready";
+  if (u === "SENT") return "Sent";
+  if (u === "CONFIRMED") return "Confirmed";
   return String(status ?? "").trim() || "—";
 }
 
@@ -92,7 +113,7 @@ function requirementsCoverageLine(event: AccreditoEvent): ReactNode {
   return (
     <div className={`mt-0.5 text-xs ${colorClass}`}>
       {covered === total ? "✓ " : ""}
-      {covered}/{total} requirements coperti
+      {covered}/{total} covered requirements
     </div>
   );
 }
@@ -189,7 +210,9 @@ export default function AccreditiPage() {
       setItems(rows);
     } catch (err) {
       setItems([]);
-      setItemsError(err instanceof Error ? err.message : "Errore caricamento accrediti");
+      setItemsError(
+        err instanceof Error ? err.message : "Error loading accreditations"
+      );
     } finally {
       setItemsLoading(false);
     }
@@ -244,7 +267,7 @@ export default function AccreditiPage() {
       setStaffOptions(normalized);
     } catch {
       setStaffOptions([]);
-      setAddError("Errore nella ricerca staff");
+      setAddError("Error searching staff");
     } finally {
       setStaffLoading(false);
     }
@@ -260,7 +283,10 @@ export default function AccreditiPage() {
       setFormNotes("");
       return;
     }
-    const roleCode = staff.defaultRoleCode ?? "";
+    const roleCode =
+      staff.roles?.find((r) => r.isPrimary)?.roleCode ??
+      staff.roles?.[0]?.roleCode ??
+      "";
     setFormRoleCode(roleCode);
     const mappedAreas =
       areaMappings.find(
@@ -273,7 +299,7 @@ export default function AccreditiPage() {
 
   async function onCreateAccredito() {
     if (!selectedEventId || !selectedStaffId) {
-      setAddError("Seleziona evento e persona.");
+      setAddError("Select event and person.");
       return;
     }
     setSavingAdd(true);
@@ -297,7 +323,7 @@ export default function AccreditiPage() {
       setFormPlates("");
       setFormNotes("");
     } catch (err) {
-      setAddError(err instanceof Error ? err.message : "Errore salvataggio accredito");
+      setAddError(err instanceof Error ? err.message : "Error saving accreditation");
     } finally {
       setSavingAdd(false);
     }
@@ -351,15 +377,15 @@ export default function AccreditiPage() {
 
   return (
     <>
-      <PageHeader title="Accrediti" />
+      <PageHeader title="Accreditations" />
 
       <section className="mt-4 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/20 p-4">
         <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-sm font-semibold text-pitch-white">
-            Pronti per accredito
+            Ready for accreditation
           </h2>
           <SearchBar
-            placeholder="Cerca match/show o competizione..."
+            placeholder="Search match, show or competition..."
             onSearchChange={setEventSearch}
           />
         </div>
@@ -367,30 +393,30 @@ export default function AccreditiPage() {
           <table className="min-w-full border-collapse text-sm">
             <thead>
               <tr className="border-b border-pitch-gray-dark text-left text-pitch-gray">
-                <th className="px-3 py-2">Data KO</th>
-                <th className="px-3 py-2">Match / Show</th>
-                <th className="px-3 py-2">Competizione</th>
-                <th className="px-3 py-2">Assignment status</th>
-                <th className="px-3 py-2">Azioni</th>
+                <th className="px-3 py-2">Match</th>
+                <th className="px-3 py-2">Competition</th>
+                <th className="px-3 py-2">MD</th>
+                <th className="px-3 py-2">Date &amp; KO</th>
+                <th className="px-3 py-2">Assignments</th>
+                <th className="px-3 py-2">Actions</th>
               </tr>
             </thead>
             <tbody>
               {eventsLoading ? (
                 <tr>
-                  <td colSpan={5} className="px-3 py-4 text-center text-pitch-gray">
-                    Caricamento eventi...
+                  <td colSpan={6} className="px-3 py-4 text-center text-pitch-gray">
+                    Loading events...
                   </td>
                 </tr>
               ) : filteredEvents.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-3 py-4 text-center text-pitch-gray">
-                    Nessun evento disponibile.
+                  <td colSpan={6} className="px-3 py-4 text-center text-pitch-gray">
+                    No events available.
                   </td>
                 </tr>
               ) : (
                 filteredEvents.map((event) => (
                   <tr key={event.id} className="border-b border-pitch-gray-dark/50">
-                    <td className="px-3 py-2 text-pitch-gray-light">{formatKo(event.koItaly)}</td>
                     <td className="px-3 py-2 text-pitch-gray-light">
                       <div>{eventTitle(event)}</div>
                       {requirementsCoverageLine(event)}
@@ -398,6 +424,8 @@ export default function AccreditiPage() {
                     <td className="px-3 py-2 text-pitch-gray-light">
                       {event.competitionName || "—"}
                     </td>
+                    <td className="px-3 py-2 text-pitch-gray-light">{event.matchDay ?? "—"}</td>
+                    <td className="px-3 py-2 text-pitch-gray-light">{formatKo(event.koItaly)}</td>
                     <td className="px-3 py-2 text-pitch-gray-light">
                       {displayAssignmentsStatusUi(event.assignmentsStatus)}
                     </td>
@@ -407,7 +435,7 @@ export default function AccreditiPage() {
                         onClick={() => setSelectedEventId(event.id)}
                         className="rounded border border-pitch-accent px-2 py-1 text-xs text-pitch-accent hover:bg-pitch-accent/10"
                       >
-                        Gestisci accrediti
+                        Manage
                       </button>
                     </td>
                   </tr>
@@ -431,7 +459,7 @@ export default function AccreditiPage() {
                 {selectedEvent.venueCity ? `, ${selectedEvent.venueCity}` : ""}
               </div>
               <div className="text-sm text-pitch-gray-light">
-                Competizione: {selectedEvent.competitionName ?? "—"}
+                Competition: {selectedEvent.competitionName ?? "—"}
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -441,7 +469,7 @@ export default function AccreditiPage() {
                 disabled={exporting != null}
                 className="rounded border border-pitch-gray px-3 py-1.5 text-xs text-pitch-white hover:bg-pitch-gray-dark disabled:opacity-50"
               >
-                {exporting === "pdf" ? "Esportazione..." : "Esporta PDF"}
+                {exporting === "pdf" ? "Exporting..." : "Export PDF"}
               </button>
               <button
                 type="button"
@@ -449,14 +477,14 @@ export default function AccreditiPage() {
                 disabled={exporting != null}
                 className="rounded border border-pitch-gray px-3 py-1.5 text-xs text-pitch-white hover:bg-pitch-gray-dark disabled:opacity-50"
               >
-                {exporting === "xlsx" ? "Esportazione..." : "Esporta Excel"}
+                {exporting === "xlsx" ? "Exporting..." : "Export Excel"}
               </button>
               <button
                 type="button"
                 onClick={() => setAddOpen((v) => !v)}
                 className="rounded bg-pitch-accent px-3 py-1.5 text-xs font-semibold text-pitch-bg hover:bg-yellow-200"
               >
-                Aggiungi accredito extra
+                Add extra accreditation
               </button>
             </div>
           </div>
@@ -468,7 +496,7 @@ export default function AccreditiPage() {
                   type="text"
                   value={staffQuery}
                   onChange={(e) => setStaffQuery(e.target.value)}
-                  placeholder="Cerca persona staff..."
+                  placeholder="Search staff..."
                   className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white"
                 />
                 <button
@@ -477,7 +505,7 @@ export default function AccreditiPage() {
                   disabled={staffLoading || staffQuery.trim().length < 2}
                   className="rounded border border-pitch-gray px-3 py-2 text-xs text-pitch-white disabled:opacity-50"
                 >
-                  {staffLoading ? "Ricerca..." : "Cerca"}
+                  {staffLoading ? "Search..." : "Search"}
                 </button>
               </div>
 
@@ -491,11 +519,11 @@ export default function AccreditiPage() {
                   }
                   className="mt-3 w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white"
                 >
-                  <option value="">Seleziona persona...</option>
+                  <option value="">Select person...</option>
                   {staffOptions.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.surname} {s.name}
-                      {s.defaultRoleCode ? ` - ${s.defaultRoleCode}` : ""}
+                      {s.roles?.[0]?.roleCode ? ` - ${s.roles[0].roleCode}` : ""}
                       {s.company ? ` (${s.company})` : ""}
                     </option>
                   ))}
@@ -507,28 +535,28 @@ export default function AccreditiPage() {
                   type="text"
                   value={formRoleCode}
                   onChange={(e) => setFormRoleCode(e.target.value)}
-                  placeholder="Ruolo"
+                  placeholder="Role"
                   className="rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white"
                 />
                 <input
                   type="text"
                   value={formAreas}
                   onChange={(e) => setFormAreas(e.target.value)}
-                  placeholder="Aree"
+                  placeholder="Areas"
                   className="rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white"
                 />
                 <input
                   type="text"
                   value={formPlates}
                   onChange={(e) => setFormPlates(e.target.value)}
-                  placeholder="Targa"
+                  placeholder="Plate"
                   className="rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white"
                 />
                 <input
                   type="text"
                   value={formNotes}
                   onChange={(e) => setFormNotes(e.target.value)}
-                  placeholder="Note"
+                  placeholder="Notes"
                   className="rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white"
                 />
               </div>
@@ -543,7 +571,7 @@ export default function AccreditiPage() {
                   onClick={() => setAddOpen(false)}
                   className="rounded border border-pitch-gray px-3 py-1.5 text-xs text-pitch-gray-light"
                 >
-                  Chiudi
+                  Close
                 </button>
                 <button
                   type="button"
@@ -551,7 +579,7 @@ export default function AccreditiPage() {
                   disabled={savingAdd || !selectedStaffId}
                   className="rounded bg-pitch-accent px-3 py-1.5 text-xs font-semibold text-pitch-bg disabled:opacity-50"
                 >
-                  {savingAdd ? "Salvataggio..." : "Salva accredito"}
+                  {savingAdd ? "Saving..." : "Save accreditation"}
                 </button>
               </div>
             </div>
@@ -561,29 +589,30 @@ export default function AccreditiPage() {
             <table className="min-w-full border-collapse text-sm">
               <thead>
                 <tr className="border-b border-pitch-gray-dark text-left text-pitch-gray">
-                  <th className="px-3 py-2">Azienda</th>
-                  <th className="px-3 py-2">Cognome</th>
-                  <th className="px-3 py-2">Nome</th>
-                  <th className="px-3 py-2">Luogo nascita</th>
-                  <th className="px-3 py-2">Data nascita</th>
-                  <th className="px-3 py-2">Aree</th>
-                  <th className="px-3 py-2">Ruolo</th>
-                  <th className="px-3 py-2">Targa</th>
-                  <th className="px-3 py-2">Note</th>
-                  <th className="px-3 py-2">Azioni</th>
+                  <th className="px-3 py-2">Type</th>
+                  <th className="px-3 py-2">Company</th>
+                  <th className="px-3 py-2">Last name</th>
+                  <th className="px-3 py-2">First name</th>
+                  <th className="px-3 py-2">Place of birth</th>
+                  <th className="px-3 py-2">Date of birth</th>
+                  <th className="px-3 py-2">Areas</th>
+                  <th className="px-3 py-2">Role</th>
+                  <th className="px-3 py-2">Plate</th>
+                  <th className="px-3 py-2">Notes</th>
+                  <th className="px-3 py-2">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {itemsLoading ? (
                   <tr>
-                    <td colSpan={10} className="px-3 py-4 text-center text-pitch-gray">
-                      Caricamento accrediti...
+                    <td colSpan={11} className="px-3 py-4 text-center text-pitch-gray">
+                      Loading accreditations...
                     </td>
                   </tr>
                 ) : items.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="px-3 py-4 text-center text-pitch-gray">
-                      Nessun accredito presente.
+                    <td colSpan={11} className="px-3 py-4 text-center text-pitch-gray">
+                      No accreditations found.
                     </td>
                   </tr>
                 ) : (
@@ -592,6 +621,17 @@ export default function AccreditiPage() {
                       key={`${row.staffId}-${row.assignmentId ?? "na"}-${row.accreditationId ?? "na"}`}
                       className="border-b border-pitch-gray-dark/50"
                     >
+                      <td className="px-3 py-2 text-pitch-gray-light">
+                        {row.assignmentId != null ? (
+                          <span className="rounded-full border border-[#818cf8]/30 bg-[#1a1a2e] px-2 py-0.5 text-[10px] text-[#818cf8]">
+                            Assignment
+                          </span>
+                        ) : (
+                          <span className="rounded-full border border-[#fb923c]/30 bg-[#2e1e0a] px-2 py-0.5 text-[10px] text-[#fb923c]">
+                            Extra
+                          </span>
+                        )}
+                      </td>
                       <td className="px-3 py-2 text-pitch-gray-light">{row.company ?? "—"}</td>
                       <td className="px-3 py-2 text-pitch-gray-light">{row.surname ?? "—"}</td>
                       <td className="px-3 py-2 text-pitch-gray-light">{row.name ?? "—"}</td>
@@ -613,7 +653,7 @@ export default function AccreditiPage() {
                             disabled={removingId === row.accreditationId}
                             className="rounded border border-red-500 px-2 py-1 text-xs text-red-400 disabled:opacity-50"
                           >
-                            {removingId === row.accreditationId ? "Rimozione..." : "Rimuovi extra"}
+                            {removingId === row.accreditationId ? "Removing..." : "Remove extra"}
                           </button>
                         ) : (
                           <span className="text-pitch-gray">—</span>
@@ -638,28 +678,28 @@ export default function AccreditiPage() {
             onClick={() => setAreasLegendOpen((v) => !v)}
             className="flex w-full items-center justify-between text-left text-sm font-semibold text-pitch-white"
           >
-            <span>Legenda aree ({ownerCode})</span>
+            <span>Areas legend ({ownerCode})</span>
             <span className="text-pitch-gray">{areasLegendOpen ? "▼" : "▶"}</span>
           </button>
           {areasLegendOpen ? (
             <div className="mt-3 space-y-4">
               {areasLoading ? (
-                <p className="text-sm text-pitch-gray">Caricamento legenda...</p>
+                <p className="text-sm text-pitch-gray">Loading legend...</p>
               ) : (
                 <>
                   <div className="overflow-x-auto">
                     <table className="min-w-full border-collapse text-sm">
                       <thead>
                         <tr className="border-b border-pitch-gray-dark text-left text-pitch-gray">
-                          <th className="px-3 py-2">Ruolo</th>
-                          <th className="px-3 py-2">Aree assegnate</th>
+                          <th className="px-3 py-2">Role</th>
+                          <th className="px-3 py-2">Assigned areas</th>
                         </tr>
                       </thead>
                       <tbody>
                         {areaMappings.length === 0 ? (
                           <tr>
                             <td colSpan={2} className="px-3 py-3 text-pitch-gray">
-                              Nessuna mappatura aree disponibile.
+                              No areas mapping available.
                             </td>
                           </tr>
                         ) : (
@@ -679,14 +719,14 @@ export default function AccreditiPage() {
                       <thead>
                         <tr className="border-b border-pitch-gray-dark text-left text-pitch-gray">
                           <th className="px-3 py-2">Area code</th>
-                          <th className="px-3 py-2">Descrizione</th>
+                          <th className="px-3 py-2">Description</th>
                         </tr>
                       </thead>
                       <tbody>
                         {areaLegends.length === 0 ? (
                           <tr>
                             <td colSpan={2} className="px-3 py-3 text-pitch-gray">
-                              Nessuna legenda disponibile.
+                              No legend available.
                             </td>
                           </tr>
                         ) : (

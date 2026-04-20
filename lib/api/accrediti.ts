@@ -16,6 +16,8 @@ export interface AccreditoItem {
   notes: string | null;
 }
 
+export type Accreditation = AccreditoItem;
+
 export interface AccreditoOnsiteItem {
   assignmentId: number | null;
   accreditationId: number | null;
@@ -38,6 +40,13 @@ export interface CreateAccreditoPayload {
   areas?: string | null;
   plates?: string | null;
   notes?: string | null;
+}
+
+export interface UpdateAccreditationPayload {
+  roleCode?: string;
+  areas?: string;
+  plates?: string;
+  notes?: string;
 }
 
 export interface AccreditationAreaMapping {
@@ -185,6 +194,20 @@ export async function deactivateAccredito(id: number): Promise<void> {
   if (!res.ok && res.status !== 204) {
     throw new Error(`Failed to deactivate accredito: ${res.status}`);
   }
+}
+
+export async function updateAccreditation(
+  id: number,
+  payload: UpdateAccreditationPayload
+): Promise<Accreditation> {
+  const res = await apiFetch(`/api/accrediti/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`Failed to update accreditation: ${res.status}`);
+  const data = (await res.json()) as Record<string, unknown>;
+  return normalizeAccreditoItem(data);
 }
 
 export async function exportAccreditiPdf(eventId: string): Promise<Blob> {

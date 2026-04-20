@@ -1,8 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { PageHeader } from "@/components/PageHeader";
-import { SearchBar } from "@/components/SearchBar";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   fetchEvents,
   fetchEventById,
@@ -13,7 +11,6 @@ import {
   type EventItem,
   type EventAssignmentsStatus,
   type CreateEventPayload,
-  type EventFilters,
 } from "@/lib/api/events";
 import { getApiBaseUrl } from "@/lib/api/config";
 import { downloadBackendFile } from "@/lib/utils/downloadFile";
@@ -23,11 +20,15 @@ import { fetchLookupValues } from "@/lib/api/lookupValues";
 import { apiFetch } from "@/lib/api/apiFetch";
 import type { LookupValue } from "@/lib/types";
 import type { ReactNode } from "react";
+import { Check, Link, MoreVertical, Trash2, Upload } from "lucide-react";
 import StatusBadge from "@/components/ui/StatusBadge";
 import ResponsiveTable from "@/components/ui/ResponsiveTable";
-import PrimaryButton from "@/components/ui/PrimaryButton";
 import PageLoading from "@/components/ui/PageLoading";
 import EmptyState from "@/components/ui/EmptyState";
+import ComposableFilters, {
+  type ActiveFilter,
+  type FilterOption,
+} from "@/components/ui/ComposableFilters";
 
 function formatKoItaly(koItaly: string | null): string {
   if (!koItaly) return "—";
@@ -87,16 +88,16 @@ function toDatetimeLocalValueFromEvent(event: EventItem): string {
 function eventStatusBadgeEl(status: string | null): ReactNode {
   const value = status?.toUpperCase() ?? "";
   if (value === "TBC" || value === "TBD") {
-    return <StatusBadge variant="pending" label="Da confermare" />;
+    return <StatusBadge variant="pending" label="To confirm" />;
   }
   if (value === "OK") {
     return <StatusBadge variant="complete" label="OK" />;
   }
   if (value === "CONFIRMED") {
-    return <StatusBadge variant="confirmed" label="Confermato" />;
+    return <StatusBadge variant="confirmed" label="Confirmed" />;
   }
   if (value === "CANCELLED" || value === "CANCELED") {
-    return <StatusBadge variant="cancelled" label="Annullato" />;
+    return <StatusBadge variant="cancelled" label="Cancelled" />;
   }
   if (!status?.trim()) {
     return <span className="text-xs text-pitch-gray">—</span>;
@@ -116,11 +117,11 @@ function assignmentsStatusBadgeEl(
   }
   switch (status) {
     case "DRAFT":
-      return <StatusBadge variant="draft" label="Bozza" />;
+      return <StatusBadge variant="draft" label="Draft" />;
     case "READY_TO_SEND":
-      return <StatusBadge variant="pending" label="Pronto" />;
+      return <StatusBadge variant="pending" label="Ready" />;
     case "SENT":
-      return <StatusBadge variant="accepted" label="Inviato" />;
+      return <StatusBadge variant="accepted" label="Sent" />;
     default:
       return (
         <span className="rounded-full bg-pitch-gray-dark px-2 py-0.5 text-xs text-pitch-gray-light">
@@ -702,11 +703,9 @@ function BulkDeleteModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
       <div className="w-full max-w-md rounded-lg border border-pitch-gray-dark bg-pitch-bg p-5">
-        <h3 className="text-base font-semibold text-pitch-white">
-          Conferma eliminazione
-        </h3>
+        <h3 className="text-base font-semibold text-pitch-white">Confirm deletion</h3>
         <p className="mt-2 text-sm text-pitch-gray-light">
-          Eliminare definitivamente {count} eventi? Questa operazione non è reversibile.
+          Permanently delete {count} events? This action cannot be undone.
         </p>
         <div className="mt-4 flex justify-end gap-2">
           <button
@@ -714,7 +713,7 @@ function BulkDeleteModal({
             onClick={onCancel}
             className="rounded border border-pitch-gray-dark px-3 py-1.5 text-xs text-pitch-gray-light hover:bg-pitch-gray-dark"
           >
-            Annulla
+            Cancel
           </button>
           <button
             type="button"
@@ -722,7 +721,7 @@ function BulkDeleteModal({
             disabled={deleting}
             className="rounded border border-red-700 px-3 py-1.5 text-xs font-semibold text-red-300 hover:bg-red-900/30 disabled:opacity-50"
           >
-            {deleting ? "Eliminazione..." : "Elimina selezionati"}
+            {deleting ? "Deleting..." : "Delete selected"}
           </button>
         </div>
       </div>
@@ -730,10 +729,224 @@ function BulkDeleteModal({
   );
 }
 
-const PAGE_SIZE = 50;
+const EVENT_FILTER_OPTIONS_BASE: FilterOption[] = [
+  {
+    key: "status",
+    label: "Status",
+    values: [
+      { value: "TBC", color: "#FFFA00" },
+      { value: "TBD", color: "#FFFA00" },
+      { value: "OK", color: "#4ade80" },
+      { value: "CONFIRMED", label: "Confirmed", color: "#34d399" },
+      { value: "CANCELLED", label: "Cancelled", color: "#f87171" },
+    ],
+  },
+  {
+    key: "category",
+    label: "Category",
+    values: [
+      { value: "MATCH", label: "Match", color: "#818cf8" },
+      { value: "STUDIO_SHOW", label: "Studio show", color: "#fb923c" },
+      { value: "MEDIA_CONTENT", label: "Media content", color: "#60a5fa" },
+    ],
+  },
+  { key: "competition", label: "Competition", values: [] },
+  {
+    key: "assignments",
+    label: "Assignments",
+    values: [
+      { value: "DRAFT", label: "Draft", color: "#888" },
+      { value: "READY_TO_SEND", label: "Ready", color: "#34d399" },
+      { value: "SENT", label: "Sent", color: "#818cf8" },
+    ],
+  },
+  { key: "matchday", label: "Matchday", values: [] },
+  {
+    key: "rights",
+    label: "Rights holder",
+    values: [
+      { value: "DAZN", color: "#FFFA00" },
+      { value: "SKY/DAZN", color: "#f87171" },
+    ],
+  },
+];
 
-const filterSelectClass =
-  "rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none";
+function normalizeStatus(status: string | null | undefined): string {
+  const normalized = (status ?? "").toUpperCase().trim();
+  if (normalized === "CANCELED") return "CANCELLED";
+  return normalized;
+}
+
+function normalizeCategory(category: string | null | undefined): string {
+  return (category ?? "").toUpperCase().trim().replace(/\s+/g, "_");
+}
+
+function applyComposableFilters(
+  items: EventItem[],
+  activeFilters: ActiveFilter[],
+  searchValue: string
+): EventItem[] {
+  const q = searchValue.trim().toLowerCase();
+  return items.filter((event) => {
+    for (const filter of activeFilters) {
+      if (!filter.value) continue;
+      switch (filter.key) {
+        case "status": {
+          const currentStatus = normalizeStatus(event.status);
+          const expected = normalizeStatus(filter.value);
+          if (expected === "CANCELLED" && currentStatus === "CANCELED") break;
+          if (currentStatus !== expected) return false;
+          break;
+        }
+        case "category": {
+          if (normalizeCategory(event.category) !== normalizeCategory(filter.value)) {
+            return false;
+          }
+          break;
+        }
+        case "competition": {
+          if ((event.competitionName ?? "").trim() !== filter.value) return false;
+          break;
+        }
+        case "assignments": {
+          if ((event.assignmentsStatus ?? "").toUpperCase().trim() !== filter.value) {
+            return false;
+          }
+          break;
+        }
+        case "matchday": {
+          if ((event.matchDay?.toString() ?? "").trim() !== filter.value) return false;
+          break;
+        }
+        case "rights": {
+          if ((event.rightsHolder ?? "").trim() !== filter.value) return false;
+          break;
+        }
+        default:
+          break;
+      }
+    }
+    if (!q) return true;
+    return (
+      event.competitionName?.toLowerCase().includes(q) ||
+      event.homeTeamNameShort?.toLowerCase().includes(q) ||
+      event.awayTeamNameShort?.toLowerCase().includes(q) ||
+      event.showName?.toLowerCase().includes(q)
+    );
+  });
+}
+
+function ActionsMenu({
+  canImportMatches,
+  autoMatchingCombos,
+  selectedCount,
+  onImport,
+  onAutoLink,
+  onSetSelectedOk,
+  onDeleteSelected,
+}: {
+  canImportMatches: boolean;
+  autoMatchingCombos: boolean;
+  selectedCount: number;
+  onImport: () => void;
+  onAutoLink: () => void;
+  onSetSelectedOk: () => void;
+  onDeleteSelected: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const onDocClick = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (!rootRef.current?.contains(target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, []);
+
+  const disableBulk = selectedCount === 0;
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#2a2a2a] bg-[#141414] text-[#cfcfcf] hover:border-[#FFFA00] hover:text-[#FFFA00]"
+        aria-label="Open actions menu"
+      >
+        <MoreVertical className="h-4 w-4" />
+      </button>
+      {open ? (
+        <div className="absolute right-0 top-[calc(100%+6px)] z-50 min-w-[240px] rounded-xl border border-[#2a2a2a] bg-[#111] p-1.5 shadow-lg">
+          <button
+            type="button"
+            disabled={!canImportMatches}
+            onClick={() => {
+              onImport();
+              setOpen(false);
+            }}
+            className="flex w-full items-start gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-[#1c1c1c] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Upload className="mt-0.5 h-3.5 w-3.5 text-[#888]" />
+            <span>
+              <span className="block text-[12px] text-[#ddd]">Import events</span>
+            </span>
+          </button>
+          <button
+            type="button"
+            disabled={!canImportMatches || autoMatchingCombos}
+            onClick={() => {
+              onAutoLink();
+              setOpen(false);
+            }}
+            className="flex w-full items-start gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-[#1c1c1c] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Link className="mt-0.5 h-3.5 w-3.5 text-[#888]" />
+            <span>
+              <span className="block text-[12px] text-[#ddd]">Auto-link standards</span>
+              <span className="block text-[10px] text-[#666]">
+                Match events to standard packages automatically
+              </span>
+            </span>
+          </button>
+          <div className="my-1 border-t border-[#2a2a2a]" />
+          <button
+            type="button"
+            disabled={disableBulk}
+            onClick={() => {
+              onSetSelectedOk();
+              setOpen(false);
+            }}
+            className="flex w-full items-start gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-[#1c1c1c] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Check className="mt-0.5 h-3.5 w-3.5 text-[#888]" />
+            <span className="block text-[12px] text-[#ddd]">
+              Set selected as Standard OK
+            </span>
+          </button>
+          <button
+            type="button"
+            disabled={disableBulk}
+            onClick={() => {
+              onDeleteSelected();
+              setOpen(false);
+            }}
+            className="flex w-full items-start gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-[#1c1c1c] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Trash2 className="mt-0.5 h-3.5 w-3.5 text-[#f87171]" />
+            <span className="block text-[12px] text-[#f87171]">
+              Delete selected permanently
+            </span>
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+const PAGE_SIZE = 50;
 
 const exportBtnClass =
   "rounded border border-pitch-gray-dark px-2 py-1 text-[11px] font-medium text-pitch-white hover:bg-pitch-gray-dark disabled:cursor-not-allowed disabled:opacity-50";
@@ -767,15 +980,9 @@ export default function EventiPage() {
   const [events, setEvents] = useState<EventItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
-  const [filters, setFilters] = useState<EventFilters>({
-    category: undefined,
-    assignmentsStatus: undefined,
-  });
-  const [selectedStatuses, setSelectedStatuses] = useState<string[]>(["ALL"]);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>(["ALL"]);
-  const [selectedAssignmentStatuses, setSelectedAssignmentStatuses] = useState<string[]>(["ALL"]);
+  const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  const [searchValue, setSearchValue] = useState("");
   const [editingEvent, setEditingEvent] = useState<EventItem | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [userLevel, setUserLevel] = useState<string | null>(null);
@@ -792,7 +999,35 @@ export default function EventiPage() {
   const canImportMatches =
     userLevel != null &&
     ["MANAGER", "MASTER"].includes(userLevel.toUpperCase().trim());
-  const canAutoMatchCombos = canImportMatches;
+  const eventFilterOptions = useMemo<FilterOption[]>(() => {
+    const competitions = Array.from(
+      new Set(
+        events
+          .map((event) => (event.competitionName ?? "").trim())
+          .filter((name) => name.length > 0)
+      )
+    )
+      .sort((a, b) => a.localeCompare(b, "it"))
+      .map((name) => ({ value: name, label: name }));
+    const matchdays = Array.from(
+      new Set(
+        events
+          .map((event) => (event.matchDay?.toString() ?? "").trim())
+          .filter((value) => value.length > 0)
+      )
+    )
+      .sort((a, b) => a.localeCompare(b, "it", { numeric: true }))
+      .map((value) => ({ value, label: value }));
+    return EVENT_FILTER_OPTIONS_BASE.map((option) => {
+      if (option.key === "competition") {
+        return { ...option, values: competitions };
+      }
+      if (option.key === "matchday") {
+        return { ...option, values: matchdays };
+      }
+      return option;
+    });
+  }, [events]);
 
   useEffect(() => {
     let cancelled = false;
@@ -817,7 +1052,6 @@ export default function EventiPage() {
       const { items, total: t } = await fetchEvents({
         page,
         pageSize: PAGE_SIZE,
-        filters,
       });
       setEvents(items);
       setTotal(t);
@@ -826,59 +1060,19 @@ export default function EventiPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, filters]);
+  }, [page]);
 
   useEffect(() => {
     loadEvents();
   }, [loadEvents]);
 
   const filteredEvents = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    const list = events.filter((e) => {
-      const st = (e.status ?? "").toUpperCase().trim();
-      const withToConfirm = st === "TBC" || st === "TBD";
-      const withCancelled = st === "CANCELED" || st === "CANCELLED";
-      const isAll = selectedStatuses.length === 0 || selectedStatuses.includes("ALL");
-      const statusMatch =
-        isAll ||
-        selectedStatuses.some((s) => {
-          if (s === "TO_CONFIRM") return withToConfirm;
-          if (s === "CANCELLED") return withCancelled;
-          return st === s;
-        });
-      if (!statusMatch) return false;
-
-      const catRaw = (e.category ?? "").toUpperCase().trim();
-      const catNorm = catRaw.replace(/_/g, " ");
-      const categoryAll =
-        selectedCategories.length === 0 || selectedCategories.includes("ALL");
-      const categoryMatch =
-        categoryAll ||
-        selectedCategories.some((c) => catNorm === c || catRaw === c);
-      if (!categoryMatch) return false;
-
-      const asg = (e.assignmentsStatus ?? "").toUpperCase().trim();
-      const assignmentAll =
-        selectedAssignmentStatuses.length === 0 ||
-        selectedAssignmentStatuses.includes("ALL");
-      const assignmentMatch =
-        assignmentAll || selectedAssignmentStatuses.some((s) => s === asg);
-      if (!assignmentMatch) return false;
-
-      if (!q) return true;
-      return (
-        e.competitionName?.toLowerCase().includes(q) ||
-        e.homeTeamNameShort?.toLowerCase().includes(q) ||
-        e.awayTeamNameShort?.toLowerCase().includes(q) ||
-        e.showName?.toLowerCase().includes(q)
-      );
-    });
-    return list;
-  }, [events, search, selectedStatuses, selectedCategories, selectedAssignmentStatuses]);
+    return applyComposableFilters(events, activeFilters, searchValue);
+  }, [events, activeFilters, searchValue]);
 
   useEffect(() => {
     setSelectedEventIds(new Set());
-  }, [events, page, search, selectedStatuses, selectedCategories, selectedAssignmentStatuses]);
+  }, [events, page, searchValue, activeFilters]);
 
   const orderedEvents = useMemo(() => {
     const isCancelled = (ev: EventItem) => {
@@ -1004,33 +1198,30 @@ export default function EventiPage() {
 
   return (
     <>
-      <PageHeader
-        title="Eventi"
-        actions={
-          <div className="flex flex-wrap gap-2">
-            {canImportMatches ? (
-              <PrimaryButton
-                type="button"
-                variant="secondary"
-                onClick={() => setImportModalOpen(true)}
-                className="border-pitch-accent text-pitch-accent hover:bg-pitch-accent/10"
-              >
-                Importa partite
-              </PrimaryButton>
-            ) : null}
-            <PrimaryButton
-              type="button"
-              variant="primary"
-              onClick={() => {
-                setEditingEvent(null);
-                setIsCreateModalOpen(true);
-              }}
-            >
-              Nuovo evento
-            </PrimaryButton>
-          </div>
-        }
-      />
+      <div className="flex items-center justify-between py-4">
+        <h1 className="text-[22px] font-medium text-pitch-white">Events</h1>
+        <div className="flex items-center gap-2">
+          <ActionsMenu
+            canImportMatches={canImportMatches}
+            autoMatchingCombos={autoMatchingCombos}
+            selectedCount={selectedEventIds.size}
+            onImport={() => setImportModalOpen(true)}
+            onAutoLink={() => void handleAutoMatchCombos()}
+            onSetSelectedOk={() => void handleBulkSetOk()}
+            onDeleteSelected={handleOpenBulkDeleteModal}
+          />
+          <button
+            type="button"
+            onClick={() => {
+              setEditingEvent(null);
+              setIsCreateModalOpen(true);
+            }}
+            className="rounded-lg bg-[#FFFA00] px-4 py-2 text-[13px] font-medium text-black"
+          >
+            + New event
+          </button>
+        </div>
+      </div>
       {importFlash ? (
         <p className="mt-2 rounded border border-green-900/40 bg-green-950/30 px-3 py-2 text-sm text-green-200">
           {importFlash}
@@ -1049,164 +1240,44 @@ export default function EventiPage() {
           void loadEvents();
         }}
       />
-      <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
-        <div className="min-w-[200px] flex-1">
-          <SearchBar
-            placeholder="Cerca eventi..."
-            onSearchChange={setSearch}
-          />
-        </div>
-        {canAutoMatchCombos ? (
-          <div>
-            <button
-              type="button"
-              onClick={() => void handleAutoMatchCombos()}
-              disabled={autoMatchingCombos}
-              className="rounded border border-pitch-accent px-3 py-2 text-sm font-medium text-pitch-accent hover:bg-pitch-accent/10 disabled:opacity-50"
-            >
-              {autoMatchingCombos ? "Associazione in corso…" : "Associa standard"}
-            </button>
-          </div>
-        ) : null}
-        <div className="flex flex-wrap gap-2">
-          <div>
-            <label className="mb-1 block text-xs text-pitch-gray">Stato</label>
-            <div className="flex flex-wrap gap-2 rounded border border-pitch-gray-dark bg-pitch-gray-dark p-1.5">
-              {[
-                { id: "ALL", label: "Tutti" },
-                { id: "TBC", label: "TBC" },
-                { id: "TBD", label: "TBD" },
-                { id: "OK", label: "OK" },
-                { id: "CONFIRMED", label: "Confermato" },
-                { id: "TO_CONFIRM", label: "Da confermare" },
-                { id: "CANCELLED", label: "Annullato" },
-              ].map((opt) => {
-                const active = selectedStatuses.includes(opt.id);
-                return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedStatuses((prev) => {
-                        if (opt.id === "ALL") return ["ALL"];
-                        const base = prev.filter((s) => s !== "ALL");
-                        const has = base.includes(opt.id);
-                        const next = has ? base.filter((s) => s !== opt.id) : [...base, opt.id];
-                        return next.length === 0 ? ["ALL"] : next;
-                      });
-                    }}
-                    className={`rounded px-2 py-1 text-xs ${
-                      active
-                        ? "bg-pitch-accent text-pitch-bg"
-                        : "text-pitch-gray-light hover:bg-pitch-gray-dark/50 hover:text-pitch-white"
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-pitch-gray">
-              Categoria
-            </label>
-            <div className="flex flex-wrap gap-2 rounded border border-pitch-gray-dark bg-pitch-gray-dark p-1.5">
-              {[
-                { id: "ALL", label: "Tutti" },
-                { id: "MATCH", label: "MATCH" },
-                { id: "STUDIO SHOW", label: "STUDIO SHOW" },
-                { id: "MEDIA CONTENT", label: "MEDIA CONTENT" },
-                { id: "OTHER", label: "OTHER" },
-              ].map((opt) => {
-                const active = selectedCategories.includes(opt.id);
-                return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedCategories((prev) => {
-                        if (opt.id === "ALL") return ["ALL"];
-                        const base = prev.filter((s) => s !== "ALL");
-                        const has = base.includes(opt.id);
-                        const next = has ? base.filter((s) => s !== opt.id) : [...base, opt.id];
-                        return next.length === 0 ? ["ALL"] : next;
-                      });
-                    }}
-                    className={`rounded px-2 py-1 text-xs ${
-                      active
-                        ? "bg-pitch-accent text-pitch-bg"
-                        : "text-pitch-gray-light hover:bg-pitch-gray-dark/50 hover:text-pitch-white"
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-pitch-gray">
-              Stato designazioni
-            </label>
-            <div className="flex flex-wrap gap-2 rounded border border-pitch-gray-dark bg-pitch-gray-dark p-1.5">
-              {[
-                { id: "ALL", label: "Tutti" },
-                { id: "DRAFT", label: "Bozza" },
-                { id: "READY_TO_SEND", label: "Pronto" },
-                { id: "SENT", label: "Inviato" },
-              ].map((opt) => {
-                const active = selectedAssignmentStatuses.includes(opt.id);
-                return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedAssignmentStatuses((prev) => {
-                        if (opt.id === "ALL") return ["ALL"];
-                        const base = prev.filter((s) => s !== "ALL");
-                        const has = base.includes(opt.id);
-                        const next = has ? base.filter((s) => s !== opt.id) : [...base, opt.id];
-                        return next.length === 0 ? ["ALL"] : next;
-                      });
-                    }}
-                    className={`rounded px-2 py-1 text-xs ${
-                      active
-                        ? "bg-pitch-accent text-pitch-bg"
-                        : "text-pitch-gray-light hover:bg-pitch-gray-dark/50 hover:text-pitch-white"
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      </div>
+      <ComposableFilters
+        className="mt-4"
+        filters={eventFilterOptions}
+        activeFilters={activeFilters}
+        onChange={setActiveFilters}
+        searchValue={searchValue}
+        onSearchChange={setSearchValue}
+        searchPlaceholder="Search events..."
+      />
       {selectedEventIds.size > 0 ? (
-        <div className="mt-4 flex items-center justify-between rounded border border-pitch-gray-dark bg-pitch-gray-dark/40 px-4 py-3">
-          <span className="text-sm text-pitch-gray-light">
-            {selectedEventIds.size} eventi selezionati
-          </span>
-          <div className="flex items-center gap-2">
+        <div className="mb-3 mt-4 flex items-center gap-3 rounded-lg border border-[#4ade80]/30 bg-[#1a2e1a] px-3 py-2 text-[12px] text-[#4ade80]">
+          <span>{selectedEventIds.size} events selected</span>
+          <div className="ml-auto flex gap-2">
             <button
               type="button"
               disabled={bulkUpdating}
               onClick={() => void handleBulkSetOk()}
-              className="min-h-[40px] rounded bg-pitch-accent px-3 py-2 text-sm font-medium text-pitch-bg hover:bg-yellow-200 disabled:opacity-50"
+              className="rounded-lg border border-[#4ade80]/40 px-2 py-1 text-[12px] hover:bg-[#234323] disabled:opacity-50"
             >
-              {bulkUpdating ? "Updating..." : "Imposta Standard OK"}
+              {bulkUpdating ? "Updating..." : "Set Standard OK"}
             </button>
             <button
               type="button"
               disabled={bulkDeleting}
               onClick={handleOpenBulkDeleteModal}
-              className="min-h-[40px] rounded border border-red-700 px-3 py-2 text-sm font-medium text-red-300 hover:bg-red-900/30 disabled:opacity-50"
+              className="rounded-lg px-2 py-1 text-[12px] text-[#f87171] hover:bg-[#2e1a1a] disabled:opacity-50"
             >
-              Elimina selezionati
+              Delete permanently
             </button>
           </div>
+          <button
+            type="button"
+            onClick={() => setSelectedEventIds(new Set())}
+            className="rounded px-1.5 py-0.5 text-[14px] text-[#7de5a2] hover:bg-[#234323]"
+            aria-label="Clear selected events"
+          >
+            ×
+          </button>
         </div>
       ) : null}
       {total > PAGE_SIZE && (
@@ -1242,7 +1313,7 @@ export default function EventiPage() {
           </div>
         ) : filteredEvents.length === 0 ? (
           <div className="rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30">
-            <EmptyState message="Nessun evento trovato" icon="calendar" />
+            <EmptyState message="No events found" icon="calendar" />
           </div>
         ) : (
           <>
@@ -1260,10 +1331,10 @@ export default function EventiPage() {
                   />
                 </th>
                 <th className="min-w-[140px] px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Partita
+                  Match
                 </th>
                 <th className="min-w-[100px] px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Competizione
+                  Competition
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
                   Categoria
@@ -1296,10 +1367,10 @@ export default function EventiPage() {
                   Show
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Stato
+                  Status
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
-                  Designazioni
+                  Assignments
                 </th>
               </tr>
             </thead>
@@ -1326,7 +1397,7 @@ export default function EventiPage() {
                 if (cancelledEvents.length > 0 && idx === activeEvents.length) {
                   rows.push(
                     <tr key="cancelled-separator" className="border-y border-pitch-gray-dark/80 bg-pitch-gray-dark/20">
-                      <td colSpan={14} className="px-4 py-2 text-xs font-medium uppercase tracking-wide text-pitch-gray">
+                      <td colSpan={15} className="px-4 py-2 text-xs font-medium uppercase tracking-wide text-pitch-gray">
                         Cancelled events
                       </td>
                     </tr>

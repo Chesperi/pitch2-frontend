@@ -4,7 +4,10 @@ export interface VisionEpisode {
   id: string;
   episodeNumber: number;
   title: string;
+  /** ISO date/time (from `ko_italy_time` on the event). */
   date: string;
+  /** Same instant as `date` when the API sends `ko_italy_time` / `koItalyTime`. */
+  koItalyTime: string;
   status: string;
   assignmentsStatus: string;
   studio: string;
@@ -26,12 +29,25 @@ export interface VisionProject {
   lastDate: string;
 }
 
+function pickEpisodeInstant(raw: Record<string, unknown>): string {
+  return String(
+    raw.ko_italy_time ??
+      raw.koItalyTime ??
+      raw.date ??
+      raw.ko_italy ??
+      raw.koItaly ??
+      ""
+  );
+}
+
 function normalizeEpisode(raw: Record<string, unknown>): VisionEpisode {
+  const instant = pickEpisodeInstant(raw);
   return {
     id: String(raw.id ?? ""),
     episodeNumber: Number(raw.episodeNumber ?? raw.episode_number ?? 0),
     title: String(raw.title ?? ""),
-    date: String(raw.date ?? ""),
+    date: instant,
+    koItalyTime: instant,
     status: String(raw.status ?? ""),
     assignmentsStatus: String(raw.assignmentsStatus ?? raw.assignments_status ?? ""),
     studio: String(raw.studio ?? ""),

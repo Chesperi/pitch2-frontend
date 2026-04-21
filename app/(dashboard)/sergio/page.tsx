@@ -51,6 +51,7 @@ export default function SergioPage() {
   const [userInitials, setUserInitials] = useState("U");
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const currentConversation = useMemo(
     () => conversations.find((c) => c.id === currentConvId) ?? null,
@@ -67,6 +68,13 @@ export default function SergioPage() {
     requestAnimationFrame(() => {
       if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
     });
+  };
+
+  const handleInput = () => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
   };
 
   async function reloadConversations(selectLast = false) {
@@ -153,6 +161,9 @@ export default function SergioPage() {
     };
     setMessages((prev) => [...prev, optimisticUser]);
     setInput("");
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "40px";
+    }
     const file = attachedFile;
     setAttachedFile(null);
     setLoading(true);
@@ -404,7 +415,7 @@ export default function SergioPage() {
       </div>
 
       <div className="border-t border-[#1e1e1e] p-4">
-        <div className="flex items-end gap-2 rounded-xl border border-[#2a2a2a] bg-[#141414] p-2.5 focus-within:border-[#FFFA00]">
+        <div className="flex items-center gap-2 rounded-xl border border-[#2a2a2a] bg-[#141414] p-2.5 focus-within:border-[#FFFA00]">
           <label className="flex h-7 w-7 flex-shrink-0 cursor-pointer items-center justify-center rounded-lg border border-[#2a2a2a] text-[#555] hover:border-[#555] hover:text-[#aaa]">
             <Paperclip size={14} />
             <input
@@ -427,8 +438,12 @@ export default function SergioPage() {
             </div>
           ) : null}
           <textarea
+            ref={textareaRef}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => {
+              setInput(e.target.value);
+              handleInput();
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
@@ -437,12 +452,13 @@ export default function SergioPage() {
             }}
             placeholder="Ask Sergio something…"
             rows={1}
-            className="flex-1 resize-none bg-transparent text-[13px] text-[#e5e5e5] outline-none placeholder:text-[#333]"
+            className="min-h-[40px] max-h-[120px] flex-1 resize-none overflow-y-auto bg-transparent px-3 py-2.5 text-[13px] text-[#e5e5e5] outline-none placeholder:text-[#333]"
+            style={{ height: "40px" }}
           />
           <button
             onClick={() => void handleSend()}
             disabled={(!input.trim() && !attachedFile) || loading}
-            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-[#FFFA00] disabled:opacity-30"
+            className="flex h-8 w-8 flex-shrink-0 self-end items-center justify-center rounded-lg bg-[#FFFA00] disabled:opacity-30"
           >
             <Send size={14} className="text-black" />
           </button>

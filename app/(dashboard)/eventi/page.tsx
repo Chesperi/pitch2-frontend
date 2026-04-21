@@ -29,6 +29,13 @@ import ComposableFilters, {
   type ActiveFilter,
   type FilterOption,
 } from "@/components/ui/ComposableFilters";
+import {
+  DB_TBODY_TR_COMPACT,
+  DB_TD_CELL,
+  DB_TD_FIRST,
+  DB_TH_CELL,
+  DB_TH_FIRST,
+} from "@/app/(dashboard)/database/dbSectionStyles";
 
 function formatKoItaly(koItaly: string | null): string {
   if (!koItaly) return "—";
@@ -246,6 +253,7 @@ function EventModal({
   );
   const isMediaContent = form.category === "MEDIA CONTENT";
   const isStudioShow = form.category === "STUDIO SHOW";
+  const isMatch = form.category === "MATCH";
 
   useEffect(() => {
     let cancelled = false;
@@ -422,11 +430,7 @@ function EventModal({
           </div>
           <div>
             <label className="mb-1 block text-xs text-pitch-gray">
-              {isMediaContent
-                ? "Competition / Project"
-                : isStudioShow
-                  ? "Competition / Partner"
-                  : "Competition"}
+              {isMediaContent ? "Client / Partner" : "Competition"}
             </label>
             <input
               type="text"
@@ -435,6 +439,9 @@ function EventModal({
                 setForm((f) => ({ ...f, competitionName: e.target.value }))
               }
               className={inputClass}
+              placeholder={
+                isMediaContent ? "es. EBAY, Nike, Serie A…" : undefined
+              }
               required
             />
           </div>
@@ -442,7 +449,7 @@ function EventModal({
             <>
               <div>
                 <label className="mb-1 block text-xs text-pitch-gray">
-                  {isStudioShow ? "Episode" : "Matchday"}
+                  Matchday
                 </label>
                 <input
                   type="text"
@@ -455,7 +462,7 @@ function EventModal({
                 />
               </div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {!isStudioShow ? (
+                {isMatch ? (
                   <div>
                   <label className="mb-1 block text-xs text-pitch-gray">
                     Home team
@@ -471,7 +478,7 @@ function EventModal({
                   />
                   </div>
                 ) : null}
-                {!isStudioShow ? (
+                {isMatch ? (
                   <div>
                   <label className="mb-1 block text-xs text-pitch-gray">
                     Away team
@@ -489,7 +496,38 @@ function EventModal({
                 ) : null}
               </div>
             </>
-          ) : null}
+          ) : (
+            <>
+              <div>
+                <label className="mb-1 block text-xs text-pitch-gray">Episode</label>
+                <input
+                  type="text"
+                  value={form.matchDay}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, matchDay: e.target.value }))
+                  }
+                  className={inputClass}
+                  placeholder="es. 1, 2, 3…"
+                  required
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-pitch-gray">
+                  Episode title
+                </label>
+                <input
+                  type="text"
+                  value={form.homeTeamNameShort}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, homeTeamNameShort: e.target.value }))
+                  }
+                  className={inputClass}
+                  placeholder="es. Episodio 1, Puntata Speciale…"
+                  required
+                />
+              </div>
+            </>
+          )}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-xs text-pitch-gray">
@@ -584,7 +622,7 @@ function EventModal({
               </>
             ) : null}
             <EventFormLookupSelect
-              label="Show"
+              label={isMediaContent ? "Show / Project name" : "Show name"}
               value={form.showName}
               onChange={(v) => setForm((f) => ({ ...f, showName: v }))}
               options={lookupShow}
@@ -1317,11 +1355,11 @@ export default function EventiPage() {
           </div>
         ) : (
           <>
-          <ResponsiveTable minWidth="1260px">
+          <div className="overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
-              <tr className="border-b border-pitch-gray-dark">
-                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+              <tr className="border-b border-[#2a2a2a]">
+                <th className={DB_TH_FIRST}>
                   <input
                     type="checkbox"
                     checked={allVisibleSelected}
@@ -1330,46 +1368,46 @@ export default function EventiPage() {
                     aria-label="Seleziona tutti gli eventi visibili"
                   />
                 </th>
-                <th className="min-w-[140px] px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+                <th className={`${DB_TH_FIRST} min-w-[140px]`}>
                   Match
                 </th>
-                <th className="min-w-[100px] px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+                <th className={`${DB_TH_FIRST} min-w-[100px]`}>
                   Competition
                 </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+                <th className={DB_TH_FIRST}>
                   Category
                 </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+                <th className={DB_TH_FIRST}>
                   Rights
                 </th>
-                <th className="min-w-[40px] px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+                <th className={`${DB_TH_FIRST} min-w-[40px]`}>
                   MD
                 </th>
-                <th className="min-w-[130px] px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+                <th className={`${DB_TH_FIRST} min-w-[130px]`}>
                   Date & KO
                 </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+                <th className={DB_TH_FIRST}>
                   PRE
                 </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+                <th className={DB_TH_FIRST}>
                   Standard Onsite
                 </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+                <th className={DB_TH_FIRST}>
                   Standard Cologno
                 </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+                <th className={DB_TH_FIRST}>
                   Facilities
                 </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+                <th className={DB_TH_FIRST}>
                   Studio
                 </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+                <th className={DB_TH_FIRST}>
                   Show
                 </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+                <th className={DB_TH_FIRST}>
                   Status
                 </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+                <th className={DB_TH_FIRST}>
                   Assignments
                 </th>
               </tr>
@@ -1396,8 +1434,8 @@ export default function EventiPage() {
                 const rightsTrimmed = event.rightsHolder?.trim() ?? "";
                 if (cancelledEvents.length > 0 && idx === activeEvents.length) {
                   rows.push(
-                    <tr key="cancelled-separator" className="border-y border-pitch-gray-dark/80 bg-pitch-gray-dark/20">
-                      <td colSpan={15} className="px-4 py-2 text-xs font-medium uppercase tracking-wide text-pitch-gray">
+                    <tr key="cancelled-separator" className="h-9 border-y border-pitch-gray-dark/80 bg-pitch-gray-dark/20">
+                      <td colSpan={15} className={DB_TH_FIRST}>
                         Cancelled events
                       </td>
                     </tr>
@@ -1413,10 +1451,10 @@ export default function EventiPage() {
                         setEditingEvent(full ?? event);
                       })()
                     }
-                    className="cursor-pointer border-b border-pitch-gray-dark/50 transition-colors duration-150 hover:bg-pitch-gray-dark/30"
+                    className={`${DB_TBODY_TR_COMPACT} cursor-pointer`}
                   >
                     <td
-                      className="px-4 py-3"
+                      className={DB_TD_FIRST}
                       onClick={(e) => e.stopPropagation()}
                     >
                       <input
@@ -1427,7 +1465,7 @@ export default function EventiPage() {
                         aria-label={`Seleziona evento ${event.id}`}
                       />
                     </td>
-                    <td className="px-4 py-3 text-sm text-pitch-white">
+                    <td className={DB_TD_FIRST}>
                       <span className="inline-flex flex-wrap items-center gap-1">
                         {event.isTopMatch ? (
                           <span className="mr-1 rounded bg-yellow-400 px-1 text-xs font-bold text-black">
@@ -1437,31 +1475,31 @@ export default function EventiPage() {
                         <span>{match}</span>
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-pitch-gray-light">
+                    <td className={DB_TD_FIRST}>
                       {event.competitionName}
                     </td>
-                    <td className="px-4 py-3 text-sm text-pitch-gray-light">
+                    <td className={DB_TD_FIRST}>
                       {event.category}
                     </td>
                     <td
-                      className={`max-w-[7rem] truncate px-4 py-3 text-sm ${
+                      className={`max-w-[7rem] truncate ${DB_TD_FIRST} ${
                         rightsTrimmed === "SKY/DAZN"
                           ? "text-red-400"
-                          : "text-pitch-gray-light"
+                          : "text-white"
                       }`}
                       title={rightsTrimmed || undefined}
                     >
                       {rightsTrimmed ? rightsTrimmed : "—"}
                     </td>
-                    <td className="min-w-[40px] px-4 py-3 text-sm text-pitch-gray-light">
+                    <td className={`${DB_TD_FIRST} min-w-[40px]`}>
                       {event.matchDay?.trim()
                         ? event.matchDay
                         : "—"}
                     </td>
-                    <td className="px-4 py-3 text-sm text-pitch-gray-light">
+                    <td className={DB_TD_FIRST}>
                       {formatKoItaly(event.koItaly)}
                     </td>
-                    <td className="px-4 py-3 text-sm text-pitch-gray-light">
+                    <td className={DB_TD_FIRST}>
                       <span
                         className={
                           event.preDurationMinutes === 75
@@ -1480,26 +1518,26 @@ export default function EventiPage() {
                         {event.preDurationMinutes}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-pitch-gray-light">
+                    <td className={DB_TD_FIRST}>
                       {event.standardOnsite ?? "—"}
                     </td>
-                    <td className="px-4 py-3 text-sm text-pitch-gray-light">
+                    <td className={DB_TD_FIRST}>
                       {event.standardCologno ?? "—"}
                     </td>
-                    <td className="px-4 py-3 text-sm text-pitch-gray-light">
+                    <td className={DB_TD_FIRST}>
                       {event.facilities ?? "—"}
                     </td>
-                    <td className="px-4 py-3 text-sm text-pitch-gray-light">
+                    <td className={DB_TD_FIRST}>
                       {event.studio ?? "—"}
                     </td>
-                    <td className="px-4 py-3 text-sm text-pitch-gray-light">
+                    <td className={DB_TD_FIRST}>
                       {event.showName ?? "—"}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className={DB_TD_FIRST}>
                       {eventStatusBadgeEl(event.status)}
                     </td>
                     <td
-                      className="px-4 py-3"
+                      className={DB_TD_FIRST}
                       onClick={(e) => e.stopPropagation()}
                     >
                       {assignmentsStatusBadgeEl(event.assignmentsStatus)}
@@ -1511,7 +1549,7 @@ export default function EventiPage() {
               })()}
             </tbody>
           </table>
-          </ResponsiveTable>
+          </div>
           <p className="mt-2 text-xs text-pitch-gray-light md:hidden">
             ← Scorri per vedere tutte le colonne
           </p>

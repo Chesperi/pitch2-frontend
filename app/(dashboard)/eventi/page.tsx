@@ -1288,14 +1288,14 @@ export default function EventiPage() {
         searchPlaceholder="Search events..."
       />
       {selectedEventIds.size > 0 ? (
-        <div className="mb-3 mt-4 flex items-center gap-3 rounded-lg border border-[#4ade80]/30 bg-[#1a2e1a] px-3 py-2 text-[12px] text-[#4ade80]">
-          <span>{selectedEventIds.size} events selected</span>
+        <div className="mb-3 mt-4 flex items-center gap-3 rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] px-3 py-2 text-[12px] text-[#888]">
+          <span className="text-[#888]">{selectedEventIds.size} events selected</span>
           <div className="ml-auto flex gap-2">
             <button
               type="button"
               disabled={bulkUpdating}
               onClick={() => void handleBulkSetOk()}
-              className="rounded-lg border border-[#4ade80]/40 px-2 py-1 text-[12px] hover:bg-[#234323] disabled:opacity-50"
+              className="rounded-lg border border-[#4ade80] bg-transparent px-3 py-1 text-[12px] text-[#4ade80] hover:bg-[#1a2e1a] disabled:opacity-50"
             >
               {bulkUpdating ? "Updating..." : "Set Standard OK"}
             </button>
@@ -1303,7 +1303,7 @@ export default function EventiPage() {
               type="button"
               disabled={bulkDeleting}
               onClick={handleOpenBulkDeleteModal}
-              className="rounded-lg px-2 py-1 text-[12px] text-[#f87171] hover:bg-[#2e1a1a] disabled:opacity-50"
+              className="rounded-lg border border-[#f87171] bg-transparent px-3 py-1 text-[12px] text-[#f87171] hover:bg-[#2e1a1a] disabled:opacity-50"
             >
               Delete permanently
             </button>
@@ -1311,7 +1311,7 @@ export default function EventiPage() {
           <button
             type="button"
             onClick={() => setSelectedEventIds(new Set())}
-            className="rounded px-1.5 py-0.5 text-[14px] text-[#7de5a2] hover:bg-[#234323]"
+            className="rounded border-none bg-transparent px-1.5 py-0.5 text-[14px] text-[#555] hover:text-[#888]"
             aria-label="Clear selected events"
           >
             ×

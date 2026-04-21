@@ -72,6 +72,12 @@ function formatDate(value: string): string {
   }).format(d);
 }
 
+function isSameDay(epDateStr: string, year: number, month: number, day: number): boolean {
+  const d = new Date(epDateStr);
+  if (Number.isNaN(d.getTime())) return false;
+  return d.getFullYear() === year && d.getMonth() === month && d.getDate() === day;
+}
+
 function buildMonthGrid(monthStart: Date): CalendarCell[] {
   const first = new Date(monthStart.getFullYear(), monthStart.getMonth(), 1);
   const firstWeekday = (first.getDay() + 6) % 7;
@@ -117,6 +123,7 @@ export default function VisionPage() {
   });
 
   const leftScrollRef = useRef<HTMLDivElement | null>(null);
+  const didSetInitialOffsetRef = useRef(false);
   const today = useMemo(() => new Date(), []);
 
   useEffect(() => {
@@ -139,10 +146,11 @@ export default function VisionPage() {
   }, []);
 
   const distinctTypes = useMemo(() => {
-    return Array.from(new Set(projects.map((p) => p.type).filter(Boolean))).sort((a, b) =>
-      a.localeCompare(b)
+    return [...new Set(projects.map((p) => p.type.trim()).filter((type) => type.length > 0))].sort(
+      (a, b) => a.localeCompare(b)
     );
   }, [projects]);
+  const typeFilterOptions = distinctTypes.length > 0 ? ["all", ...distinctTypes] : ["all"];
 
   const filteredProjects = useMemo(() => {
     if (typeFilter === "all") return projects;
@@ -179,21 +187,38 @@ export default function VisionPage() {
   };
 
   const calendarCells = useMemo(() => buildMonthGrid(calendarMonth), [calendarMonth]);
-  const episodesByDay = useMemo(() => {
-    const map = new Map<string, Array<{ project: VisionProject; ep: VisionEpisode }>>();
-    for (const p of filteredProjects) {
-      for (const ep of p.episodes) {
-        const iso = toIsoDate(new Date(ep.date));
-        const list = map.get(iso) ?? [];
-        list.push({ project: p, ep });
-        map.set(iso, list);
+  const allEpisodes = useMemo(() => {
+    const rows: Array<{ project: VisionProject; ep: VisionEpisode }> = [];
+    for (const project of filteredProjects) {
+      for (const ep of project.episodes) {
+        rows.push({ project, ep });
       }
     }
-    return map;
+    return rows;
   }, [filteredProjects]);
 
+  useEffect(() => {
+    if (didSetInitialOffsetRef.current) return;
+    if (projects.length === 0) return;
+    const latestEpisodeTs = projects
+      .flatMap((project) => project.episodes)
+      .map((ep) => new Date(ep.date).getTime())
+      .filter((ts) => Number.isFinite(ts))
+      .sort((a, b) => b - a)[0];
+    if (!latestEpisodeTs) return;
+    const baseStart = new Date(today);
+    baseStart.setDate(baseStart.getDate() - 30);
+    const latestDate = new Date(latestEpisodeTs);
+    const latestDaysFromBase = Math.round(
+      (latestDate.getTime() - baseStart.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    const centeredOffset = latestDaysFromBase - Math.floor(daysToShow / 2);
+    setOffset(centeredOffset);
+    didSetInitialOffsetRef.current = true;
+  }, [projects, today, daysToShow]);
+
   return (
-    <div className="h-[calc(100vh-120px)] overflow-hidden rounded-xl border border-[#1e1e1e] bg-[#0a0a0a]">
+    <div className="flex h-[calc(100vh-56px)] flex-col overflow-hidden rounded-xl border border-[#1e1e1e] bg-[#0a0a0a]">
       <div className="flex items-center gap-3 border-b border-[#1e1e1e] bg-[#0a0a0a] px-4 py-2.5">
         <h1 className="text-[15px] font-medium text-[#e5e5e5]">Vision</h1>
         <div className="flex gap-0.5 rounded-lg border border-[#2a2a2a] bg-[#141414] p-0.5">
@@ -216,7 +241,7 @@ export default function VisionPage() {
         </div>
         <div className="flex-1" />
         <div className="flex gap-1.5">
-          {["all", ...distinctTypes].map((t) => (
+          {typeFilterOptions.map((t) => (
             <button
               key={t}
               onClick={() => setTypeFilter(t)}
@@ -271,11 +296,11 @@ export default function VisionPage() {
       </div>
 
       {loading ? (
-        <div className="flex h-[calc(100%-72px)] items-center justify-center text-sm text-[#777]">
+        <div className="flex flex-1 items-center justify-center overflow-hidden text-sm text-[#777]">
           Loading vision projects...
         </div>
       ) : view === "gantt" ? (
-        <div className="flex h-[calc(100%-72px)] flex-1 overflow-hidden">
+        <div className="flex flex-1 overflow-hidden">
           <div
             ref={leftScrollRef}
             className="w-[220px] flex-shrink-0 overflow-y-hidden border-r border-[#1e1e1e] bg-[#0a0a0a]"
@@ -307,7 +332,7 @@ export default function VisionPage() {
             ))}
           </div>
           <div className="flex-1 overflow-x-auto overflow-y-auto" onScroll={onTimelineScroll}>
-            <div style={{ width: totalWidth, minWidth: "100%" }}>
+            <div className="relative" style={{ width: totalWidth, minWidth: "100%" }}>
               <div className="sticky top-0 z-10 bg-[#0a0a0a]">
                 <div className="flex h-6 border-b border-[#1e1e1e]">
                   {Array.from({ length: daysToShow }).map((_, i) => {
@@ -412,7 +437,7 @@ export default function VisionPage() {
           </div>
         </div>
       ) : (
-        <div className="h-[calc(100%-72px)] overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto p-4">
           <div className="mb-3 flex items-center gap-2">
             <button
               type="button"
@@ -447,7 +472,12 @@ export default function VisionPage() {
           </div>
           <div className="mt-1 grid grid-cols-7 gap-1">
             {calendarCells.map((cell) => {
-              const dayEpisodes = episodesByDay.get(cell.iso) ?? [];
+              const calYear = cell.date.getFullYear();
+              const calMonth = cell.date.getMonth();
+              const calDay = cell.date.getDate();
+              const dayEpisodes = allEpisodes.filter(({ ep }) =>
+                isSameDay(ep.date, calYear, calMonth, calDay)
+              );
               return (
                 <div
                   key={cell.iso}
@@ -478,7 +508,7 @@ export default function VisionPage() {
         </div>
       )}
 
-      <div className="flex h-8 items-center gap-4 border-t border-[#1e1e1e] bg-[#0a0a0a] px-4 text-[10px] text-[#555]">
+      <div className="flex h-8 flex-shrink-0 items-center gap-4 border-t border-[#1e1e1e] bg-[#0a0a0a] px-4 text-[10px] text-[#555]">
         {Object.entries(TYPE_COLORS)
           .filter(([k]) => k !== "default")
           .map(([type, c]) => (

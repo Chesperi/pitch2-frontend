@@ -14,6 +14,7 @@ export type MePermissionsResponse = {
 export const PAGE_KEY_TO_ROUTE: Record<string, string> = {
   le_mie_assegnazioni: "/le-mie-assegnazioni",
   eventi: "/eventi",
+  vision: "/vision",
   designazioni: "/designazioni",
   accrediti: "/accrediti",
   call_sheet: "/call-sheet",

@@ -17,6 +17,7 @@ import {
   Settings,
   Monitor,
   MessageSquare,
+  LayoutTemplate,
 } from "lucide-react";
 import {
   usePagePermissions,
@@ -43,6 +44,7 @@ const NAV_ITEMS: NavItem[] = [
     pageKey: "le_mie_assegnazioni",
   },
   { href: "/eventi", label: "Events", icon: Zap, pageKey: "eventi" },
+  { href: "/vision", label: "Vision", icon: LayoutTemplate, pageKey: "vision" },
   {
     href: "/designazioni",
     label: "Assignments",

@@ -1,5 +1,6 @@
 "use client";
 
+import NextLink from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   fetchEvents,
@@ -1239,6 +1240,14 @@ export default function EventiPage() {
       <div className="flex items-center justify-between py-4">
         <h1 className="text-[22px] font-medium text-pitch-white">Events</h1>
         <div className="flex items-center gap-2">
+          {canImportMatches ? (
+            <NextLink
+              href="/vision"
+              className="rounded-lg border border-[#2a2a2a] bg-[#141414] px-3 py-2 text-[12px] font-medium text-[#FFFA00] hover:bg-[#1a1a1a]"
+            >
+              Vision →
+            </NextLink>
+          ) : null}
           <ActionsMenu
             canImportMatches={canImportMatches}
             autoMatchingCombos={autoMatchingCombos}

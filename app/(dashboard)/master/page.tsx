@@ -36,6 +36,7 @@ type StaffPagePermissionsResponse = {
 const PAGE_KEY_LABELS: Record<string, string> = {
   le_mie_assegnazioni: "Le mie ass.",
   eventi: "Events",
+  vision: "Vision",
   designazioni: "Designations",
   accrediti: "Accreditations",
   call_sheet: "Call sheet",

@@ -44,3 +44,8 @@ export {
   type CreateDocumentPayload,
   type UpdateDocumentPayload,
 } from "./documents";
+export {
+  fetchVisionProjects,
+  type VisionProject,
+  type VisionEpisode,
+} from "./vision";

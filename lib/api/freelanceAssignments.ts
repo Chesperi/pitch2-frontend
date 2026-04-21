@@ -10,6 +10,7 @@ export type UserProfile = {
   team_dazn?: string | null;
   shifts_management?: boolean;
   managed_teams?: string[];
+  sergio_access?: boolean;
 };
 
 export type MyAssignmentListItem = {
@@ -238,6 +239,7 @@ export async function fetchAuthMe(): Promise<UserProfile> {
           : null,
     shifts_management: Boolean(data.shifts_management ?? data.shiftsManagement),
     managed_teams: managedTeams,
+    sergio_access: Boolean(data.sergio_access ?? data.sergioAccess),
   };
 }
 

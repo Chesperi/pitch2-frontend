@@ -25,6 +25,7 @@ type StaffPermissionsItem = {
   financeVisibility: "HIDDEN" | "VISIBLE";
   shiftsManagement: boolean;
   managedTeams: string[];
+  sergioAccess: boolean;
   permissions: StaffPagePermission[];
 };
 
@@ -260,6 +261,34 @@ export default function MasterPage() {
     }
   };
 
+  const handleSergioToggle = async (staffId: number, current: boolean) => {
+    const row = items.find((r) => r.staffId === staffId);
+    if (row && (isSystemMaster(row) || isFreelanceOrProvider(row))) return;
+
+    const next = !current;
+    const savingKey = `sergio:${staffId}`;
+    setActionError(null);
+    setSaving(savingKey, true);
+
+    const prevItems = items;
+    setItems((currentItems) =>
+      currentItems.map((item) =>
+        item.staffId === staffId ? { ...item, sergioAccess: next } : item
+      )
+    );
+
+    try {
+      await updateStaff(staffId, { sergioAccess: next });
+    } catch (e) {
+      setItems(prevItems);
+      setActionError(
+        e instanceof Error ? e.message : "Error saving Sergio access."
+      );
+    } finally {
+      setSaving(savingKey, false);
+    }
+  };
+
   const handleFinanceToggle = async (
     staffId: number,
     currentVisibility: "HIDDEN" | "VISIBLE"
@@ -389,6 +418,9 @@ export default function MasterPage() {
                 <th className="min-w-[200px] whitespace-nowrap px-3 py-2 text-left font-medium text-pitch-gray">
                   Turni
                 </th>
+                <th className="min-w-[120px] whitespace-nowrap px-3 py-2 text-left font-medium text-pitch-gray">
+                  Sergio
+                </th>
                 {pageKeysOrdered.map((pk) => (
                   <th
                     key={pk}
@@ -488,6 +520,22 @@ export default function MasterPage() {
                         </select>
                       ) : null}
                     </div>
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-2 text-xs align-top">
+                    <ToggleSwitch
+                      checked={row.sergioAccess}
+                      disabled={
+                        isSystemMaster(row) ||
+                        isFreelanceOrProvider(row) ||
+                        savingKeys.has(`sergio:${row.staffId}`)
+                      }
+                      tooltip="Sergio access"
+                      onChange={(checked) => {
+                        if (checked !== row.sergioAccess) {
+                          void handleSergioToggle(row.staffId, row.sergioAccess);
+                        }
+                      }}
+                    />
                   </td>
                   {row.permissions.map((perm) => (
                     <td key={perm.pageKey} className="whitespace-nowrap px-4 py-2 text-xs">

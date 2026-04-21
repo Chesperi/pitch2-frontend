@@ -16,6 +16,7 @@ import {
   Clock,
   Settings,
   Monitor,
+  MessageSquare,
 } from "lucide-react";
 import {
   usePagePermissions,
@@ -119,6 +120,11 @@ type SidebarNavProps = {
   onMobileClose?: () => void;
 };
 
+type AuthMeSidebar = {
+  user_level?: string;
+  sergio_access?: boolean;
+};
+
 /** Campo da calcio stilizzato per header sidebar (linee bianche su sfondo nero). */
 function FootballFieldSvg() {
   return (
@@ -148,18 +154,24 @@ export default function SidebarNav({
   const pathname = usePathname();
   const { loading, levelByPageKey } = usePagePermissions();
   const [meLevelUpper, setMeLevelUpper] = useState<string | null>(null);
+  const [sergioAccess, setSergioAccess] = useState(false);
   const [meReady, setMeReady] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const me = await fetchAuthMe();
+        const me = (await fetchAuthMe()) as AuthMeSidebar;
         if (!cancelled) {
           setMeLevelUpper((me.user_level ?? "").toUpperCase().trim());
+          const isMaster = String(me.user_level ?? "").toUpperCase().trim() === "MASTER";
+          setSergioAccess(isMaster || Boolean(me.sergio_access));
         }
       } catch {
-        if (!cancelled) setMeLevelUpper(null);
+        if (!cancelled) {
+          setMeLevelUpper(null);
+          setSergioAccess(false);
+        }
       } finally {
         if (!cancelled) setMeReady(true);
       }
@@ -169,13 +181,19 @@ export default function SidebarNav({
     };
   }, []);
 
-  const visibleItems = useMemo(
-    () =>
-      NAV_ITEMS.filter((item) =>
-        isNavItemVisible(item, loading, levelByPageKey, meLevelUpper, meReady)
-      ),
-    [loading, levelByPageKey, meLevelUpper, meReady]
-  );
+  const visibleItems = useMemo(() => {
+    const items = NAV_ITEMS.filter((item) =>
+      isNavItemVisible(item, loading, levelByPageKey, meLevelUpper, meReady)
+    );
+    if (sergioAccess) {
+      items.push({
+        href: "/sergio",
+        label: "Sergio",
+        icon: MessageSquare,
+      });
+    }
+    return items;
+  }, [loading, levelByPageKey, meLevelUpper, meReady, sergioAccess]);
 
   return (
     <nav className="flex flex-col" style={{ background: "#000000" }}>

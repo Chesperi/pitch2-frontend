@@ -20,6 +20,7 @@ export type StaffItem = {
   finance_visibility: "HIDDEN" | "VISIBLE" | null;
   shifts_management?: boolean;
   managed_teams?: string[] | null;
+  sergio_access?: boolean;
   /** Present when loaded with includeRoles=true or from detail GET /api/staff/:id */
   roles?: StaffRoleFee[];
 };
@@ -50,6 +51,7 @@ export type CreateStaffPayload = {
 export type UpdateStaffPayload = Partial<CreateStaffPayload> & {
   shiftsManagement?: boolean;
   managedTeams?: string[];
+  sergioAccess?: boolean;
 };
 
 export type StaffFetchOptions = {

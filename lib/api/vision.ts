@@ -21,6 +21,7 @@ export interface VisionProject {
   showName: string;
   client: string;
   type: string;
+  color: string;
   episodes: VisionEpisode[];
   totalEpisodes: number;
   doneCount: number;
@@ -64,6 +65,7 @@ function normalizeProject(raw: Record<string, unknown>): VisionProject {
     showName: String(raw.showName ?? raw.show_name ?? ""),
     client: String(raw.client ?? raw.competition_name ?? ""),
     type: String(raw.type ?? "Branded"),
+    color: String(raw.color ?? "#888888"),
     episodes: episodesRaw.map((ep) => normalizeEpisode(ep as Record<string, unknown>)),
     totalEpisodes: Number(raw.totalEpisodes ?? raw.total_episodes ?? episodesRaw.length),
     doneCount: Number(raw.doneCount ?? raw.done_count ?? 0),

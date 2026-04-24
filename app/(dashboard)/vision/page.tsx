@@ -3,6 +3,10 @@
 import NextLink from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import ComposableFilters, {
+  type ActiveFilter,
+  type FilterOption,
+} from "@/components/ui/ComposableFilters";
 import {
   fetchVisionProjects,
   type VisionEpisode,
@@ -10,34 +14,6 @@ import {
 } from "@/lib/api/vision";
 
 const ROW_HEIGHT = 72;
-
-const TYPE_COLORS: Record<string, { pill: string; track: string; text: string }> = {
-  Branded: {
-    pill: "bg-[#1a1a2e] border border-[#818cf8]",
-    track: "#818cf8",
-    text: "text-[#818cf8]",
-  },
-  Platform: {
-    pill: "bg-[#1a2e2e] border border-[#34d399]",
-    track: "#34d399",
-    text: "text-[#34d399]",
-  },
-  Editorial: {
-    pill: "bg-[#2e1e0a] border border-[#fb923c]",
-    track: "#fb923c",
-    text: "text-[#fb923c]",
-  },
-  Betting: {
-    pill: "bg-[#2e1a2e] border border-[#e879f9]",
-    track: "#e879f9",
-    text: "text-[#e879f9]",
-  },
-  default: {
-    pill: "bg-[#1a1a1a] border border-[#444]",
-    track: "#888",
-    text: "text-[#888]",
-  },
-};
 
 type TooltipState = {
   project: VisionProject;
@@ -105,8 +81,14 @@ function statusOpacity(ep: VisionEpisode): number {
   return 0.3;
 }
 
-function projectColors(type: string) {
-  return TYPE_COLORS[type] ?? TYPE_COLORS.default;
+function withAlpha(color: string, alphaHex = "1a"): string {
+  const c = color.trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(c)) return `${c}${alphaHex}`;
+  return "rgba(136,136,136,0.1)";
+}
+
+function normalizeStatus(status: string): string {
+  return status.trim().toUpperCase();
 }
 
 export default function VisionPage() {
@@ -114,7 +96,9 @@ export default function VisionPage() {
   const [view, setView] = useState<"gantt" | "calendar">("gantt");
   const [zoom, setZoom] = useState<"week" | "month" | "quarter">("month");
   const [offset, setOffset] = useState(0);
-  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [dateFrom, setDateFrom] = useState<string>("");
+  const [dateTo, setDateTo] = useState<string>("");
+  const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const [loading, setLoading] = useState(true);
   const [tooltip, setTooltip] = useState<TooltipState>(null);
   const [calendarMonth, setCalendarMonth] = useState(() => {
@@ -151,12 +135,71 @@ export default function VisionPage() {
       (a, b) => a.localeCompare(b)
     );
   }, [projects]);
-  const typeFilterOptions = distinctTypes.length > 0 ? ["all", ...distinctTypes] : ["all"];
+  const distinctClients = useMemo(() => {
+    return [...new Set(projects.map((p) => p.client.trim()).filter((client) => client.length > 0))].sort(
+      (a, b) => a.localeCompare(b)
+    );
+  }, [projects]);
+
+  const typeColorFromProjects = (type: string): string => {
+    const row = projects.find((p) => p.type === type && p.color);
+    return row?.color ?? "#888888";
+  };
+
+  const visionFilterOptions = useMemo<FilterOption[]>(
+    () => [
+      {
+        key: "type",
+        label: "Type",
+        values: distinctTypes.map((t) => ({ value: t, color: typeColorFromProjects(t) })),
+      },
+      {
+        key: "status",
+        label: "Status",
+        values: [
+          { value: "TBD", color: "#FFFA00" },
+          { value: "TBC", color: "#FFFA00" },
+          { value: "OK", color: "#4ade80" },
+          { value: "CONFIRMED", color: "#34d399" },
+        ],
+      },
+      {
+        key: "client",
+        label: "Client",
+        values: distinctClients.map((c) => ({ value: c })),
+      },
+    ],
+    [distinctTypes, distinctClients]
+  );
 
   const filteredProjects = useMemo(() => {
-    if (typeFilter === "all") return projects;
-    return projects.filter((p) => p.type === typeFilter);
-  }, [projects, typeFilter]);
+    return projects.filter((p) => {
+      const typeF = activeFilters.find((f) => f.key === "type");
+      if (typeF?.value && p.type !== typeF.value) return false;
+
+      const clientF = activeFilters.find((f) => f.key === "client");
+      if (clientF?.value && p.client !== clientF.value) return false;
+
+      const statusF = activeFilters.find((f) => f.key === "status");
+      if (
+        statusF?.value &&
+        !p.episodes.some((e) => normalizeStatus(e.status) === normalizeStatus(statusF.value ?? ""))
+      ) {
+        return false;
+      }
+
+      if (dateFrom && dateTo) {
+        const from = new Date(dateFrom);
+        const to = new Date(dateTo);
+        const hasEpInRange = p.episodes.some((e) => {
+          const d = new Date(e.date.split("T")[0]);
+          return d >= from && d <= to;
+        });
+        if (!hasEpInRange) return false;
+      }
+      return true;
+    });
+  }, [projects, activeFilters, dateFrom, dateTo]);
 
   const DAY_W = zoom === "week" ? 36 : zoom === "month" ? 28 : 14;
   const daysToShow = zoom === "week" ? 42 : zoom === "month" ? 84 : 168;
@@ -221,7 +264,7 @@ export default function VisionPage() {
     didSetInitialOffsetRef.current = true;
   }, [projects, today, daysToShow]);
 
-  console.log("[Vision] filteredProjects:", filteredProjects.length, "typeFilter:", typeFilter);
+  console.log("[Vision] filteredProjects:", filteredProjects.length, "typeFilter:", activeFilters);
 
   return (
     <div className="flex h-[calc(100vh-56px)] flex-col overflow-hidden rounded-xl border border-[#1e1e1e] bg-[#0a0a0a]">
@@ -246,21 +289,6 @@ export default function VisionPage() {
           </button>
         </div>
         <div className="flex-1" />
-        <div className="flex gap-1.5">
-          {typeFilterOptions.map((t) => (
-            <button
-              key={t}
-              onClick={() => setTypeFilter(t)}
-              className={`rounded-full border px-2.5 py-1 text-[10px] ${
-                typeFilter === t
-                  ? "border-[#FFFA00] bg-[#1a1a00] text-[#FFFA00]"
-                  : "border-[#2a2a2a] bg-[#141414] text-[#666]"
-              }`}
-            >
-              {t === "all" ? "All" : t}
-            </button>
-          ))}
-        </div>
         {view === "gantt" ? (
           <div className="flex items-center gap-2">
             <button
@@ -300,6 +328,18 @@ export default function VisionPage() {
           </div>
         ) : null}
       </div>
+      <ComposableFilters
+        filters={visionFilterOptions}
+        activeFilters={activeFilters}
+        onChange={setActiveFilters}
+        dateRange={{
+          from: dateFrom,
+          to: dateTo,
+          onFromChange: setDateFrom,
+          onToChange: setDateTo,
+        }}
+        className="mx-4 my-2"
+      />
 
       {loading ? (
         <div className="flex flex-1 items-center justify-center overflow-hidden text-sm text-[#777]">
@@ -321,7 +361,14 @@ export default function VisionPage() {
                 style={{ height: ROW_HEIGHT }}
               >
                 <div className="flex h-[44px] items-center gap-2">
-                  <span className={`rounded-md px-2 py-0.5 text-[9px] ${projectColors(p.type).pill}`}>
+                  <span
+                    className="rounded-md px-2 py-0.5 text-[9px]"
+                    style={{
+                      border: `1px solid ${p.color}`,
+                      color: p.color,
+                      background: withAlpha(p.color),
+                    }}
+                  >
                     {p.type}
                   </span>
                   <div className="truncate text-[12px] text-[#ddd]">{p.showName}</div>
@@ -330,7 +377,7 @@ export default function VisionPage() {
                   <span>
                     {p.doneCount}/{p.totalEpisodes} on air
                   </span>
-                  <span className={projectColors(p.type).text}>
+                  <span style={{ color: p.color }}>
                     {p.totalEpisodes > 0 ? Math.round((p.doneCount / p.totalEpisodes) * 100) : 0}%
                   </span>
                 </div>
@@ -381,12 +428,15 @@ export default function VisionPage() {
               />
 
               {filteredProjects.map((p) => {
-                const colors = projectColors(p.type);
-                const firstX = xForDate(p.firstDate);
-                const lastX = xForDate(p.lastDate);
-                const width = Math.max(DAY_W, lastX - firstX + DAY_W);
+                const firstEpDate = p.episodes[0]?.date;
+                const lastEpDate = p.episodes[p.episodes.length - 1]?.date;
+                const trackLeft = firstEpDate ? xForDate(firstEpDate) : 0;
+                const trackRight = lastEpDate ? xForDate(lastEpDate) + DAY_W : 0;
+                const trackWidth = Math.max(DAY_W, trackRight - trackLeft);
                 const progress =
-                  p.totalEpisodes > 0 ? Math.max(DAY_W, Math.round((width * p.doneCount) / p.totalEpisodes)) : 0;
+                  p.totalEpisodes > 0
+                    ? Math.max(DAY_W, Math.round((trackWidth * p.doneCount) / p.totalEpisodes))
+                    : 0;
                 return (
                   <div
                     key={p.id}
@@ -396,11 +446,21 @@ export default function VisionPage() {
                     <div className="relative h-[44px]">
                       <div
                         className="absolute top-1/2 h-[6px] -translate-y-1/2 rounded-full"
-                        style={{ left: firstX, width, backgroundColor: colors.track, opacity: 0.15 }}
+                        style={{
+                          left: trackLeft,
+                          width: trackWidth,
+                          backgroundColor: p.color,
+                          opacity: 0.15,
+                        }}
                       />
                       <div
                         className="absolute top-1/2 h-[6px] -translate-y-1/2 rounded-full"
-                        style={{ left: firstX, width: progress, backgroundColor: colors.track, opacity: 0.6 }}
+                        style={{
+                          left: trackLeft,
+                          width: progress,
+                          backgroundColor: p.color,
+                          opacity: 0.6,
+                        }}
                       />
                     </div>
                     <div className="relative h-[28px]">
@@ -426,10 +486,16 @@ export default function VisionPage() {
                               )
                             }
                             onMouseLeave={() => setTooltip(null)}
-                            className={`${colors.pill} absolute top-1/2 flex h-[20px] w-[28px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-md text-[10px] ${
+                            className={`absolute top-1/2 flex h-[20px] w-[28px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-md text-[10px] ${
                               ep.assignmentsStatus === "READY_TO_SEND" ? "shadow-[0_0_0_1.5px_#FFFA00]" : ""
                             }`}
-                            style={{ left: x, opacity: statusOpacity(ep) }}
+                            style={{
+                              left: x,
+                              opacity: statusOpacity(ep),
+                              border: `1px solid ${p.color}`,
+                              background: withAlpha(p.color),
+                              color: p.color,
+                            }}
                           >
                             {ep.episodeNumber || "•"}
                           </button>
@@ -497,7 +563,12 @@ export default function VisionPage() {
                       <NextLink
                         key={ep.id}
                         href={`/eventi?edit=${encodeURIComponent(ep.id)}`}
-                        className={`block truncate rounded px-1.5 py-0.5 text-[10px] text-[#ddd] ${projectColors(project.type).pill}`}
+                        className="block truncate rounded px-1.5 py-0.5 text-[10px]"
+                        style={{
+                          border: `1px solid ${project.color}`,
+                          background: withAlpha(project.color),
+                          color: project.color,
+                        }}
                         title={`${project.showName} - Ep. ${ep.episodeNumber}`}
                       >
                         {project.showName} #{ep.episodeNumber}
@@ -515,14 +586,18 @@ export default function VisionPage() {
       )}
 
       <div className="flex h-8 flex-shrink-0 items-center gap-4 border-t border-[#1e1e1e] bg-[#0a0a0a] px-4 text-[10px] text-[#555]">
-        {Object.entries(TYPE_COLORS)
-          .filter(([k]) => k !== "default")
-          .map(([type, c]) => (
-            <span key={type} className="flex items-center gap-1.5">
-              <span className={`h-2.5 w-2.5 rounded-sm ${c.pill}`} />
-              {type}
-            </span>
-          ))}
+        {distinctTypes.map((type) => (
+          <span key={type} className="flex items-center gap-1.5">
+            <span
+              className="h-2.5 w-2.5 rounded-sm"
+              style={{
+                border: `1px solid ${typeColorFromProjects(type)}`,
+                background: withAlpha(typeColorFromProjects(type)),
+              }}
+            />
+            {type}
+          </span>
+        ))}
         <span className="mx-2 h-4 w-px bg-[#2a2a2a]" />
         <span className="flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full bg-[#4ade80]" />

@@ -35,6 +35,10 @@ function toIsoDate(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+function toDateOnly(dateStr: string): string {
+  return dateStr.substring(0, 10);
+}
+
 function formatDate(value: string): string {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return value;
@@ -204,7 +208,14 @@ export default function VisionPage() {
   const DAY_W = zoom === "week" ? 36 : zoom === "month" ? 28 : 14;
   const daysToShow = zoom === "week" ? 42 : zoom === "month" ? 84 : 168;
   const windowStart = useMemo(() => {
-    return new Date(today.getFullYear(), today.getMonth(), today.getDate() - 30 + offset);
+    return new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate() - 30 + offset,
+      12,
+      0,
+      0
+    );
   }, [today, offset]);
   const totalWidth = daysToShow * DAY_W;
   const totalHeight = filteredProjects.length * ROW_HEIGHT + 48;
@@ -217,15 +228,17 @@ export default function VisionPage() {
   )}`;
 
   const xForDate = (dateStr: string): number => {
-    const datePart = dateStr.split("T")[0];
-    const [year, month, day] = datePart.split("-").map(Number);
-    const d = new Date(year, month - 1, day);
-
-    const windowDatePart = windowStart.toISOString().split("T")[0];
-    const [wy, wm, wd] = windowDatePart.split("-").map(Number);
-    const w = new Date(wy, wm - 1, wd);
-
-    return Math.round((d.getTime() - w.getTime()) / (1000 * 60 * 60 * 24)) * DAY_W;
+    const [year, month, day] = toDateOnly(dateStr).split("-").map(Number);
+    const d = new Date(year, month - 1, day, 12, 0, 0);
+    const wsNoon = new Date(
+      windowStart.getFullYear(),
+      windowStart.getMonth(),
+      windowStart.getDate(),
+      12,
+      0,
+      0
+    );
+    return Math.round((d.getTime() - wsNoon.getTime()) / (1000 * 60 * 60 * 24)) * DAY_W;
   };
 
   const onTimelineScroll = (event: React.UIEvent<HTMLDivElement>) => {

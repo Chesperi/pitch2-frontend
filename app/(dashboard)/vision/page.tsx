@@ -131,8 +131,9 @@ export default function VisionPage() {
     (async () => {
       setLoading(true);
       try {
-        const rows = await fetchVisionProjects();
-        if (!cancelled) setProjects(rows);
+        const data = await fetchVisionProjects();
+        console.log("[Vision] projects loaded:", data.length, data);
+        if (!cancelled) setProjects(data);
       } catch (error) {
         console.error(error);
         if (!cancelled) setProjects([]);
@@ -160,9 +161,7 @@ export default function VisionPage() {
   const DAY_W = zoom === "week" ? 36 : zoom === "month" ? 28 : 14;
   const daysToShow = zoom === "week" ? 42 : zoom === "month" ? 84 : 168;
   const windowStart = useMemo(() => {
-    const d = new Date(today);
-    d.setDate(d.getDate() - 30 + offset);
-    return d;
+    return new Date(today.getFullYear(), today.getMonth(), today.getDate() - 30 + offset);
   }, [today, offset]);
   const totalWidth = daysToShow * DAY_W;
   const totalHeight = filteredProjects.length * ROW_HEIGHT + 48;
@@ -174,11 +173,16 @@ export default function VisionPage() {
     { month: "short", day: "numeric" }
   )}`;
 
-  const xForDate = (date: Date): number => {
-    return (
-      Math.round((date.getTime() - windowStart.getTime()) / (1000 * 60 * 60 * 24)) *
-      DAY_W
-    );
+  const xForDate = (dateStr: string): number => {
+    const datePart = dateStr.split("T")[0];
+    const [year, month, day] = datePart.split("-").map(Number);
+    const d = new Date(year, month - 1, day);
+
+    const windowDatePart = windowStart.toISOString().split("T")[0];
+    const [wy, wm, wd] = windowDatePart.split("-").map(Number);
+    const w = new Date(wy, wm - 1, wd);
+
+    return Math.round((d.getTime() - w.getTime()) / (1000 * 60 * 60 * 24)) * DAY_W;
   };
 
   const onTimelineScroll = (event: React.UIEvent<HTMLDivElement>) => {
@@ -216,6 +220,8 @@ export default function VisionPage() {
     setOffset(centeredOffset);
     didSetInitialOffsetRef.current = true;
   }, [projects, today, daysToShow]);
+
+  console.log("[Vision] filteredProjects:", filteredProjects.length, "typeFilter:", typeFilter);
 
   return (
     <div className="flex h-[calc(100vh-56px)] flex-col overflow-hidden rounded-xl border border-[#1e1e1e] bg-[#0a0a0a]">
@@ -303,7 +309,7 @@ export default function VisionPage() {
         <div className="flex flex-1 overflow-hidden">
           <div
             ref={leftScrollRef}
-            className="w-[220px] flex-shrink-0 overflow-y-hidden border-r border-[#1e1e1e] bg-[#0a0a0a]"
+            className="relative z-10 w-[220px] flex-shrink-0 overflow-y-hidden border-r border-[#1e1e1e] bg-[#0a0a0a]"
           >
             <div className="flex h-[48px] items-end border-b border-[#1e1e1e] px-3 pb-2">
               <span className="text-[10px] uppercase tracking-wider text-[#444]">Project</span>
@@ -331,7 +337,7 @@ export default function VisionPage() {
               </div>
             ))}
           </div>
-          <div className="flex-1 overflow-x-auto overflow-y-auto" onScroll={onTimelineScroll}>
+          <div className="z-0 flex-1 overflow-x-auto overflow-y-auto" onScroll={onTimelineScroll}>
             <div className="relative" style={{ width: totalWidth, minWidth: "100%" }}>
               <div className="sticky top-0 z-10 bg-[#0a0a0a]">
                 <div className="flex h-6 border-b border-[#1e1e1e]">
@@ -371,13 +377,13 @@ export default function VisionPage() {
 
               <div
                 className="pointer-events-none absolute top-0 z-[1] w-px bg-[#FFFA00]"
-                style={{ left: xForDate(today), height: totalHeight }}
+                style={{ left: xForDate(toIsoDate(today)), height: totalHeight }}
               />
 
               {filteredProjects.map((p) => {
                 const colors = projectColors(p.type);
-                const firstX = xForDate(new Date(p.firstDate));
-                const lastX = xForDate(new Date(p.lastDate));
+                const firstX = xForDate(p.firstDate);
+                const lastX = xForDate(p.lastDate);
                 const width = Math.max(DAY_W, lastX - firstX + DAY_W);
                 const progress =
                   p.totalEpisodes > 0 ? Math.max(DAY_W, Math.round((width * p.doneCount) / p.totalEpisodes)) : 0;
@@ -399,7 +405,7 @@ export default function VisionPage() {
                     </div>
                     <div className="relative h-[28px]">
                       {p.episodes.map((ep) => {
-                        const x = xForDate(new Date(ep.date));
+                        const x = xForDate(ep.date);
                         return (
                           <button
                             key={ep.id}

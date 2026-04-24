@@ -428,15 +428,19 @@ export default function VisionPage() {
               />
 
               {filteredProjects.map((p) => {
-                const firstEpDate = p.episodes[0]?.date;
-                const lastEpDate = p.episodes[p.episodes.length - 1]?.date;
-                const trackLeft = firstEpDate ? xForDate(firstEpDate) : 0;
-                const trackRight = lastEpDate ? xForDate(lastEpDate) + DAY_W : 0;
+                const sortedEpisodes = [...p.episodes].sort((a, b) =>
+                  a.date.split("T")[0].localeCompare(b.date.split("T")[0])
+                );
+                const sortedFirstEpDate = sortedEpisodes[0]?.date;
+                const sortedLastEpDate = sortedEpisodes[sortedEpisodes.length - 1]?.date;
+                const trackLeft = sortedFirstEpDate ? xForDate(sortedFirstEpDate) + 2 : 0;
+                const trackRight = sortedLastEpDate ? xForDate(sortedLastEpDate) + DAY_W - 2 : 0;
                 const trackWidth = Math.max(DAY_W, trackRight - trackLeft);
                 const progress =
                   p.totalEpisodes > 0
                     ? Math.max(DAY_W, Math.round((trackWidth * p.doneCount) / p.totalEpisodes))
                     : 0;
+                const PILL_W = DAY_W - 4;
                 return (
                   <div
                     key={p.id}
@@ -464,8 +468,8 @@ export default function VisionPage() {
                       />
                     </div>
                     <div className="relative h-[28px]">
-                      {p.episodes.map((ep) => {
-                        const x = xForDate(ep.date);
+                      {sortedEpisodes.map((ep) => {
+                        const pillLeft = xForDate(ep.date) + 2;
                         return (
                           <button
                             key={ep.id}
@@ -486,11 +490,15 @@ export default function VisionPage() {
                               )
                             }
                             onMouseLeave={() => setTooltip(null)}
-                            className={`absolute top-1/2 flex h-[20px] w-[28px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-md text-[10px] ${
+                            className={`absolute flex items-center justify-center rounded-md text-[10px] ${
                               ep.assignmentsStatus === "READY_TO_SEND" ? "shadow-[0_0_0_1.5px_#FFFA00]" : ""
                             }`}
                             style={{
-                              left: x,
+                              position: "absolute",
+                              left: pillLeft,
+                              width: PILL_W,
+                              top: 4,
+                              height: 20,
                               opacity: statusOpacity(ep),
                               border: `1px solid ${p.color}`,
                               background: withAlpha(p.color),

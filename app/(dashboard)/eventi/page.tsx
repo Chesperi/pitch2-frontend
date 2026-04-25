@@ -76,8 +76,8 @@ function eventDayIso(event: EventItem): string {
 }
 
 function eventTitle(event: EventItem): string {
-  const category = (event.category ?? "").toUpperCase().trim();
-  if (category === "STUDIO SHOW") {
+  const category = normalizeCategory(event.category);
+  if (category === "STUDIO_SHOW") {
     return event.showName?.trim() || event.competitionName?.trim() || "—";
   }
   if (event.homeTeamNameShort && event.awayTeamNameShort) {
@@ -165,8 +165,18 @@ function assignmentsStatusBadgeEl(
   }
 }
 
-const CATEGORY_OPTIONS = ["MATCH", "STUDIO SHOW", "MEDIA CONTENT", "OTHER"];
+const CATEGORY_OPTIONS = [
+  { value: "MATCH", label: "MATCH" },
+  { value: "STUDIO_SHOW", label: "STUDIO SHOW" },
+  { value: "MEDIA_CONTENT", label: "MEDIA CONTENT" },
+  { value: "OTHER", label: "OTHER" },
+];
 const STATUS_OPTIONS = ["TBC", "TBD", "OK", "CONFIRMED", "CANCELLED"];
+
+function normalizeCategoryValue(category: string | null | undefined): string {
+  const normalized = (category ?? "").toUpperCase().trim().replace(/\s+/g, "_");
+  return normalized || "MATCH";
+}
 
 function EventFormLookupSelect({
   label,
@@ -223,7 +233,9 @@ function EventModal({
   const buildInitialForm = (source: EventItem | null): CreateEventPayload =>
     source
       ? {
-          category: (source.category ?? (source as EventItem & { categoria?: string }).categoria ?? "MATCH"),
+          category: normalizeCategoryValue(
+            source.category ?? (source as EventItem & { categoria?: string }).categoria
+          ),
           competitionName: source.competitionName,
           competitionCode: source.competitionCode ?? "",
           matchDay: source.matchDay,
@@ -281,8 +293,8 @@ function EventModal({
   const [lookupRightsHolder, setLookupRightsHolder] = useState<LookupValue[]>(
     []
   );
-  const isMediaContent = form.category === "MEDIA CONTENT";
-  const isStudioShow = form.category === "STUDIO SHOW";
+  const isMediaContent = form.category === "MEDIA_CONTENT";
+  const isStudioShow = form.category === "STUDIO_SHOW";
   const isMatch = form.category === "MATCH";
 
   useEffect(() => {
@@ -413,7 +425,7 @@ function EventModal({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div
             className={
-              form.category === "MATCH"
+              isMatch
                 ? "grid grid-cols-1 gap-4 sm:grid-cols-3"
                 : "grid grid-cols-1 gap-4 sm:grid-cols-2"
             }
@@ -425,13 +437,13 @@ function EventModal({
               <select
                 value={form.category}
                 onChange={(e) =>
-                  setForm((f) => ({ ...f, category: e.target.value }))
+                  setForm((f) => ({ ...f, category: normalizeCategoryValue(e.target.value) }))
                 }
                 className={inputClass}
               >
                 {CATEGORY_OPTIONS.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
+                  <option key={c.value} value={c.value}>
+                    {c.label}
                   </option>
                 ))}
               </select>
@@ -452,7 +464,7 @@ function EventModal({
                 ))}
               </select>
             </div>
-            {form.category === "MATCH" ? (
+            {isMatch ? (
               <div className="flex flex-col justify-end">
                 <label className="flex cursor-pointer items-center gap-2 text-sm text-pitch-white">
                   <input
@@ -1499,9 +1511,9 @@ export default function EventiPage() {
                 const cancelledEvents = orderedEvents.filter((e) => isCancelled(e));
                 return orderedEvents.flatMap((event, idx) => {
                 const rows = [];
-                const eventCategory = (event.category ?? "").toUpperCase().trim();
+                const eventCategory = normalizeCategory(event.category);
                 const match =
-                  eventCategory === "STUDIO SHOW"
+                  eventCategory === "STUDIO_SHOW"
                     ? event.showName?.trim() || event.competitionName?.trim() || "—"
                     : event.homeTeamNameShort && event.awayTeamNameShort
                       ? `${event.homeTeamNameShort} vs ${event.awayTeamNameShort}`

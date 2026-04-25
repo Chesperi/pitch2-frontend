@@ -96,12 +96,16 @@ export default function MonthCalendar({
             cell.year === today.getFullYear() &&
             cell.month === today.getMonth() &&
             cell.day === today.getDate();
+          const baseClassName = "min-h-[80px] rounded-lg border p-1.5 text-left";
+          const currentMonthClassName =
+            "cursor-pointer border-[#2a2a2a] bg-[#1a1a1a] hover:border-[#333] hover:bg-[#222]";
+          const outMonthClassName = "cursor-default border-[#141414] bg-[#0d0d0d]";
           return (
             <button
               key={`${cell.year}-${cell.month}-${cell.day}`}
               type="button"
               onClick={() => onDayClick?.(cell.year, cell.month, cell.day)}
-              className="min-h-[80px] cursor-pointer rounded-lg border border-[#1a1a1a] p-1.5 text-left hover:border-[#333]"
+              className={`${baseClassName} ${cell.inCurrentMonth ? currentMonthClassName : outMonthClassName}`}
               style={isToday ? { borderColor: "#FFFA00" } : undefined}
             >
               <div
@@ -109,8 +113,8 @@ export default function MonthCalendar({
                   isToday
                     ? "flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[#FFFA00] text-[11px] font-bold text-black"
                     : cell.inCurrentMonth
-                      ? "text-[12px] text-[#888]"
-                      : "text-[12px] text-[#333] opacity-50"
+                      ? "text-[12px] text-[#e5e5e5]"
+                      : "text-[12px] text-[#333]"
                 }
               >
                 {cell.day}

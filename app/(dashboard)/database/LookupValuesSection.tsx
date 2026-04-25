@@ -27,6 +27,28 @@ const PLACEHOLDER_LOOKUP_VALUE = "(empty)";
 const inputClass =
   "w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none";
 
+const PRESET_COLORS = [
+  "#818cf8",
+  "#34d399",
+  "#fb923c",
+  "#e879f9",
+  "#60a5fa",
+  "#fbbf24",
+  "#f87171",
+  "#a78bfa",
+  "#4ade80",
+  "#94a3b8",
+] as const;
+
+const VISION_TYPE_CATEGORY = "vision_project_type";
+const VISION_COLOR_CATEGORY = "vision_project_type_color";
+
+function parseVisionTypeColor(value: string): { typeName: string; color: string } | null {
+  const [typeName, color] = String(value ?? "").split(":");
+  if (!typeName || !color) return null;
+  return { typeName: typeName.trim(), color: color.trim() };
+}
+
 function CategoryCollapsible({
   title,
   open,
@@ -84,6 +106,8 @@ export function LookupValuesSection({
   const [newCategoryModalOpen, setNewCategoryModalOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [savingNewCategory, setSavingNewCategory] = useState(false);
+  const [openColorPickerForType, setOpenColorPickerForType] = useState<string | null>(null);
+  const [savingColorForType, setSavingColorForType] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -119,26 +143,31 @@ export function LookupValuesSection({
     );
   }, [items]);
 
+  const visibleCategoryKeys = useMemo(
+    () => categoryKeys.filter((key) => key !== VISION_COLOR_CATEGORY),
+    [categoryKeys]
+  );
+
   useEffect(() => {
     setOpenByCat((prev) => {
       const next: Record<string, boolean> = {};
-      for (const k of categoryKeys) {
+      for (const k of visibleCategoryKeys) {
         next[k] = prev[k] ?? false;
       }
       return next;
     });
-  }, [categoryKeys]);
+  }, [visibleCategoryKeys]);
 
   const byCategory = useMemo(() => {
     const m = new Map<string, LookupValue[]>();
-    for (const k of categoryKeys) {
+    for (const k of visibleCategoryKeys) {
       m.set(k, []);
     }
     for (const row of items) {
       const list = m.get(row.category);
       if (list) list.push(row);
     }
-    for (const k of categoryKeys) {
+    for (const k of visibleCategoryKeys) {
       const list = m.get(k)!;
       list.sort(
         (a, b) =>
@@ -147,7 +176,22 @@ export function LookupValuesSection({
       );
     }
     return m;
-  }, [items, categoryKeys]);
+  }, [items, visibleCategoryKeys]);
+
+  const visionTypeColorByName = useMemo(() => {
+    const map = new Map<string, { id: number; color: string; sortOrder: number }>();
+    for (const row of items) {
+      if (row.category !== VISION_COLOR_CATEGORY) continue;
+      const parsed = parseVisionTypeColor(row.value);
+      if (!parsed) continue;
+      map.set(parsed.typeName, {
+        id: row.id,
+        color: parsed.color,
+        sortOrder: row.sort_order,
+      });
+    }
+    return map;
+  }, [items]);
 
   const openAdd = (cat: string) => {
     setEditing(null);
@@ -244,6 +288,34 @@ export function LookupValuesSection({
   const toggleCat = (key: string) =>
     setOpenByCat((prev) => ({ ...prev, [key]: !prev[key] }));
 
+  const saveVisionTypeColor = useCallback(
+    async (typeName: string, color: string, fallbackSortOrder: number) => {
+      setSavingColorForType(typeName);
+      try {
+        const existing = visionTypeColorByName.get(typeName);
+        const payloadValue = `${typeName}:${color}`;
+        if (existing) {
+          await updateLookupValue(existing.id, {
+            value: payloadValue,
+          });
+        } else {
+          await createLookupValue({
+            category: VISION_COLOR_CATEGORY,
+            value: payloadValue,
+            sort_order: fallbackSortOrder,
+          });
+        }
+        setOpenColorPickerForType(null);
+        await load();
+      } catch (err) {
+        alert(err instanceof Error ? err.message : "Color save error");
+      } finally {
+        setSavingColorForType(null);
+      }
+    },
+    [load, visionTypeColorByName]
+  );
+
   const inner = (
     <>
       {error ? (
@@ -272,9 +344,10 @@ export function LookupValuesSection({
               </button>
             </div>
           ) : null}
-          {categoryKeys.map((catKey) => {
+          {visibleCategoryKeys.map((catKey) => {
             const rows = byCategory.get(catKey) ?? [];
             const open = openByCat[catKey] ?? false;
+            const showVisionColorColumn = catKey === VISION_TYPE_CATEGORY;
             return (
               <CategoryCollapsible
                 key={catKey}
@@ -299,14 +372,17 @@ export function LookupValuesSection({
                       <tr className="border-b border-[#2a2a2a]">
                         <th className={DB_TH_FIRST}>Value</th>
                         <th className={DB_TH_CELL}>Order</th>
-                        <th className={DB_TH_CELL}>Actions</th>
+                        {showVisionColorColumn ? (
+                          <th className={DB_TH_CELL}>Color</th>
+                        ) : null}
+                        <th className={`${DB_TH_CELL} text-right`}>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {rows.length === 0 ? (
                         <tr className={DB_TBODY_TR_COMPACT}>
                           <td
-                            colSpan={3}
+                            colSpan={showVisionColorColumn ? 4 : 3}
                             className={`${DB_TD_EMPTY_CELL} text-center`}
                           >
                             No values — use &quot;Add value&quot;.
@@ -317,7 +393,66 @@ export function LookupValuesSection({
                           <tr key={row.id} className={DB_TBODY_TR_COMPACT}>
                             <td className={DB_TD_FIRST}>{row.value}</td>
                             <td className={DB_TD_CELL}>{row.sort_order}</td>
-                            <td className={`${DB_TD_CELL} whitespace-nowrap`}>
+                            {showVisionColorColumn ? (
+                              <td className={`${DB_TD_CELL} relative`}>
+                                {(() => {
+                                  const colorInfo = visionTypeColorByName.get(row.value);
+                                  const selectedColor = colorInfo?.color ?? "#888888";
+                                  const pickerOpen = openColorPickerForType === row.value;
+                                  const savingCurrent = savingColorForType === row.value;
+                                  return (
+                                    <div className="relative inline-flex items-center gap-2">
+                                      <button
+                                        type="button"
+                                        disabled={!canEditDatabase || savingCurrent}
+                                        onClick={() =>
+                                          setOpenColorPickerForType((prev) =>
+                                            prev === row.value ? null : row.value
+                                          )
+                                        }
+                                        className="inline-flex items-center gap-2 rounded-md border border-[#2a2a2a] px-2 py-1 text-xs text-[#d4d4d4] hover:border-[#FFFA00]"
+                                      >
+                                        <span
+                                          className="h-3.5 w-3.5 rounded-full"
+                                          style={{ background: selectedColor }}
+                                        />
+                                        <span>{selectedColor}</span>
+                                      </button>
+                                      {pickerOpen ? (
+                                        <div className="absolute left-0 top-[calc(100%+6px)] z-20 rounded-lg border border-[#2a2a2a] bg-[#111] p-2 shadow-lg">
+                                          <div className="grid grid-cols-5 gap-2">
+                                            {PRESET_COLORS.map((preset) => (
+                                              <button
+                                                key={preset}
+                                                type="button"
+                                                title={preset}
+                                                onClick={() =>
+                                                  void saveVisionTypeColor(
+                                                    row.value,
+                                                    preset,
+                                                    row.sort_order
+                                                  )
+                                                }
+                                                className="h-7 w-7 rounded-full"
+                                                style={{
+                                                  background: preset,
+                                                  border:
+                                                    selectedColor.toLowerCase() ===
+                                                    preset.toLowerCase()
+                                                      ? "2px solid #FFFA00"
+                                                      : "1px solid #2a2a2a",
+                                                }}
+                                              />
+                                            ))}
+                                          </div>
+                                        </div>
+                                      ) : null}
+                                    </div>
+                                  );
+                                })()}
+                              </td>
+                            ) : null}
+                            <td className={`${DB_TD_CELL} whitespace-nowrap text-right`}>
                               {canEditDatabase ? (
                                 <>
                                   <button
@@ -348,7 +483,7 @@ export function LookupValuesSection({
               </CategoryCollapsible>
             );
           })}
-          {categoryKeys.length === 0 ? (
+          {visibleCategoryKeys.length === 0 ? (
             <p className="mt-2 text-sm text-pitch-gray">
               No categories yet.{" "}
               {canEditDatabase ? 'Use "New category" to create one.' : ""}

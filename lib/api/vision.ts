@@ -8,6 +8,7 @@ export interface VisionEpisode {
   date: string;
   /** Same instant as `date` when the API sends `ko_italy_time` / `koItalyTime`. */
   koItalyTime: string;
+  projectType?: string;
   status: string;
   assignmentsStatus: string;
   studio: string;
@@ -49,6 +50,12 @@ function normalizeEpisode(raw: Record<string, unknown>): VisionEpisode {
     title: String(raw.title ?? ""),
     date: instant,
     koItalyTime: instant,
+    projectType:
+      raw.projectType != null
+        ? String(raw.projectType)
+        : raw.project_type != null
+          ? String(raw.project_type)
+          : undefined,
     status: String(raw.status ?? ""),
     assignmentsStatus: String(raw.assignmentsStatus ?? raw.assignments_status ?? ""),
     studio: String(raw.studio ?? ""),

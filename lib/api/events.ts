@@ -27,6 +27,7 @@ export interface EventItem {
   rightsHolder?: string | null;
   facilities?: string | null;
   studio: string | null;
+  projectType?: string | null;
   notes?: string | null;
   isTopMatch?: boolean;
   /** Opzionale: da GET /api/accrediti/events-ready */
@@ -107,6 +108,7 @@ export function normalizeEventItem(raw: Record<string, unknown>): EventItem {
     rightsHolder: pickStr(raw, "rights_holder", "rightsHolder"),
     facilities: pickStr(raw, "facilities"),
     studio: pickStr(raw, "studio", "studio"),
+    projectType: pickStr(raw, "project_type", "projectType"),
     notes:
       raw.notes === undefined || raw.notes === null
         ? null
@@ -154,6 +156,8 @@ export function eventPayloadToSnakeCase(
     out.standard_cologno = payload.standardCologno || null;
   if (payload.showName !== undefined)
     out.show_name = payload.showName || null;
+  if (payload.projectType !== undefined)
+    out.project_type = payload.projectType || null;
   if (payload.status !== undefined) out.status = payload.status;
   if (payload.notes !== undefined)
     out.notes = payload.notes === null ? null : payload.notes || null;
@@ -335,6 +339,7 @@ export interface CreateEventPayload {
   standardCologno?: string;
   areaProduzione?: string;
   showName?: string;
+  projectType?: string | null;
   status: string;
   /** null = invia null al backend (es. PATCH per azzerare). */
   notes?: string | null;

@@ -211,6 +211,7 @@ function EventModal({
           standardOnsite: event.standardOnsite ?? "",
           standardCologno: event.standardCologno ?? "",
           showName: event.showName ?? "",
+          projectType: event.projectType ?? "",
           status: event.status,
           rightsHolder: event.rightsHolder ?? "",
           facilities: event.facilities ?? "",
@@ -233,6 +234,7 @@ function EventModal({
           standardOnsite: "",
           standardCologno: "",
           showName: "",
+          projectType: "",
           status: "TBC",
           rightsHolder: "",
           facilities: "",
@@ -249,6 +251,8 @@ function EventModal({
   const [lookupFacilities, setLookupFacilities] = useState<LookupValue[]>([]);
   const [lookupStudio, setLookupStudio] = useState<LookupValue[]>([]);
   const [lookupShow, setLookupShow] = useState<LookupValue[]>([]);
+  const [lookupProjectType, setLookupProjectType] = useState<LookupValue[]>([]);
+  const [lookupProjectTypeColor, setLookupProjectTypeColor] = useState<LookupValue[]>([]);
   const [lookupRightsHolder, setLookupRightsHolder] = useState<LookupValue[]>(
     []
   );
@@ -260,13 +264,15 @@ function EventModal({
     let cancelled = false;
     void (async () => {
       try {
-        const [a, b, c, d, e, f] = await Promise.all([
+        const [a, b, c, d, e, f, g, h] = await Promise.all([
           fetchLookupValues("standard_onsite"),
           fetchLookupValues("standard_cologno"),
           fetchLookupValues("facilities"),
           fetchLookupValues("studio"),
           fetchLookupValues("show"),
           fetchLookupValues("rights_holder"),
+          fetchLookupValues("vision_project_type"),
+          fetchLookupValues("vision_project_type_color"),
         ]);
         if (!cancelled) {
           setLookupOnsite(a);
@@ -275,6 +281,8 @@ function EventModal({
           setLookupStudio(d);
           setLookupShow(e);
           setLookupRightsHolder(f);
+          setLookupProjectType(g);
+          setLookupProjectTypeColor(h);
         }
       } catch {
         if (!cancelled) {
@@ -284,6 +292,8 @@ function EventModal({
           setLookupStudio([]);
           setLookupShow([]);
           setLookupRightsHolder([]);
+          setLookupProjectType([]);
+          setLookupProjectTypeColor([]);
         }
       }
     })();
@@ -305,6 +315,7 @@ function EventModal({
         standardOnsite: form.standardOnsite || undefined,
         standardCologno: form.standardCologno || undefined,
         showName: form.showName || undefined,
+        projectType: form.projectType?.trim() || null,
         rightsHolder: form.rightsHolder?.trim() || null,
         facilities: form.facilities?.trim() || null,
         studio: form.studio?.trim() || null,
@@ -364,6 +375,14 @@ function EventModal({
 
   const inputClass =
     "w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none";
+  const projectTypeColorMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const row of lookupProjectTypeColor) {
+      const [name, color] = row.value.split(":");
+      if (name && color) map.set(name.trim(), color.trim());
+    }
+    return map;
+  }, [lookupProjectTypeColor]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
@@ -629,6 +648,42 @@ function EventModal({
               options={lookupShow}
               inputClassName={inputClass}
             />
+            {isMediaContent ? (
+              <div>
+                <label className="mb-1 block text-xs text-pitch-gray">Project type</label>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={form.projectType ?? ""}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        projectType: e.target.value,
+                      }))
+                    }
+                    className={inputClass}
+                  >
+                    <option value="">— select type —</option>
+                    {lookupProjectType.map((opt) => (
+                      <option key={opt.id} value={opt.value}>
+                        {opt.value}
+                      </option>
+                    ))}
+                  </select>
+                  {form.projectType ? (
+                    <span className="inline-flex items-center gap-1.5 text-xs text-pitch-gray-light">
+                      <span
+                        className="h-3.5 w-3.5 rounded-full border border-[#2a2a2a]"
+                        style={{
+                          background:
+                            projectTypeColorMap.get(form.projectType) ?? "#888888",
+                        }}
+                      />
+                      {projectTypeColorMap.get(form.projectType) ?? "#888888"}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <EventFormLookupSelect

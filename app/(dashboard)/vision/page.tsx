@@ -58,6 +58,11 @@ function isSameDay(epDateStr: string, year: number, month: number, day: number):
   return d.getFullYear() === year && d.getMonth() === month && d.getDate() === day;
 }
 
+function isToday(year: number, month: number, day: number): boolean {
+  const t = new Date();
+  return t.getFullYear() === year && t.getMonth() === month && t.getDate() === day;
+}
+
 function buildMonthGrid(monthStart: Date): CalendarCell[] {
   const first = new Date(monthStart.getFullYear(), monthStart.getMonth(), 1);
   const firstWeekday = (first.getDay() + 6) % 7;
@@ -111,8 +116,12 @@ export default function VisionPage() {
   });
 
   const leftScrollRef = useRef<HTMLDivElement | null>(null);
-  const didSetInitialOffsetRef = useRef(false);
   const today = useMemo(() => new Date(), []);
+
+  useEffect(() => {
+    const days = 84;
+    setOffset(Math.floor(days / 2) - 30);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -256,26 +265,6 @@ export default function VisionPage() {
     }
     return rows;
   }, [filteredProjects]);
-
-  useEffect(() => {
-    if (didSetInitialOffsetRef.current) return;
-    if (projects.length === 0) return;
-    const latestEpisodeTs = projects
-      .flatMap((project) => project.episodes)
-      .map((ep) => new Date(ep.date).getTime())
-      .filter((ts) => Number.isFinite(ts))
-      .sort((a, b) => b - a)[0];
-    if (!latestEpisodeTs) return;
-    const baseStart = new Date(today);
-    baseStart.setDate(baseStart.getDate() - 30);
-    const latestDate = new Date(latestEpisodeTs);
-    const latestDaysFromBase = Math.round(
-      (latestDate.getTime() - baseStart.getTime()) / (1000 * 60 * 60 * 24)
-    );
-    const centeredOffset = latestDaysFromBase - Math.floor(daysToShow / 2);
-    setOffset(centeredOffset);
-    didSetInitialOffsetRef.current = true;
-  }, [projects, today, daysToShow]);
 
   console.log("[Vision] filteredProjects:", filteredProjects.length, "typeFilter:", activeFilters);
 
@@ -568,6 +557,7 @@ export default function VisionPage() {
               const calYear = cell.date.getFullYear();
               const calMonth = cell.date.getMonth();
               const calDay = cell.date.getDate();
+              const todayCell = isToday(calYear, calMonth, calDay);
               const dayEpisodes = allEpisodes.filter(({ ep }) =>
                 isSameDay(ep.date, calYear, calMonth, calDay)
               );
@@ -577,8 +567,28 @@ export default function VisionPage() {
                   className={`min-h-[110px] rounded border p-1 ${
                     cell.inMonth ? "border-[#2a2a2a]" : "border-[#1a1a1a] opacity-50"
                   }`}
+                  style={todayCell ? { borderColor: "#FFFA00" } : undefined}
                 >
-                  <div className="text-xs text-[#aaa]">{cell.date.getDate()}</div>
+                  <div
+                    className="text-xs text-[#aaa]"
+                    style={
+                      todayCell
+                        ? {
+                            width: 22,
+                            height: 22,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            borderRadius: "9999px",
+                            background: "#FFFA00",
+                            color: "#000",
+                            fontWeight: 700,
+                          }
+                        : undefined
+                    }
+                  >
+                    {cell.date.getDate()}
+                  </div>
                   <div className="mt-1 space-y-1">
                     {dayEpisodes.slice(0, 2).map(({ project, ep }) => (
                       <NextLink
@@ -659,12 +669,18 @@ export default function VisionPage() {
                 <span>Status</span>
                 <span>{tooltip.episode.status || "—"}</span>
               </div>
-              <div className="mt-1 flex justify-between text-[10px] text-[#888]">
-                <span>Studio</span>
-                <span className="text-[#ccc]">
-                  {tooltip.episode.studio || "—"} · {tooltip.episode.facilities || "—"}
-                </span>
-              </div>
+              {tooltip.episode.studio ? (
+                <div className="mt-1 flex justify-between text-[10px] text-[#888]">
+                  <span>Studio</span>
+                  <span className="text-[#ccc]">{tooltip.episode.studio}</span>
+                </div>
+              ) : null}
+              {tooltip.episode.facilities ? (
+                <div className="mt-1 flex justify-between text-[10px] text-[#888]">
+                  <span>Facilities</span>
+                  <span className="text-[#ccc]">{tooltip.episode.facilities}</span>
+                </div>
+              ) : null}
             </div>,
             document.body
           )

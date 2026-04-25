@@ -63,6 +63,14 @@ function isToday(year: number, month: number, day: number): boolean {
   return t.getFullYear() === year && t.getMonth() === month && t.getDate() === day;
 }
 
+function getDaysToShow(z: "week" | "month" | "quarter"): number {
+  return z === "week" ? 42 : z === "month" ? 84 : 168;
+}
+
+function getCenterOffset(z: "week" | "month" | "quarter"): number {
+  return 30 - Math.floor(getDaysToShow(z) / 2);
+}
+
 function buildMonthGrid(monthStart: Date): CalendarCell[] {
   const first = new Date(monthStart.getFullYear(), monthStart.getMonth(), 1);
   const firstWeekday = (first.getDay() + 6) % 7;
@@ -119,8 +127,8 @@ export default function VisionPage() {
   const today = useMemo(() => new Date(), []);
 
   useEffect(() => {
-    const days = 84;
-    setOffset(Math.floor(days / 2) - 30);
+    setOffset(getCenterOffset(zoom));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -215,7 +223,7 @@ export default function VisionPage() {
   }, [projects, activeFilters, dateFrom, dateTo]);
 
   const DAY_W = zoom === "week" ? 36 : zoom === "month" ? 28 : 14;
-  const daysToShow = zoom === "week" ? 42 : zoom === "month" ? 84 : 168;
+  const daysToShow = getDaysToShow(zoom);
   const windowStart = useMemo(() => {
     return new Date(
       today.getFullYear(),
@@ -248,6 +256,11 @@ export default function VisionPage() {
       0
     );
     return Math.round((d.getTime() - wsNoon.getTime()) / (1000 * 60 * 60 * 24)) * DAY_W;
+  };
+
+  const handleZoomChange = (newZoom: "week" | "month" | "quarter") => {
+    setZoom(newZoom);
+    setOffset(getCenterOffset(newZoom));
   };
 
   const onTimelineScroll = (event: React.UIEvent<HTMLDivElement>) => {
@@ -307,7 +320,7 @@ export default function VisionPage() {
               ›
             </button>
             <button
-              onClick={() => setOffset(0)}
+              onClick={() => setOffset(getCenterOffset(zoom))}
               className="rounded-md border border-[#FFFA00]/30 px-2 py-0.5 text-[10px] text-[#FFFA00] hover:bg-[#FFFA00]/10"
             >
               Today
@@ -319,7 +332,7 @@ export default function VisionPage() {
             {(["week", "month", "quarter"] as const).map((z) => (
               <button
                 key={z}
-                onClick={() => setZoom(z)}
+                onClick={() => handleZoomChange(z)}
                 className={`rounded px-2.5 py-1 text-[10px] ${
                   zoom === z ? "bg-[#1a1a1a] text-[#ccc]" : "text-[#555]"
                 }`}

@@ -7,6 +7,7 @@ import { apiFetch } from "@/lib/api/apiFetch";
 import AppNavbar from "@/components/AppNavbar";
 import StatusBadge from "@/components/ui/StatusBadge";
 import PrimaryButton from "@/components/ui/PrimaryButton";
+import MonthCalendar from "@/components/ui/MonthCalendar";
 
 type UserProfile = {
   id: number | null;
@@ -35,12 +36,6 @@ type ColleagueItem = {
   staffName: string;
   roleCode: string;
   roleLocation: string;
-};
-
-type CalendarCell = {
-  isoDate: string;
-  day: number;
-  inCurrentMonth: boolean;
 };
 
 function toIsoDate(date: Date): string {
@@ -168,7 +163,7 @@ function eventTitle(item: AssignmentItem): string {
   return (
     item.showName?.trim() ||
     item.competitionName?.trim() ||
-    "Evento senza titolo"
+    "Untitled event"
   );
 }
 
@@ -221,32 +216,12 @@ function formatDateTimeLabel(
 }
 
 function statusBucketLabel(item: AssignmentItem): string {
-  if (isPastEventDateTime(item.date, item.koTime, new Date())) return "PASSATA";
+  if (isPastEventDateTime(item.date, item.koTime, new Date())) return "PAST";
   const s = item.status.toUpperCase();
-  if (s === "PENDING" || s === "SENT") return "DA CONFERMARE";
-  if (s === "REJECTED" || s === "DECLINATA") return "DECLINATA";
-  if (s === "CONFIRMED") return "CONFERMATA";
+  if (s === "PENDING" || s === "SENT") return "TO CONFIRM";
+  if (s === "REJECTED" || s === "DECLINATA") return "DECLINED";
+  if (s === "CONFIRMED") return "CONFIRMED";
   return s || "—";
-}
-
-function buildMonthGrid(currentMonth: Date): CalendarCell[] {
-  const year = currentMonth.getFullYear();
-  const month = currentMonth.getMonth();
-  const first = new Date(year, month, 1);
-  const firstDayMondayIndex = (first.getDay() + 6) % 7;
-  const start = new Date(year, month, 1 - firstDayMondayIndex);
-
-  const cells: CalendarCell[] = [];
-  for (let i = 0; i < 42; i++) {
-    const d = new Date(start);
-    d.setDate(start.getDate() + i);
-    cells.push({
-      isoDate: toIsoDate(d),
-      day: d.getDate(),
-      inCurrentMonth: d.getMonth() === month,
-    });
-  }
-  return cells;
 }
 
 function getInitials(name: string, surname: string): string {
@@ -296,7 +271,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
       }
 
       if (!meRes.ok || !assignmentsRes.ok) {
-        throw new Error("Impossibile caricare le assegnazioni.");
+        throw new Error("Failed to load assignments.");
       }
 
       const meData = (await meRes.json()) as Record<string, unknown>;
@@ -332,7 +307,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
         setPlates([]);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Errore imprevisto.");
+      setError(err instanceof Error ? err.message : "Unexpected error.");
     } finally {
       setLoading(false);
     }
@@ -390,7 +365,6 @@ export default function FreelanceLeMieAssegnazioniPage() {
     return { pendingFuture, confirmedFuture, declinedFuture, past };
   }, [items]);
 
-  const monthCells = useMemo(() => buildMonthGrid(monthDate), [monthDate]);
   const eventsByDate = useMemo(() => {
     const map = new Map<string, AssignmentItem[]>();
     for (const item of items) {
@@ -405,10 +379,6 @@ export default function FreelanceLeMieAssegnazioniPage() {
     return map;
   }, [items]);
 
-  useEffect(() => {
-    console.log("monthCells sample:", monthCells[0]);
-  }, [monthCells]);
-
   const selectedDayEvents = useMemo(() => {
     if (!selectedCalendarDay) return [];
     return eventsByDate.get(selectedCalendarDay) ?? [];
@@ -420,12 +390,12 @@ export default function FreelanceLeMieAssegnazioniPage() {
       const res = await apiFetch(`/api/my-assignments/${id}/confirm`, {
         method: "POST",
       });
-      if (!res.ok) throw new Error("Conferma non riuscita");
+      if (!res.ok) throw new Error("Confirm failed");
       setItems((prev) =>
         prev.map((it) => (it.id === id ? { ...it, status: "CONFIRMED" } : it))
       );
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Errore conferma");
+      alert(err instanceof Error ? err.message : "Confirm error");
     } finally {
       setConfirmingId(null);
     }
@@ -439,12 +409,12 @@ export default function FreelanceLeMieAssegnazioniPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "REJECTED" }),
       });
-      if (!res.ok) throw new Error("Rifiuto non riuscito");
+      if (!res.ok) throw new Error("Decline failed");
       setItems((prev) =>
         prev.map((it) => (it.id === id ? { ...it, status: "REJECTED" } : it))
       );
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Errore rifiuto");
+      alert(err instanceof Error ? err.message : "Decline error");
     } finally {
       setConfirmingId(null);
     }
@@ -457,10 +427,10 @@ export default function FreelanceLeMieAssegnazioniPage() {
       const res = await apiFetch("/api/my-assignments/confirm-all", {
         method: "POST",
       });
-      if (!res.ok) throw new Error("Conferma multipla non riuscita");
+      if (!res.ok) throw new Error("Bulk confirm failed");
       await loadAll();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Errore conferma multipla");
+      alert(err instanceof Error ? err.message : "Bulk confirm error");
     } finally {
       setConfirmingAll(false);
     }
@@ -485,7 +455,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error("Salvataggio pass auto non riuscito");
+      if (!res.ok) throw new Error("Plate save failed");
       setItems((prev) =>
         prev.map((it) =>
           it.id === assignmentId
@@ -494,7 +464,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
         )
       );
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Errore salvataggio pass auto");
+      alert(err instanceof Error ? err.message : "Plate save error");
     } finally {
       setSavingPlateId(null);
     }
@@ -510,7 +480,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
         `/api/assignments?eventId=${encodeURIComponent(item.eventId)}`,
         { cache: "no-store" }
       );
-      if (!res.ok) throw new Error("Impossibile caricare i colleghi");
+      if (!res.ok) throw new Error("Could not load colleagues");
       const data = (await res.json()) as {
         items?: Record<string, unknown>[];
       };
@@ -519,7 +489,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
         staffName:
           `${String(r.staffName ?? "").trim()} ${String(
             r.staffSurname ?? ""
-          ).trim()}`.trim() || "Slot non assegnato",
+          ).trim()}`.trim() || "Unassigned slot",
         roleCode: String(r.roleCode ?? "—"),
         roleLocation: String(r.roleLocation ?? "—").toUpperCase(),
       }));
@@ -533,29 +503,29 @@ export default function FreelanceLeMieAssegnazioniPage() {
 
   function renderStatusBadge(item: AssignmentItem): React.ReactNode {
     const label = statusBucketLabel(item);
-    if (label === "DA CONFERMARE") {
+    if (label === "TO CONFIRM") {
       return (
         <StatusBadge
           variant="rejected"
-          label="DA CONFERMARE"
+          label="TO CONFIRM"
           className="border font-bold uppercase tracking-wide"
         />
       );
     }
-    if (label === "PASSATA") {
+    if (label === "PAST") {
       return (
         <StatusBadge
           variant="partial"
-          label="PASSATA"
+          label="PAST"
           className="font-bold uppercase tracking-wide"
         />
       );
     }
-    if (label === "DECLINATA") {
+    if (label === "DECLINED") {
       return (
         <StatusBadge
           variant="declined"
-          label="DECLINATA"
+          label="DECLINED"
           className="border font-bold uppercase tracking-wide"
         />
       );
@@ -563,7 +533,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
     return (
       <StatusBadge
         variant="accepted"
-        label="CONFERMATA"
+        label="CONFIRMED"
         className="border font-bold uppercase tracking-wide"
       />
     );
@@ -604,11 +574,11 @@ export default function FreelanceLeMieAssegnazioniPage() {
         <div className="mt-4 grid grid-cols-2 gap-3">
           {[
             {
-              label: "DATA KO",
+              label: "KO DATE",
               value: formatDateKoWithYear(item.date, item.koTime),
             },
-            { label: "RUOLO", value: item.roleName || "—" },
-            { label: "SEDE", value: item.location || "—" },
+            { label: "ROLE", value: item.roleName || "—" },
+            { label: "VENUE", value: item.location || "—" },
             {
               label: "STATUS",
               value: statusBucketLabel(item),
@@ -644,7 +614,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
                 className="inline-flex min-h-[44px] min-w-[44px] items-center gap-2 rounded px-4 font-bold"
                 style={{ color: "#FFFA00" }}
               >
-                ACCETTA
+                ACCEPT
                 <span
                   className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-xs"
                   style={{ background: "#FFFA00", color: "#111" }}
@@ -662,14 +632,14 @@ export default function FreelanceLeMieAssegnazioniPage() {
                 className="min-h-[44px] shrink-0 rounded px-4 text-xs font-bold"
                 style={{ color: "#E24B4A" }}
               >
-                DECLINA
+                DECLINE
               </button>
             </div>
           ) : null}
 
           {isStadio ? (
             <label className="ml-auto flex items-center gap-2 text-xs text-[#888]">
-              PASS AUTO
+              PLATE
               <select
                 value={item.plateSelected ?? ""}
                 disabled={savingPlateId === item.id}
@@ -684,7 +654,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
                   color: "#fff",
                 }}
               >
-                <option value="">Nessun pass auto</option>
+                <option value="">No plate</option>
                 {plates.map((p) => (
                   <option key={p} value={p}>
                     {p}
@@ -722,8 +692,8 @@ export default function FreelanceLeMieAssegnazioniPage() {
       style={{ background: "linear-gradient(180deg, #111 0%, #0a0a0a 100%)" }}
     >
       <AppNavbar
-        userName={profile ? `${profile.name} ${profile.surname}`.trim() : "Utente"}
-        userEmail={profile?.email ?? "Email non disponibile"}
+        userName={profile ? `${profile.name} ${profile.surname}`.trim() : "User"}
+        userEmail={profile?.email ?? "Email not available"}
         userInitials={profile ? getInitials(profile.name, profile.surname) : "?"}
         pendingCount={pendingCount}
         onBellClick={handleBellClick}
@@ -735,7 +705,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
               className="text-xs font-bold tracking-wide"
               style={{ color: tab === "LISTA" ? "#FFFA00" : "#888" }}
             >
-              LE MIE ASSEGNAZIONI
+              MY ASSIGNMENTS
             </button>
             <button
               type="button"
@@ -743,7 +713,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
               className="text-xs font-bold tracking-wide"
               style={{ color: tab === "CALENDARIO" ? "#FFFA00" : "#888" }}
             >
-              CALENDARIO
+              CALENDAR
             </button>
           </>
         }
@@ -751,12 +721,12 @@ export default function FreelanceLeMieAssegnazioniPage() {
 
       <main className="mx-auto max-w-7xl px-4 py-6">
         {loading ? (
-          <p style={{ color: "#888" }}>Caricamento assegnazioni…</p>
+          <p style={{ color: "#888" }}>Loading assignments…</p>
         ) : error ? (
           <div>
             <p style={{ color: "#E24B4A" }}>{error}</p>
             <Link href="/login" className="mt-3 inline-block underline" style={{ color: "#FFFA00" }}>
-              Torna al login
+              Back to login
             </Link>
           </div>
         ) : (
@@ -765,10 +735,10 @@ export default function FreelanceLeMieAssegnazioniPage() {
               className="text-[28px] uppercase"
               style={{ color: "#fff", fontWeight: 900 }}
             >
-              LE MIE ASSEGNAZIONI
+              MY ASSIGNMENTS
             </h1>
             <p className="mt-1 text-sm" style={{ color: "#888" }}>
-              Designazioni operative per{" "}
+              Operational assignments for{" "}
               <span style={{ color: "#FFFA00" }}>
                 {profile ? `${profile.name} ${profile.surname}`.trim() : "—"}
               </span>
@@ -787,7 +757,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
                   }}
                 >
                   <div className="mb-3 flex items-center justify-between">
-                    <h2 className="text-sm font-bold uppercase text-white">AZIONE RICHIESTA</h2>
+                    <h2 className="text-sm font-bold uppercase text-white">ACTION REQUIRED</h2>
                     <div className="flex items-center gap-2">
                       {sections.pendingFuture.length > 1 ? (
                         <PrimaryButton
@@ -798,7 +768,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
                           disabled={confirmingAll}
                           className="text-xs font-bold uppercase"
                         >
-                          Conferma tutte
+                          Confirm all
                         </PrimaryButton>
                       ) : null}
                       <span className="rounded-full px-2 py-1 text-xs font-bold" style={{ background: "#FFFA00", color: "#111" }}>
@@ -808,7 +778,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
                   </div>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {sections.pendingFuture.length === 0 ? (
-                      <p className="text-sm" style={{ color: "#888" }}>Nessuna assegnazione da confermare.</p>
+                      <p className="text-sm" style={{ color: "#888" }}>No assignments to confirm.</p>
                     ) : (
                       sections.pendingFuture.map((item) => renderCard(item))
                     )}
@@ -820,14 +790,14 @@ export default function FreelanceLeMieAssegnazioniPage() {
                   style={{ background: "#111", borderColor: "#2a2a2a", borderLeft: "4px solid #639922" }}
                 >
                   <div className="mb-3 flex items-center justify-between">
-                    <h2 className="text-sm font-bold uppercase text-white">CONFERMATE</h2>
+                    <h2 className="text-sm font-bold uppercase text-white">CONFIRMED</h2>
                     <span className="rounded-full bg-[#2a2a2a] px-2 py-1 text-xs font-bold text-[#ccc]">
                       {sections.confirmedFuture.length}
                     </span>
                   </div>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {sections.confirmedFuture.length === 0 ? (
-                      <p className="text-sm" style={{ color: "#888" }}>Nessuna confermata futura.</p>
+                      <p className="text-sm" style={{ color: "#888" }}>No upcoming confirmed assignments.</p>
                     ) : (
                       sections.confirmedFuture.map((item) => renderCard(item))
                     )}
@@ -839,14 +809,14 @@ export default function FreelanceLeMieAssegnazioniPage() {
                   style={{ background: "#111", borderColor: "#2a2a2a", borderLeft: "4px solid #E24B4A" }}
                 >
                   <div className="mb-3 flex items-center justify-between">
-                    <h2 className="text-sm font-bold uppercase text-white">DECLINATE</h2>
+                    <h2 className="text-sm font-bold uppercase text-white">DECLINED</h2>
                     <span className="rounded-full bg-[#2a2a2a] px-2 py-1 text-xs font-bold text-[#ccc]">
                       {sections.declinedFuture.length}
                     </span>
                   </div>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {sections.declinedFuture.length === 0 ? (
-                      <p className="text-sm" style={{ color: "#888" }}>Nessuna declinata futura.</p>
+                      <p className="text-sm" style={{ color: "#888" }}>No upcoming declined assignments.</p>
                     ) : (
                       sections.declinedFuture.map((item) => renderCard(item))
                     )}
@@ -859,15 +829,15 @@ export default function FreelanceLeMieAssegnazioniPage() {
                     onClick={() => setShowPast((s) => !s)}
                     className="flex w-full items-center justify-between text-left"
                   >
-                    <h2 className="text-sm font-bold uppercase text-white">PASSATE</h2>
+                    <h2 className="text-sm font-bold uppercase text-white">PAST</h2>
                     <span className="text-sm" style={{ color: "#888" }}>
-                      {showPast ? "Nascondi" : `Mostra (${sections.past.length})`}
+                      {showPast ? "Hide" : `Show (${sections.past.length})`}
                     </span>
                   </button>
                   {showPast ? (
                     <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                       {sections.past.length === 0 ? (
-                        <p className="text-sm" style={{ color: "#888" }}>Nessun evento passato.</p>
+                        <p className="text-sm" style={{ color: "#888" }}>No past events.</p>
                       ) : (
                         sections.past.map((item) => renderCard(item))
                       )}
@@ -877,93 +847,50 @@ export default function FreelanceLeMieAssegnazioniPage() {
               </div>
             ) : (
               <div className="mt-6 rounded-xl border p-4" style={{ background: "#111", borderColor: "#2a2a2a" }}>
-                <div className="mb-4 flex items-center justify-between">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setMonthDate(
-                        (prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1)
-                      )
-                    }
-                    style={{ color: "#FFFA00" }}
-                  >
-                    ←
-                  </button>
-                  <div className="font-bold text-white">
-                    {monthDate.toLocaleDateString("it-IT", {
-                      month: "long",
-                      year: "numeric",
-                    })}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setMonthDate(
-                        (prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1)
-                      )
-                    }
-                    style={{ color: "#FFFA00" }}
-                  >
-                    →
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-7 gap-1 text-center text-xs uppercase sm:text-sm" style={{ color: "#888" }}>
-                  {["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"].map((d) => (
-                    <div key={d} className="py-1">{d}</div>
-                  ))}
-                </div>
-                <div className="mt-2 grid grid-cols-7 gap-1">
-                  {monthCells.map((cell) => {
-                    const dayEvents = eventsByDate.get(cell.isoDate) ?? [];
+                <MonthCalendar
+                  year={monthDate.getFullYear()}
+                  month={monthDate.getMonth()}
+                  onPrevMonth={() =>
+                    setMonthDate((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))
+                  }
+                  onNextMonth={() =>
+                    setMonthDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))
+                  }
+                  onDayClick={(y, m, d) =>
+                    setSelectedCalendarDay(
+                      `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`
+                    )
+                  }
+                  renderDayContent={(y, m, d) => {
+                    const iso = `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+                    const dayEvents = eventsByDate.get(iso) ?? [];
                     const hasAny = dayEvents.length > 0;
                     const hasPending = dayEvents.some((e) => isPendingStatus(e.status));
                     const hasConfirmed = dayEvents.some((e) => isConfirmedStatus(e.status));
-                    const hasRejected = dayEvents.some(
-                      (e) => e.status.toUpperCase() === "REJECTED"
-                    );
+                    const hasRejected = dayEvents.some((e) => e.status.toUpperCase() === "REJECTED");
                     let dotColor: string | null = null;
                     if (hasPending) dotColor = "#FFFA00";
                     else if (hasConfirmed) dotColor = "#639922";
                     else if (hasRejected) dotColor = "#555";
                     else if (hasAny) dotColor = "#888";
                     return (
-                      <button
-                        key={cell.isoDate}
-                        type="button"
-                        onClick={() => setSelectedCalendarDay(cell.isoDate)}
-                        className="min-h-16 rounded border p-1 text-left"
-                        style={{
-                          borderColor: "#2a2a2a",
-                          background: hasAny
-                            ? cell.inCurrentMonth
-                              ? "#222"
-                              : "#171717"
-                            : cell.inCurrentMonth
-                              ? "#1a1a1a"
-                              : "#0f0f0f",
-                          color: cell.inCurrentMonth ? "#fff" : "#666",
-                        }}
-                      >
-                        <div className="text-xs sm:text-sm">{cell.day}</div>
-                        <div className="mt-1 flex gap-1">
-                          {dotColor ? (
-                            <span className="h-2 w-2 rounded-full" style={{ background: dotColor }} />
-                          ) : null}
-                        </div>
-                      </button>
+                      <div className="mt-1 flex gap-1">
+                        {dotColor ? (
+                          <span className="h-2 w-2 rounded-full" style={{ background: dotColor }} />
+                        ) : null}
+                      </div>
                     );
-                  })}
-                </div>
+                  }}
+                />
 
                 {selectedCalendarDay ? (
                   <div className="mt-5 rounded-lg border p-3" style={{ borderColor: "#2a2a2a", background: "#1a1a1a" }}>
                     <div className="text-sm font-bold text-white">
-                      Eventi del {formatDateTimeLabel(selectedCalendarDay, null).split(",")[0]}
+                      Events on {formatDateTimeLabel(selectedCalendarDay, null).split(",")[0]}
                     </div>
                     <div className="mt-2 space-y-2">
                       {selectedDayEvents.length === 0 ? (
-                        <p className="text-sm" style={{ color: "#888" }}>Nessun evento.</p>
+                        <p className="text-sm" style={{ color: "#888" }}>No events.</p>
                       ) : (
                         selectedDayEvents.map((item) => (
                           (() => {
@@ -1026,9 +953,9 @@ export default function FreelanceLeMieAssegnazioniPage() {
             </div>
             <div className="mt-4 space-y-4">
               {modalLoading ? (
-                <p style={{ color: "#888" }}>Caricamento colleghi…</p>
+                <p style={{ color: "#888" }}>Loading colleagues…</p>
               ) : modalCols.length === 0 ? (
-                <p style={{ color: "#888" }}>Nessun altro collega assegnato</p>
+                <p style={{ color: "#888" }}>No other colleagues assigned</p>
               ) : (
                 (["STADIO", "COLOGNO", "REMOTE"] as const).map((group) => (
                   <div key={group}>
@@ -1037,7 +964,7 @@ export default function FreelanceLeMieAssegnazioniPage() {
                     </div>
                     <div className="space-y-2">
                       {groupedColleagues[group].length === 0 ? (
-                        <p className="text-xs" style={{ color: "#666" }}>Nessuno</p>
+                        <p className="text-xs" style={{ color: "#666" }}>None</p>
                       ) : (
                         groupedColleagues[group].map((c) => (
                           <div

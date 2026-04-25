@@ -26,6 +26,7 @@ import StatusBadge from "@/components/ui/StatusBadge";
 import ResponsiveTable from "@/components/ui/ResponsiveTable";
 import PageLoading from "@/components/ui/PageLoading";
 import EmptyState from "@/components/ui/EmptyState";
+import MonthCalendar from "@/components/ui/MonthCalendar";
 import ComposableFilters, {
   type ActiveFilter,
   type FilterOption,
@@ -66,6 +67,33 @@ function formatKoItaly(koItaly: string | null): string {
   } catch {
     return koItaly;
   }
+}
+
+function eventDayIso(event: EventItem): string {
+  const rawDate = (event as EventItem & { date?: string }).date;
+  if (typeof rawDate === "string" && rawDate.trim()) return rawDate.slice(0, 10);
+  const rawKo = event.koItaly?.trim() ?? "";
+  if (rawKo.length >= 10) return rawKo.slice(0, 10);
+  return "";
+}
+
+function eventTitle(event: EventItem): string {
+  const category = (event.category ?? "").toUpperCase().trim();
+  if (category === "STUDIO SHOW") {
+    return event.showName?.trim() || event.competitionName?.trim() || "—";
+  }
+  if (event.homeTeamNameShort && event.awayTeamNameShort) {
+    return `${event.homeTeamNameShort} vs ${event.awayTeamNameShort}`;
+  }
+  return event.homeTeamNameShort ?? event.awayTeamNameShort ?? event.showName ?? "—";
+}
+
+function statusPillStyle(status: string | null): { bg: string; text: string } {
+  const s = (status ?? "").toUpperCase().trim();
+  if (s === "OK" || s === "CONFIRMED") return { bg: "#1a2e1a", text: "#4ade80" };
+  if (s === "TBC" || s === "TBD") return { bg: "#2e2a10", text: "#FFFA00" };
+  if (s === "CANCELLED" || s === "CANCELED") return { bg: "#2e1a1a", text: "#f87171" };
+  return { bg: "#1f1f1f", text: "#aaa" };
 }
 
 function toDatetimeLocalValueFromEvent(event: EventItem): string {
@@ -1089,6 +1117,11 @@ export default function EventiPage() {
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [autoMatchingCombos, setAutoMatchingCombos] = useState(false);
+  const [eventsView, setEventsView] = useState<"list" | "calendar">("list");
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  });
 
   const canImportMatches =
     userLevel != null &&
@@ -1177,6 +1210,18 @@ export default function EventiPage() {
     const cancelledEvents = filteredEvents.filter((e) => isCancelled(e));
     return [...activeEvents, ...cancelledEvents];
   }, [filteredEvents]);
+
+  const eventsByDay = useMemo(() => {
+    const map = new Map<string, EventItem[]>();
+    for (const event of orderedEvents) {
+      const iso = eventDayIso(event);
+      if (!iso) continue;
+      const rows = map.get(iso) ?? [];
+      rows.push(event);
+      map.set(iso, rows);
+    }
+    return map;
+  }, [orderedEvents]);
 
   const allVisibleSelected =
     orderedEvents.length > 0 &&
@@ -1289,6 +1334,11 @@ export default function EventiPage() {
   };
 
   const showModal = isCreateModalOpen || editingEvent !== null;
+  const openEventEditor = async (event: EventItem) => {
+    setIsCreateModalOpen(false);
+    const full = await fetchEventById(event.id).catch(() => null);
+    setEditingEvent(full ?? event);
+  };
 
   return (
     <>
@@ -1351,6 +1401,28 @@ export default function EventiPage() {
         onSearchChange={setSearchValue}
         searchPlaceholder="Search events..."
       />
+      <div className="mb-4 mt-4 flex gap-1">
+        <button
+          onClick={() => setEventsView("list")}
+          className={`rounded-lg border px-4 py-1.5 text-[12px] ${
+            eventsView === "list"
+              ? "border-[#FFFA00] bg-[#FFFA00] font-medium text-black"
+              : "border-[#2a2a2a] text-[#666]"
+          }`}
+        >
+          List
+        </button>
+        <button
+          onClick={() => setEventsView("calendar")}
+          className={`rounded-lg border px-4 py-1.5 text-[12px] ${
+            eventsView === "calendar"
+              ? "border-[#FFFA00] bg-[#FFFA00] font-medium text-black"
+              : "border-[#2a2a2a] text-[#666]"
+          }`}
+        >
+          Calendar
+        </button>
+      </div>
       {selectedEventIds.size > 0 ? (
         <div className="mb-3 mt-4 flex items-center gap-3 rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] px-3 py-2 text-[12px] text-[#888]">
           <span className="text-[#888]">{selectedEventIds.size} events selected</span>
@@ -1417,9 +1489,9 @@ export default function EventiPage() {
           <div className="rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30">
             <EmptyState message="No events found" icon="calendar" />
           </div>
-        ) : (
+        ) : eventsView === "list" ? (
           <>
-          <div className="overflow-x-auto">
+            <div className="overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
               <tr className="border-b border-[#2a2a2a]">
@@ -1508,13 +1580,7 @@ export default function EventiPage() {
                 rows.push(
                   <tr
                     key={event.id}
-                    onClick={() =>
-                      void (async () => {
-                        setIsCreateModalOpen(false);
-                        const full = await fetchEventById(event.id).catch(() => null);
-                        setEditingEvent(full ?? event);
-                      })()
-                    }
+                    onClick={() => void openEventEditor(event)}
                     className={`${DB_TBODY_TR_COMPACT} cursor-pointer`}
                   >
                     <td
@@ -1613,11 +1679,51 @@ export default function EventiPage() {
               })()}
             </tbody>
           </table>
-          </div>
-          <p className="mt-2 text-xs text-pitch-gray-light md:hidden">
-            ← Scorri per vedere tutte le colonne
-          </p>
+            </div>
+            <p className="mt-2 text-xs text-pitch-gray-light md:hidden">
+              ← Scroll to see all columns
+            </p>
           </>
+        ) : (
+          <MonthCalendar
+            year={calendarMonth.getFullYear()}
+            month={calendarMonth.getMonth()}
+            onPrevMonth={() =>
+              setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1))
+            }
+            onNextMonth={() =>
+              setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1))
+            }
+            renderDayContent={(y, m, d) => {
+              const iso = `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+              const dayEvents = eventsByDay.get(iso) ?? [];
+              return (
+                <div className="mt-1 space-y-1">
+                  {dayEvents.slice(0, 3).map((event) => {
+                    const color = statusPillStyle(event.status);
+                    return (
+                      <button
+                        key={event.id}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void openEventEditor(event);
+                        }}
+                        className="block w-full cursor-pointer truncate rounded px-1.5 py-0.5 text-left text-[10px]"
+                        style={{ background: color.bg, color: color.text }}
+                        title={eventTitle(event)}
+                      >
+                        {eventTitle(event)}
+                      </button>
+                    );
+                  })}
+                  {dayEvents.length > 3 ? (
+                    <div className="text-[10px] text-[#777]">+{dayEvents.length - 3} more</div>
+                  ) : null}
+                </div>
+              );
+            }}
+          />
         )}
       </div>
 

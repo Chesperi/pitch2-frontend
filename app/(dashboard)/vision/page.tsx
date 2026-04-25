@@ -7,6 +7,7 @@ import ComposableFilters, {
   type ActiveFilter,
   type FilterOption,
 } from "@/components/ui/ComposableFilters";
+import MonthCalendar from "@/components/ui/MonthCalendar";
 import {
   fetchVisionProjects,
   type VisionEpisode,
@@ -21,12 +22,6 @@ type TooltipState = {
   x: number;
   y: number;
 } | null;
-
-type CalendarCell = {
-  date: Date;
-  iso: string;
-  inMonth: boolean;
-};
 
 function toIsoDate(d: Date): string {
   const y = d.getFullYear();
@@ -58,11 +53,6 @@ function isSameDay(epDateStr: string, year: number, month: number, day: number):
   return d.getFullYear() === year && d.getMonth() === month && d.getDate() === day;
 }
 
-function isToday(year: number, month: number, day: number): boolean {
-  const t = new Date();
-  return t.getFullYear() === year && t.getMonth() === month && t.getDate() === day;
-}
-
 function getDaysToShow(z: "week" | "month" | "quarter"): number {
   return z === "week" ? 42 : z === "month" ? 84 : 168;
 }
@@ -71,23 +61,6 @@ function getCenterOffset(z: "week" | "month" | "quarter"): number {
   return 30 - Math.floor(getDaysToShow(z) / 2);
 }
 
-function buildMonthGrid(monthStart: Date): CalendarCell[] {
-  const first = new Date(monthStart.getFullYear(), monthStart.getMonth(), 1);
-  const firstWeekday = (first.getDay() + 6) % 7;
-  const gridStart = new Date(first);
-  gridStart.setDate(first.getDate() - firstWeekday);
-  const cells: CalendarCell[] = [];
-  for (let i = 0; i < 42; i += 1) {
-    const d = new Date(gridStart);
-    d.setDate(gridStart.getDate() + i);
-    cells.push({
-      date: d,
-      iso: toIsoDate(d),
-      inMonth: d.getMonth() === monthStart.getMonth(),
-    });
-  }
-  return cells;
-}
 
 function statusOpacity(ep: VisionEpisode): number {
   const s = ep.assignmentsStatus.toUpperCase();
@@ -268,7 +241,6 @@ export default function VisionPage() {
     leftScrollRef.current.scrollTop = event.currentTarget.scrollTop;
   };
 
-  const calendarCells = useMemo(() => buildMonthGrid(calendarMonth), [calendarMonth]);
   const allEpisodes = useMemo(() => {
     const rows: Array<{ project: VisionProject; ep: VisionEpisode }> = [];
     for (const project of filteredProjects) {
@@ -533,99 +505,41 @@ export default function VisionPage() {
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() =>
-                setCalendarMonth(
-                  new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1)
-                )
-              }
-              className="rounded border border-[#2a2a2a] px-3 py-1 text-[#FFFA00]"
-            >
-              ←
-            </button>
-            <span className="text-sm text-[#ddd]">
-              {calendarMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
-            </span>
-            <button
-              type="button"
-              onClick={() =>
-                setCalendarMonth(
-                  new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1)
-                )
-              }
-              className="rounded border border-[#2a2a2a] px-3 py-1 text-[#FFFA00]"
-            >
-              →
-            </button>
-          </div>
-          <div className="grid grid-cols-7 gap-1 text-center text-[11px] uppercase text-[#666]">
-            {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
-              <div key={day}>{day}</div>
-            ))}
-          </div>
-          <div className="mt-1 grid grid-cols-7 gap-1">
-            {calendarCells.map((cell) => {
-              const calYear = cell.date.getFullYear();
-              const calMonth = cell.date.getMonth();
-              const calDay = cell.date.getDate();
-              const todayCell = isToday(calYear, calMonth, calDay);
-              const dayEpisodes = allEpisodes.filter(({ ep }) =>
-                isSameDay(ep.date, calYear, calMonth, calDay)
-              );
+          <MonthCalendar
+            year={calendarMonth.getFullYear()}
+            month={calendarMonth.getMonth()}
+            onPrevMonth={() =>
+              setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1))
+            }
+            onNextMonth={() =>
+              setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1))
+            }
+            renderDayContent={(y, m, d) => {
+              const dayEpisodes = allEpisodes.filter(({ ep }) => isSameDay(ep.date, y, m, d));
               return (
-                <div
-                  key={cell.iso}
-                  className={`min-h-[110px] rounded border p-1 ${
-                    cell.inMonth ? "border-[#2a2a2a]" : "border-[#1a1a1a] opacity-50"
-                  }`}
-                  style={todayCell ? { borderColor: "#FFFA00" } : undefined}
-                >
-                  <div
-                    className="text-xs text-[#aaa]"
-                    style={
-                      todayCell
-                        ? {
-                            width: 22,
-                            height: 22,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            borderRadius: "9999px",
-                            background: "#FFFA00",
-                            color: "#000",
-                            fontWeight: 700,
-                          }
-                        : undefined
-                    }
-                  >
-                    {cell.date.getDate()}
-                  </div>
-                  <div className="mt-1 space-y-1">
-                    {dayEpisodes.slice(0, 2).map(({ project, ep }) => (
-                      <NextLink
-                        key={ep.id}
-                        href={`/eventi?edit=${encodeURIComponent(ep.id)}`}
-                        className="block truncate rounded px-1.5 py-0.5 text-[10px]"
-                        style={{
-                          border: `1px solid ${project.color}`,
-                          background: withAlpha(project.color),
-                          color: project.color,
-                        }}
-                        title={`${project.showName} - Ep. ${ep.episodeNumber}`}
-                      >
-                        {project.showName} #{ep.episodeNumber}
-                      </NextLink>
-                    ))}
-                    {dayEpisodes.length > 2 ? (
-                      <div className="text-[10px] text-[#777]">+{dayEpisodes.length - 2} more</div>
-                    ) : null}
-                  </div>
+                <div className="mt-1 space-y-1">
+                  {dayEpisodes.slice(0, 2).map(({ project, ep }) => (
+                    <NextLink
+                      key={ep.id}
+                      href={`/eventi?edit=${encodeURIComponent(ep.id)}`}
+                      className="block truncate rounded px-1.5 py-0.5 text-[10px]"
+                      style={{
+                        border: `1px solid ${project.color}`,
+                        background: withAlpha(project.color),
+                        color: project.color,
+                      }}
+                      title={`${project.showName} - Ep. ${ep.episodeNumber}`}
+                    >
+                      {project.showName} #{ep.episodeNumber}
+                    </NextLink>
+                  ))}
+                  {dayEpisodes.length > 2 ? (
+                    <div className="text-[10px] text-[#777]">+{dayEpisodes.length - 2} more</div>
+                  ) : null}
                 </div>
               );
-            })}
-          </div>
+            }}
+          />
         </div>
       )}
 

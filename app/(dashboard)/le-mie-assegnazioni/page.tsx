@@ -24,6 +24,7 @@ import StatusBadge, {
 import PageLoading from "@/components/ui/PageLoading";
 import EmptyState from "@/components/ui/EmptyState";
 import PrimaryButton from "@/components/ui/PrimaryButton";
+import MonthCalendar from "@/components/ui/MonthCalendar";
 import type { ShiftType } from "@/lib/api/shifts";
 import { fetchLookupValues } from "@/lib/api/lookupValues";
 import {
@@ -1054,7 +1055,6 @@ export default function LeMieAssegnazioniPage() {
     );
   }
 
-  const calCells = buildMonthGrid(calendarMonth);
   const turniCells = turniMonthRange.cells;
 
   return (
@@ -1240,48 +1240,8 @@ export default function LeMieAssegnazioniPage() {
 
         {tab === "calendario" ? (
           <div className="mt-6 space-y-4">
-            <div className="rounded-xl border p-4" style={{ background: "#111", borderColor: "#2a2a2a" }}>
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    className="rounded border border-pitch-gray-dark px-3 py-2 text-sm text-pitch-white"
-                    style={{ color: "#FFFA00" }}
-                    onClick={() =>
-                      setCalendarMonth(
-                        new Date(
-                          calendarMonth.getFullYear(),
-                          calendarMonth.getMonth() - 1,
-                          1
-                        )
-                      )
-                    }
-                  >
-                    ←
-                  </button>
-                  <span className="text-sm font-semibold capitalize text-pitch-white">
-                    {calendarMonth.toLocaleDateString("en-US", {
-                      month: "long",
-                      year: "numeric",
-                    })}
-                  </span>
-                  <button
-                    type="button"
-                    className="rounded border border-pitch-gray-dark px-3 py-2 text-sm text-pitch-white"
-                    style={{ color: "#FFFA00" }}
-                    onClick={() =>
-                      setCalendarMonth(
-                        new Date(
-                          calendarMonth.getFullYear(),
-                          calendarMonth.getMonth() + 1,
-                          1
-                        )
-                      )
-                    }
-                  >
-                    →
-                  </button>
-                </div>
+            <div>
+              <div className="mb-3 flex justify-end">
                 <label className="flex items-center gap-2 text-sm text-pitch-gray-light">
                   Team
                   <select
@@ -1298,46 +1258,38 @@ export default function LeMieAssegnazioniPage() {
                   </select>
                 </label>
               </div>
-
-              <div className="mt-4 grid grid-cols-7 gap-1 text-center text-[11px] font-semibold uppercase text-pitch-gray">
-                {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
-                  <div key={d}>{d}</div>
-                ))}
-              </div>
-              <div className="mt-2 grid grid-cols-7 gap-1">
-                {calCells.map((cell, idx) => {
-                  const st = myShiftByDate.get(cell.isoDate);
-                  const hasEv =
-                    (assignmentsByDay.get(cell.isoDate) ?? []).length > 0;
-                  const isToday = cell.isoDate === todayIso;
+              <MonthCalendar
+                year={calendarMonth.getFullYear()}
+                month={calendarMonth.getMonth()}
+                onPrevMonth={() =>
+                  setCalendarMonth(
+                    new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1)
+                  )
+                }
+                onNextMonth={() =>
+                  setCalendarMonth(
+                    new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1)
+                  )
+                }
+                onDayClick={(y, m, d) =>
+                  setCalPanelDay(
+                    `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`
+                  )
+                }
+                renderDayContent={(y, m, d) => {
+                  const iso = `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+                  const st = myShiftByDate.get(iso);
+                  const hasEv = (assignmentsByDay.get(iso) ?? []).length > 0;
                   return (
-                    <button
-                      key={`${cell.isoDate}-${idx}`}
-                      type="button"
-                      onClick={() => setCalPanelDay(cell.isoDate)}
-                      className={`flex min-h-[72px] flex-col items-start gap-1 rounded border p-1 text-left transition-colors ${
-                        cell.inCurrentMonth ? "opacity-100" : "opacity-40"
-                      } ${isToday ? "ring-2 ring-[#FFFA00]" : "border-pitch-gray-dark"}`}
-                      style={
-                        !isToday ? { borderColor: "#2a2a2a" } : undefined
-                      }
-                    >
-                      <span className="text-sm font-bold text-pitch-white">
-                        {cell.day}
-                      </span>
-                      {st ? (
-                        <ShiftChip type={st} className="!text-[10px]" />
-                      ) : null}
+                    <div className="mt-1 flex flex-col items-start gap-1">
+                      {st ? <ShiftChip type={st} className="!text-[10px]" /> : null}
                       {hasEv ? (
-                        <span
-                          className="mt-auto h-2 w-2 rounded-full bg-green-500"
-                          title="Assigned event"
-                        />
+                        <span className="mt-auto h-2 w-2 rounded-full bg-green-500" title="Assigned event" />
                       ) : null}
-                    </button>
+                    </div>
                   );
-                })}
-              </div>
+                }}
+              />
             </div>
 
             {calPanelDay ? (

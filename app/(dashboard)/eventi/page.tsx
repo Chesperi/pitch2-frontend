@@ -13,8 +13,6 @@ import {
   type EventAssignmentsStatus,
   type CreateEventPayload,
 } from "@/lib/api/events";
-import { getApiBaseUrl } from "@/lib/api/config";
-import { downloadBackendFile } from "@/lib/utils/downloadFile";
 import { fetchAuthMe } from "@/lib/api/freelanceAssignments";
 import { ImportEventsModal } from "./ImportEventsModal";
 import { fetchLookupValues } from "@/lib/api/lookupValues";
@@ -222,30 +220,30 @@ function EventModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const [form, setForm] = useState<CreateEventPayload>(() =>
-    event
+  const buildInitialForm = (source: EventItem | null): CreateEventPayload =>
+    source
       ? {
-          category: event.category,
-          competitionName: event.competitionName,
-          competitionCode: event.competitionCode ?? "",
-          matchDay: event.matchDay,
-          homeTeamNameShort: event.homeTeamNameShort,
-          awayTeamNameShort: event.awayTeamNameShort,
-          venueName: event.venueName ?? "",
-          venueCity: event.venueCity ?? "",
-          venueAddress: event.venueAddress ?? "",
-          koItaly: toDatetimeLocalValueFromEvent(event),
-          preDurationMinutes: event.preDurationMinutes,
-          standardOnsite: event.standardOnsite ?? "",
-          standardCologno: event.standardCologno ?? "",
-          showName: event.showName ?? "",
-          projectType: event.projectType ?? "",
-          status: event.status,
-          rightsHolder: event.rightsHolder ?? "",
-          facilities: event.facilities ?? "",
-          studio: event.studio ?? "",
-          notes: event.notes ?? "",
-          isTopMatch: Boolean(event.isTopMatch),
+          category: (source.category ?? (source as EventItem & { categoria?: string }).categoria ?? "MATCH"),
+          competitionName: source.competitionName,
+          competitionCode: source.competitionCode ?? "",
+          matchDay: source.matchDay,
+          homeTeamNameShort: source.homeTeamNameShort,
+          awayTeamNameShort: source.awayTeamNameShort,
+          venueName: source.venueName ?? "",
+          venueCity: source.venueCity ?? "",
+          venueAddress: source.venueAddress ?? "",
+          koItaly: toDatetimeLocalValueFromEvent(source),
+          preDurationMinutes: source.preDurationMinutes,
+          standardOnsite: source.standardOnsite ?? "",
+          standardCologno: source.standardCologno ?? "",
+          showName: source.showName ?? "",
+          projectType: source.projectType ?? "",
+          status: source.status,
+          rightsHolder: source.rightsHolder ?? "",
+          facilities: source.facilities ?? "",
+          studio: source.studio ?? "",
+          notes: source.notes ?? "",
+          isTopMatch: Boolean(source.isTopMatch),
         }
       : {
           category: "MATCH",
@@ -269,11 +267,10 @@ function EventModal({
           studio: "",
           notes: "",
           isTopMatch: false,
-        }
-  );
+        };
+  const [form, setForm] = useState<CreateEventPayload>(() => buildInitialForm(event));
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [exporting, setExporting] = useState<"pdf" | "xlsx" | null>(null);
   const [lookupOnsite, setLookupOnsite] = useState<LookupValue[]>([]);
   const [lookupCologno, setLookupCologno] = useState<LookupValue[]>([]);
   const [lookupFacilities, setLookupFacilities] = useState<LookupValue[]>([]);
@@ -287,6 +284,11 @@ function EventModal({
   const isMediaContent = form.category === "MEDIA CONTENT";
   const isStudioShow = form.category === "STUDIO SHOW";
   const isMatch = form.category === "MATCH";
+
+  useEffect(() => {
+    setForm(buildInitialForm(event));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [event]);
 
   useEffect(() => {
     let cancelled = false;
@@ -388,16 +390,6 @@ function EventModal({
       alert(err instanceof Error ? err.message : "Error deleting event");
     } finally {
       setDeleting(false);
-    }
-  };
-
-  const handleAccreditiDownloadInModal = async (type: "pdf" | "xlsx") => {
-    if (!event) return;
-    setExporting(type);
-    try {
-      await downloadAccreditiExport(event.id, type);
-    } finally {
-      setExporting(null);
     }
   };
 
@@ -752,29 +744,6 @@ function EventModal({
               className={inputClass}
             />
           </div>
-          {event ? (
-            <div className="rounded border border-pitch-gray-dark/60 p-3">
-              <div className="mb-2 text-xs text-pitch-gray">Accreditations</div>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  className={exportBtnClass}
-                  disabled={exporting != null}
-                  onClick={() => void handleAccreditiDownloadInModal("pdf")}
-                >
-                  {exporting === "pdf" ? "PDF…" : "PDF"}
-                </button>
-                <button
-                  type="button"
-                  className={exportBtnClass}
-                  disabled={exporting != null}
-                  onClick={() => void handleAccreditiDownloadInModal("xlsx")}
-                >
-                  {exporting === "xlsx" ? "XLSX…" : "XLSX"}
-                </button>
-              </div>
-            </div>
-          ) : null}
           <div className="flex items-center justify-between gap-2 pt-4">
             <div>
               {event ? (
@@ -1069,34 +1038,6 @@ function ActionsMenu({
 }
 
 const PAGE_SIZE = 50;
-
-const exportBtnClass =
-  "rounded border border-pitch-gray-dark px-2 py-1 text-[11px] font-medium text-pitch-white hover:bg-pitch-gray-dark disabled:cursor-not-allowed disabled:opacity-50";
-
-async function downloadAccreditiExport(
-  eventId: string,
-  type: "pdf" | "xlsx"
-): Promise<void> {
-  const base = getApiBaseUrl();
-  const enc = encodeURIComponent(eventId);
-  const path =
-    type === "pdf"
-      ? `/api/accrediti/${enc}/pdf`
-      : `/api/accrediti/${enc}/export-xlsx`;
-  const url = new URL(path, base).toString();
-  const filename =
-    type === "pdf"
-      ? `accrediti-event-${eventId}.pdf`
-      : `accrediti-event-${eventId}.xlsx`;
-
-  await downloadBackendFile({
-    url,
-    filename,
-    onError: () => {
-      alert("Error downloading file");
-    },
-  });
-}
 
 export default function EventiPage() {
   const [events, setEvents] = useState<EventItem[]>([]);

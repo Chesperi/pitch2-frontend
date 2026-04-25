@@ -30,6 +30,30 @@ export async function fetchImportPreview(params: {
   return data as ImportPreviewItem[];
 }
 
+export async function fetchApiSportsImportPreview(params: {
+  leagueId: number;
+  sport: "football" | "volleyball";
+  season: number;
+  dateFrom: string;
+  dateTo: string;
+}): Promise<ImportPreviewItem[]> {
+  const res = await apiFetch("/api/events/import/apisports-preview", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      league_id: params.leagueId,
+      sport: params.sport,
+      season: params.season,
+      date_from: params.dateFrom,
+      date_to: params.dateTo,
+    }),
+  });
+  if (!res.ok) throw new Error(await readErrorMessage(res));
+  const data = (await res.json()) as unknown;
+  if (!Array.isArray(data)) return [];
+  return data as ImportPreviewItem[];
+}
+
 export async function fetchPdfImportPreview(
   file: File
 ): Promise<ImportPreviewItem[]> {

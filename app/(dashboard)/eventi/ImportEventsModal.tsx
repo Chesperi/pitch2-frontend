@@ -3,16 +3,89 @@
 import { useCallback, useMemo, useState } from "react";
 import {
   fetchImportPreview,
+  fetchApiSportsImportPreview,
   fetchPdfImportPreview,
   confirmImport,
 } from "@/lib/api/eventsImport";
 import type { ImportPreviewItem } from "@/lib/types";
 
-const COMPETITION_OPTIONS = [
-  { code: "SA", label: "Serie A" },
-  { code: "SB", label: "Serie B" },
-  { code: "PD", label: "LaLiga" },
-] as const;
+type CompetitionOption =
+  | {
+      provider: "football-data";
+      code: string;
+      label: string;
+    }
+  | {
+      provider: "api-sports";
+      code: string;
+      label: string;
+      sport: "football" | "volleyball";
+      leagueId: number;
+    };
+
+const COMPETITION_OPTIONS: CompetitionOption[] = [
+  { provider: "football-data", code: "SA", label: "Serie A" },
+  { provider: "football-data", code: "SB", label: "Serie B" },
+  { provider: "football-data", code: "PD", label: "LaLiga" },
+  { provider: "football-data", code: "PPL", label: "Primeira Liga" },
+  { provider: "football-data", code: "FAC", label: "FA Cup" },
+  {
+    provider: "api-sports",
+    code: "APS-FOOTBALL-144",
+    label: "Jupiler Pro League",
+    sport: "football",
+    leagueId: 144,
+  },
+  {
+    provider: "api-sports",
+    code: "APS-FOOTBALL-139",
+    label: "Serie A Women",
+    sport: "football",
+    leagueId: 139,
+  },
+  {
+    provider: "api-sports",
+    code: "APS-VOLLEYBALL-97",
+    label: "SuperLega",
+    sport: "volleyball",
+    leagueId: 97,
+  },
+  {
+    provider: "api-sports",
+    code: "APS-VOLLEYBALL-89",
+    label: "Serie A1 Women",
+    sport: "volleyball",
+    leagueId: 89,
+  },
+  {
+    provider: "api-sports",
+    code: "APS-VOLLEYBALL-88",
+    label: "Serie A2",
+    sport: "volleyball",
+    leagueId: 88,
+  },
+  {
+    provider: "api-sports",
+    code: "APS-VOLLEYBALL-90",
+    label: "Serie A2 Women",
+    sport: "volleyball",
+    leagueId: 90,
+  },
+  {
+    provider: "api-sports",
+    code: "APS-VOLLEYBALL-248",
+    label: "Champions League Volley",
+    sport: "volleyball",
+    leagueId: 248,
+  },
+  {
+    provider: "api-sports",
+    code: "APS-VOLLEYBALL-183",
+    label: "Nations League Volley",
+    sport: "volleyball",
+    leagueId: 183,
+  },
+];
 
 type SourceTab = "api" | "pdf";
 
@@ -109,11 +182,38 @@ export function ImportEventsModal({ open, onClose, onImported }: Props) {
     }
     setLoadingPreview(true);
     try {
-      const rows = await fetchImportPreview({
-        competitionCode,
-        dateFrom: dateFrom.trim(),
-        dateTo: dateTo.trim(),
-      });
+      const selectedCompetition = COMPETITION_OPTIONS.find(
+        (option) => option.code === competitionCode
+      );
+      if (!selectedCompetition) {
+        throw new Error("Unsupported competition selected.");
+      }
+
+      const dateFromTrimmed = dateFrom.trim();
+      const dateToTrimmed = dateTo.trim();
+      let rows: ImportPreviewItem[] = [];
+      if (selectedCompetition.provider === "football-data") {
+        rows = await fetchImportPreview({
+          competitionCode: selectedCompetition.code,
+          dateFrom: dateFromTrimmed,
+          dateTo: dateToTrimmed,
+        });
+      } else {
+        const fromDate = new Date(`${dateFromTrimmed}T00:00:00`);
+        if (Number.isNaN(fromDate.getTime())) {
+          throw new Error("Invalid start date.");
+        }
+        const year = fromDate.getFullYear();
+        const month = fromDate.getMonth() + 1;
+        const season = month >= 7 ? year : year - 1;
+        rows = await fetchApiSportsImportPreview({
+          leagueId: selectedCompetition.leagueId,
+          sport: selectedCompetition.sport,
+          season,
+          dateFrom: dateFromTrimmed,
+          dateTo: dateToTrimmed,
+        });
+      }
       setPreview(rows);
       setSelected(new Set());
       setStep(2);
@@ -234,7 +334,7 @@ export function ImportEventsModal({ open, onClose, onImported }: Props) {
             {sourceTab === "api" ? (
               <>
                 <p className="text-sm text-pitch-gray">
-                  Step 1 — Search parameters (API football-data.org)
+                  Step 1 — Search parameters
                 </p>
                 <div>
                   <label className="mb-1 block text-xs text-pitch-gray">

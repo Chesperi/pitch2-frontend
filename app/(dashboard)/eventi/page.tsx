@@ -1966,14 +1966,14 @@ export default function EventiPage() {
         />
       ) : null}
       {calendarDayPanelIso ? (
-        <div className="fixed inset-0 z-50 md:hidden">
+        <div className="fixed inset-0 z-50">
           <button
             type="button"
             className="absolute inset-0 bg-black/60"
             onClick={() => setCalendarDayPanelIso(null)}
             aria-label="Close day panel"
           />
-          <div className="absolute bottom-0 left-0 right-0 max-h-[70vh] overflow-y-auto rounded-t-2xl border border-[#2a2a2a] bg-[#111] p-4">
+          <div className="absolute bottom-0 left-0 right-0 max-h-[70vh] overflow-y-auto rounded-t-2xl border border-[#2a2a2a] bg-[#111] p-4 md:left-1/2 md:max-w-2xl md:-translate-x-1/2">
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-sm font-semibold text-[#e5e5e5]">
                 {new Intl.DateTimeFormat("en-GB", {

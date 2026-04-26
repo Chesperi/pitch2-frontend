@@ -1085,17 +1085,15 @@ export default function LeMieAssegnazioniPage() {
               : "—"}
           </span>
         </p>
-        <div className="sticky top-0 z-20 -mx-2 mt-4 px-2 py-2 md:hidden" style={{ background: "#000" }}>
+        <div className="sticky top-0 z-0 -mx-2 mt-4 px-2 py-2 md:hidden" style={{ background: "#000" }}>
           <div className="overflow-x-auto whitespace-nowrap">
             <div className="inline-flex min-w-full gap-2">
               <button
                 type="button"
                 onClick={() => setTab("lista")}
-                className="min-h-[44px] rounded-full border px-4 text-xs font-bold tracking-wide"
+                className="min-h-[44px] px-1 text-xs font-bold tracking-wide"
                 style={{
-                  borderColor: tab === "lista" ? "#FFFA00" : "#2a2a2a",
-                  background: tab === "lista" ? "#FFFA00" : "#111",
-                  color: tab === "lista" ? "#111" : "#bbb",
+                  color: tab === "lista" ? "#FFFA00" : "#ffffff",
                 }}
               >
                 MY ASSIGNMENTS
@@ -1103,11 +1101,9 @@ export default function LeMieAssegnazioniPage() {
               <button
                 type="button"
                 onClick={() => setTab("calendario")}
-                className="min-h-[44px] rounded-full border px-4 text-xs font-bold tracking-wide"
+                className="min-h-[44px] px-1 text-xs font-bold tracking-wide"
                 style={{
-                  borderColor: tab === "calendario" ? "#FFFA00" : "#2a2a2a",
-                  background: tab === "calendario" ? "#FFFA00" : "#111",
-                  color: tab === "calendario" ? "#111" : "#bbb",
+                  color: tab === "calendario" ? "#FFFA00" : "#ffffff",
                 }}
               >
                 CALENDAR
@@ -1116,11 +1112,9 @@ export default function LeMieAssegnazioniPage() {
                 <button
                   type="button"
                   onClick={() => setTab("turni")}
-                  className="min-h-[44px] rounded-full border px-4 text-xs font-bold tracking-wide"
+                  className="min-h-[44px] px-1 text-xs font-bold tracking-wide"
                   style={{
-                    borderColor: tab === "turni" ? "#FFFA00" : "#2a2a2a",
-                    background: tab === "turni" ? "#FFFA00" : "#111",
-                    color: tab === "turni" ? "#111" : "#bbb",
+                    color: tab === "turni" ? "#FFFA00" : "#ffffff",
                   }}
                 >
                   SHIFTS

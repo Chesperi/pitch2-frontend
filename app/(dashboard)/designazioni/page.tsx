@@ -303,8 +303,8 @@ export default function DesignazioniPage() {
     <>
       <PageHeader title="Assignments" />
 
-      <p className="mt-2 max-w-3xl text-sm text-pitch-gray">
-        Event list for assignment management. Choose whether to display only designable events or all events, then open details to manage staff and sends.
+      <p className="mt-2 text-[12px] text-[#888]">
+        Manage designable events and assignment sends.
       </p>
 
       <div className="mt-4 flex flex-wrap items-end gap-2">
@@ -444,7 +444,7 @@ export default function DesignazioniPage() {
                   <td className="h-9 whitespace-nowrap px-2 text-left align-middle text-[12px]">
                     <Link
                       href={`/designazioni/${event.id}`}
-                      className="inline-flex min-h-[44px] items-center rounded bg-pitch-accent px-4 py-2 text-sm font-medium text-pitch-bg hover:bg-yellow-200"
+                      className="inline-flex h-7 items-center rounded border border-[#FFFA00] bg-transparent px-2 text-[12px] font-medium text-[#FFFA00] hover:bg-[#2a2a00]"
                     >
                       Open
                     </Link>
@@ -459,10 +459,10 @@ export default function DesignazioniPage() {
       </div>
 
       <section className="mt-10 border-t border-pitch-gray-dark pt-8">
-        <h2 className="mb-2 text-sm font-semibold text-pitch-white">
+        <h2 className="mb-2 text-sm font-medium uppercase text-[#e5e5e5]">
           Assignments by person
         </h2>
-        <p className="mb-4 text-xs text-pitch-gray">
+        <p className="mb-4 text-[12px] text-[#888]">
           Group assignments by period and send notifications (operational step separated from event list).
         </p>
 
@@ -473,7 +473,7 @@ export default function DesignazioniPage() {
               type="date"
               value={startDate ?? ""}
               onChange={(e) => setStartDate(e.target.value || null)}
-              className="rounded border border-pitch-gray-dark bg-pitch-gray-dark px-2 py-1 text-xs text-pitch-white focus:border-pitch-accent focus:outline-none"
+              className="h-8 rounded border border-[#2a2a2a] bg-[#141414] px-2 text-[12px] text-[#ddd] focus:border-[#FFFA00] focus:outline-none"
             />
           </div>
           <div>
@@ -482,12 +482,12 @@ export default function DesignazioniPage() {
               type="date"
               value={endDate ?? ""}
               onChange={(e) => setEndDate(e.target.value || null)}
-              className="rounded border border-pitch-gray-dark bg-pitch-gray-dark px-2 py-1 text-xs text-pitch-white focus:border-pitch-accent focus:outline-none"
+              className="h-8 rounded border border-[#2a2a2a] bg-[#141414] px-2 text-[12px] text-[#ddd] focus:border-[#FFFA00] focus:outline-none"
             />
           </div>
           <button
             type="button"
-            className="rounded bg-pitch-accent px-3 py-1 text-xs font-medium text-pitch-bg hover:bg-yellow-200 disabled:opacity-50"
+            className="h-8 rounded border border-[#FFFA00] bg-transparent px-3 text-[12px] font-medium text-[#FFFA00] hover:bg-[#2a2a00] disabled:opacity-50"
             disabled={!startDate || !endDate}
             onClick={loadAssignmentsByPeriod}
           >
@@ -495,7 +495,7 @@ export default function DesignazioniPage() {
           </button>
           <button
             type="button"
-            className="rounded bg-yellow-700 px-3 py-1 text-xs font-medium text-white hover:bg-yellow-600 disabled:opacity-50"
+            className="h-8 rounded border border-[#3a3a3a] bg-transparent px-3 text-[12px] font-medium text-[#cfcfcf] hover:bg-[#1c1c1c] disabled:opacity-50"
             disabled={!startDate || !endDate || staffGroups.length === 0}
             onClick={handleSendMailForPeriod}
           >

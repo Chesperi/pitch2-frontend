@@ -19,11 +19,9 @@ import {
   updateDocument,
   type Document as PitchDocument,
 } from "@/lib/api/documents";
-import { apiFetch } from "@/lib/api/apiFetch";
 import { usePagePermissions } from "@/hooks/usePagePermissions";
 import { fetchStaff, type StaffItem } from "@/lib/api/staff";
 import ResponsiveTable from "@/components/ui/ResponsiveTable";
-import PrimaryButton from "@/components/ui/PrimaryButton";
 import PageLoading from "@/components/ui/PageLoading";
 import EmptyState from "@/components/ui/EmptyState";
 
@@ -46,10 +44,10 @@ const PRIMARY_BTN_SM =
   "min-h-[44px] rounded bg-pitch-accent px-4 py-2 text-xs font-semibold text-pitch-bg hover:bg-yellow-200 disabled:cursor-not-allowed disabled:opacity-50";
 
 const FILTER_SELECT_CLASS =
-  "rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none";
+  "h-8 rounded border border-[#2a2a2a] bg-[#141414] px-2 text-[12px] text-[#ddd] focus:border-[#FFFA00] focus:outline-none";
 
 const INPUT_SM_CLASS =
-  "min-w-[120px] rounded border border-pitch-gray-dark bg-pitch-gray-dark px-2 py-1.5 text-xs text-pitch-white placeholder:text-pitch-gray focus:border-pitch-accent focus:outline-none";
+  "min-w-[120px] h-8 rounded border border-[#2a2a2a] bg-[#141414] px-2 text-[12px] text-[#ddd] placeholder:text-[#777] focus:border-[#FFFA00] focus:outline-none";
 
 const TEAM_OPTIONS = [
   "RESOURCES",
@@ -75,16 +73,6 @@ type DocumentFormValues = {
   validTo: string;
   tagsText: string;
   filePath: string;
-};
-
-type ChatMessageRole = "user" | "assistant";
-
-type ChatMessage = {
-  id: string;
-  role: ChatMessageRole;
-  content: string;
-  tasks?: CookiesJarTask[];
-  documents?: PitchDocument[];
 };
 
 function formatIsoDateOnly(iso: string | null | undefined): string {
@@ -323,11 +311,6 @@ export function CookiesJarTasksPage({
     filePath: "",
   });
 
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [chatInput, setChatInput] = useState("");
-  const [chatLoading, setChatLoading] = useState(false);
-  const [chatError, setChatError] = useState<string | null>(null);
-
   useEffect(() => {
     setDocuments(initialDocuments);
   }, [initialDocuments]);
@@ -513,88 +496,6 @@ export function CookiesJarTasksPage({
     }
   };
 
-  const handleChatSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    const text = chatInput.trim();
-    if (!text) return;
-
-    setChatError(null);
-    const userMsg: ChatMessage = {
-      id: `${Date.now()}-user`,
-      role: "user",
-      content: text,
-    };
-    setChatMessages((prev) => [...prev, userMsg]);
-    setChatInput("");
-    setChatLoading(true);
-
-    const messagesPayload = [
-      ...chatMessages.map((m) => ({
-        role: m.role as "user" | "assistant",
-        content: m.content,
-      })),
-      { role: "user" as const, content: text },
-    ];
-
-    try {
-      const res = await apiFetch("/api/agent", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: messagesPayload,
-          context: {
-            page: "cookies-jar",
-            date: selectedDate,
-            teamFilter: teamFilter || null,
-            statusFilter: statusFilter || null,
-          },
-        }),
-      });
-
-      if (!res.ok) {
-        const data = (await res.json().catch(() => null)) as {
-          error?: string;
-        } | null;
-        throw new Error(data?.error || `Agent error: ${res.status}`);
-      }
-
-      const data = (await res.json()) as {
-        reply?: unknown;
-        tasks?: unknown[];
-        documents?: unknown[];
-      };
-
-      const replyText =
-        typeof data.reply === "string"
-          ? data.reply
-          : data.reply != null
-            ? String(data.reply)
-            : "";
-
-      const assistantMsg: ChatMessage = {
-        id: `${Date.now()}-assistant`,
-        role: "assistant",
-        content:
-          replyText.trim() !== ""
-            ? replyText
-            : "(Nessun testo nella risposta.)",
-      };
-      setChatMessages((prev) => [...prev, assistantMsg]);
-
-      if (Array.isArray(data.tasks)) {
-        setTasks(data.tasks as CookiesJarTask[]);
-      }
-    } catch (err) {
-      setChatError(
-        err instanceof Error
-          ? err.message
-          : "Error calling agent."
-      );
-    } finally {
-      setChatLoading(false);
-    }
-  };
-
   return (
     <div className="mt-6 space-y-4">
       <div className="flex flex-wrap items-end gap-4">
@@ -654,9 +555,8 @@ export function CookiesJarTasksPage({
 
       {canEditCookiesJar ? (
         <div className="mb-3 flex justify-end">
-          <PrimaryButton
+          <button
             type="button"
-            variant="primary"
             onClick={() => {
               setEditingTask(null);
               setFormError(null);
@@ -673,9 +573,10 @@ export function CookiesJarTasksPage({
               setDebouncedAssigneeSearch("");
               setIsModalOpen(true);
             }}
+            className="inline-flex h-8 items-center rounded border border-[#FFFA00] bg-transparent px-3 text-[12px] font-medium text-[#FFFA00] hover:bg-[#2a2a00]"
           >
             New task
-          </PrimaryButton>
+          </button>
         </div>
       ) : null}
 
@@ -683,31 +584,32 @@ export function CookiesJarTasksPage({
         className="rounded-lg border border-pitch-gray-dark"
         minWidth="960px"
       >
+        <div className="overflow-x-auto">
         <table className="w-full border-collapse">
           <thead>
-            <tr className="border-b border-pitch-gray-dark bg-pitch-gray-dark/30">
-              <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+            <tr className="h-9 border-b border-[#2a2a2a] bg-pitch-gray-dark/30">
+              <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                 Description
               </th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+              <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                 Assigned to
               </th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+              <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                 Team
               </th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+              <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                 Project
               </th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+              <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                 Status
               </th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+              <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                 Start date
               </th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+              <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                 End date
               </th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+              <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                 Actions
               </th>
             </tr>
@@ -716,44 +618,44 @@ export function CookiesJarTasksPage({
             {sortedTasks.length === 0 ? (
               <tr>
                 <td colSpan={8} className="p-0 align-top">
-                  <EmptyState message="Nessun task presente" icon="list" />
+                  <EmptyState message="No tasks found" icon="list" />
                 </td>
               </tr>
             ) : (
               sortedTasks.map((task) => (
                 <tr
                   key={task.id}
-                  className={`border-b border-pitch-gray-dark/50 hover:bg-pitch-gray-dark/20 ${
+                  className={`h-9 border-b border-[#2a2a2a] hover:bg-pitch-gray-dark/20 ${
                     task.status === "DONE"
                       ? "bg-gray-50 text-gray-400"
                       : ""
                   }`}
                 >
-                  <td className="px-4 py-3 text-sm text-pitch-white">
+                  <td className="h-9 whitespace-nowrap px-2 text-left align-middle text-[12px] text-pitch-white">
                     {task.title}
                   </td>
-                  <td className="px-4 py-3 text-sm text-pitch-gray-light">
+                  <td className="h-9 whitespace-nowrap px-2 text-left align-middle text-[12px] text-pitch-gray-light">
                     {task.assignee_id != null
                       ? staffNameById.get(task.assignee_id) ??
                         `#${task.assignee_id}`
                       : "—"}
                   </td>
-                  <td className="px-4 py-3 text-sm text-pitch-gray-light">
+                  <td className="h-9 whitespace-nowrap px-2 text-left align-middle text-[12px] text-pitch-gray-light">
                     {task.team || "—"}
                   </td>
-                  <td className="px-4 py-3 text-sm text-pitch-gray-light">
+                  <td className="h-9 whitespace-nowrap px-2 text-left align-middle text-[12px] text-pitch-gray-light">
                     {task.project || "—"}
                   </td>
-                  <td className="px-4 py-3">{statusBadge(task.status)}</td>
-                  <td className="px-4 py-3 text-sm text-pitch-gray-light">
+                  <td className="h-9 whitespace-nowrap px-2 text-left align-middle text-[12px]">{statusBadge(task.status)}</td>
+                  <td className="h-9 whitespace-nowrap px-2 text-left align-middle text-[12px] text-pitch-gray-light">
                     {formatIsoDateOnly(task.start_date)}
                   </td>
-                  <td className="px-4 py-3 text-sm text-pitch-gray-light">
+                  <td className="h-9 whitespace-nowrap px-2 text-left align-middle text-[12px] text-pitch-gray-light">
                     {task.status === "DONE"
                       ? formatIsoDateOnly(task.completed_at)
                       : "—"}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="h-9 whitespace-nowrap px-2 text-left align-middle text-[12px]">
                     {canEditCookiesJar ? (
                       <button
                         type="button"
@@ -792,6 +694,7 @@ export function CookiesJarTasksPage({
             )}
           </tbody>
         </table>
+        </div>
       </ResponsiveTable>
 
       {isModalOpen ? (
@@ -1037,7 +940,7 @@ export function CookiesJarTasksPage({
         </div>
       ) : null}
 
-      <h2 className="mb-3 mt-10 text-sm font-semibold text-pitch-gray">
+      <h2 className="mb-3 mt-10 text-sm font-medium uppercase text-[#e5e5e5]">
         Documents (regulations, specs, procedures)
       </h2>
 
@@ -1087,9 +990,8 @@ export function CookiesJarTasksPage({
           />
         </div>
         <div className="ml-auto flex items-end">
-          <PrimaryButton
+          <button
             type="button"
-            variant="primary"
             onClick={() => {
               setEditingDoc(null);
               setDocFormError(null);
@@ -1104,9 +1006,10 @@ export function CookiesJarTasksPage({
               });
               setIsDocModalOpen(true);
             }}
+            className="inline-flex h-8 items-center rounded border border-[#FFFA00] bg-transparent px-3 text-[12px] font-medium text-[#FFFA00] hover:bg-[#2a2a00]"
           >
             New document
-          </PrimaryButton>
+          </button>
         </div>
       </div>
 
@@ -1125,74 +1028,79 @@ export function CookiesJarTasksPage({
         className="rounded-lg border border-pitch-gray-dark"
         minWidth="960px"
       >
-        <table className="min-w-full divide-y divide-pitch-gray-dark text-xs">
+        <div className="overflow-x-auto">
+        <table className="w-full border-collapse">
           <thead>
-            <tr className="bg-pitch-gray-dark/30">
-              <th className="px-3 py-2 text-left font-medium text-pitch-gray">
+            <tr className="h-9 border-b border-[#2a2a2a] bg-pitch-gray-dark/30">
+              <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                 Title
               </th>
-              <th className="px-3 py-2 text-left font-medium text-pitch-gray">
+              <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                 Category
               </th>
-              <th className="px-3 py-2 text-left font-medium text-pitch-gray">
+              <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                 Competition
               </th>
-              <th className="px-3 py-2 text-left font-medium text-pitch-gray">
+              <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                 Validity
               </th>
-              <th className="px-3 py-2 text-left font-medium text-pitch-gray">
+              <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                 Tag
               </th>
-              <th className="px-3 py-2 text-left font-medium text-pitch-gray">
+              <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                 File
               </th>
-              <th className="px-3 py-2 text-left font-medium text-pitch-gray">
+              <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                 Created on
               </th>
-              <th className="px-3 py-2 text-right font-medium text-pitch-gray">
+              <th className="h-9 whitespace-nowrap px-2 text-right align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                 Actions
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-pitch-gray-dark/50">
+          <tbody>
             {documents.length === 0 ? (
               <tr>
                 <td
                   colSpan={8}
-                  className="px-3 py-6 text-center text-pitch-gray"
+                  className="px-2 py-6 text-center text-pitch-gray"
                 >
-                  Nessun documento per i filtri selezionati.
+                  {docCompetitionFilter.trim() ||
+                  docCategoryFilter ||
+                  docTagFilter.trim()
+                    ? "No documents for the selected filters"
+                    : "No documents found"}
                 </td>
               </tr>
             ) : (
               documents.map((doc) => (
                 <tr
                   key={doc.id}
-                  className="hover:bg-pitch-gray-dark/15"
+                  className="h-9 border-b border-[#2a2a2a] hover:bg-pitch-gray-dark/15"
                 >
-                  <td className="px-3 py-2 text-pitch-white">{doc.title}</td>
-                  <td className="px-3 py-2 text-pitch-gray-light">
+                  <td className="h-9 whitespace-nowrap px-2 text-left align-middle text-[12px] text-pitch-white">{doc.title}</td>
+                  <td className="h-9 whitespace-nowrap px-2 text-left align-middle text-[12px] text-pitch-gray-light">
                     {DOC_CATEGORY_LABEL[doc.category] ?? doc.category}
                   </td>
-                  <td className="px-3 py-2 text-pitch-gray-light">
+                  <td className="h-9 whitespace-nowrap px-2 text-left align-middle text-[12px] text-pitch-gray-light">
                     {doc.competition || "—"}
                   </td>
-                  <td className="px-3 py-2 text-pitch-gray-light">
+                  <td className="h-9 whitespace-nowrap px-2 text-left align-middle text-[12px] text-pitch-gray-light">
                     {validityRange(doc)}
                   </td>
-                  <td className="px-3 py-2 text-pitch-gray-light">
+                  <td className="h-9 whitespace-nowrap px-2 text-left align-middle text-[12px] text-pitch-gray-light">
                     {doc.tags.length > 0 ? doc.tags.join(", ") : "—"}
                   </td>
                   <td
-                    className="max-w-[200px] truncate px-3 py-2 text-pitch-gray-light"
+                    className="h-9 max-w-[200px] truncate whitespace-nowrap px-2 text-left align-middle text-[12px] text-pitch-gray-light"
                     title={doc.file_path}
                   >
                     {truncateFileLabel(doc.file_path)}
                   </td>
-                  <td className="px-3 py-2 text-pitch-gray-light">
+                  <td className="h-9 whitespace-nowrap px-2 text-left align-middle text-[12px] text-pitch-gray-light">
                     {createdAtShort(doc.created_at)}
                   </td>
-                  <td className="px-3 py-2 text-right">
+                  <td className="h-9 whitespace-nowrap px-2 text-right align-middle text-[12px]">
                     <button
                       type="button"
                       className="text-[11px] text-pitch-accent underline-offset-2 hover:underline"
@@ -1219,6 +1127,7 @@ export function CookiesJarTasksPage({
             )}
           </tbody>
         </table>
+        </div>
       </ResponsiveTable>
 
       {isDocModalOpen ? (
@@ -1425,65 +1334,6 @@ export function CookiesJarTasksPage({
         </div>
       ) : null}
 
-      <section className="mt-10 border-t border-pitch-gray-dark pt-4">
-        <h2 className="mb-2 text-sm font-semibold text-pitch-gray">
-          Operational chat (Cookies jar agent)
-        </h2>
-
-        <div className="mb-2 max-h-80 overflow-y-auto rounded border border-pitch-gray-dark bg-pitch-gray-dark/20 p-2 text-xs">
-          {chatMessages.length === 0 && (
-            <p className="text-[11px] text-pitch-gray">
-              Start typing a question or operational command (e.g. &quot;Show me
-              today&apos;s open tasks for the MEDIA team&quot;).
-            </p>
-          )}
-          {chatLoading ? (
-            <div className="mb-2 rounded border border-pitch-accent/60 bg-pitch-bg px-2 py-1.5 text-[11px] text-pitch-gray-light">
-              <span className="font-semibold text-pitch-white">Assistant:</span>{" "}
-              <span className="animate-pulse text-pitch-accent">…</span>
-            </div>
-          ) : null}
-          {chatMessages.map((m) => (
-            <div
-              key={m.id}
-              className={
-                m.role === "user"
-                  ? "mb-2 rounded border border-pitch-gray-dark bg-pitch-gray-dark/40 px-2 py-1.5 text-[11px] text-pitch-gray-light"
-                  : "mb-2 rounded border border-pitch-accent bg-pitch-bg px-2 py-1.5 text-[11px] text-pitch-white"
-              }
-            >
-              <span className="font-semibold text-pitch-white">
-                {m.role === "user" ? "You" : "Assistant"}:
-              </span>{" "}
-              <span className="whitespace-pre-line">{m.content}</span>
-            </div>
-          ))}
-        </div>
-
-        {chatError ? (
-          <p className="mb-1 text-[11px] text-red-400">{chatError}</p>
-        ) : null}
-
-        <form className="flex gap-2 text-xs" onSubmit={handleChatSubmit}>
-          <input
-            type="text"
-            className={`${INPUT_SM_CLASS} flex-1 min-w-0`}
-            value={chatInput}
-            onChange={(e) => setChatInput(e.target.value)}
-            placeholder={
-              chatLoading ? "…" : "Write a question or operational command..."
-            }
-            disabled={chatLoading}
-          />
-          <button
-            type="submit"
-            className={PRIMARY_BTN_SM}
-            disabled={chatLoading || !chatInput.trim()}
-          >
-            {chatLoading ? "Sending..." : "Send"}
-          </button>
-        </form>
-      </section>
     </div>
   );
 }

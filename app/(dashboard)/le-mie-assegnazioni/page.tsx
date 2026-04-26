@@ -340,6 +340,7 @@ export default function LeMieAssegnazioniPage() {
     y: number;
   } | null>(null);
   const [turniSaving, setTurniSaving] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   const gridRef = useRef<HTMLDivElement | null>(null);
 
@@ -347,8 +348,18 @@ export default function LeMieAssegnazioniPage() {
   const showTurniTab =
     levelUpper === "MASTER" || !!profile?.shifts_management;
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const media = window.matchMedia("(max-width: 767px)");
+    const apply = () => setIsMobile(media.matches);
+    apply();
+    media.addEventListener("change", apply);
+    return () => media.removeEventListener("change", apply);
+  }, []);
+
   const navbarCenter = useMemo(
-    () => (
+    () =>
+      isMobile ? null : (
       <div className="flex items-center gap-4">
         <button
           type="button"
@@ -378,7 +389,7 @@ export default function LeMieAssegnazioniPage() {
         ) : null}
       </div>
     ),
-    [tab, showTurniTab]
+    [tab, showTurniTab, isMobile]
   );
 
   useEffect(() => {
@@ -1074,6 +1085,50 @@ export default function LeMieAssegnazioniPage() {
               : "—"}
           </span>
         </p>
+        <div className="sticky top-0 z-20 -mx-2 mt-4 px-2 py-2 md:hidden" style={{ background: "#000" }}>
+          <div className="overflow-x-auto whitespace-nowrap">
+            <div className="inline-flex min-w-full gap-2">
+              <button
+                type="button"
+                onClick={() => setTab("lista")}
+                className="min-h-[44px] rounded-full border px-4 text-xs font-bold tracking-wide"
+                style={{
+                  borderColor: tab === "lista" ? "#FFFA00" : "#2a2a2a",
+                  background: tab === "lista" ? "#FFFA00" : "#111",
+                  color: tab === "lista" ? "#111" : "#bbb",
+                }}
+              >
+                MY ASSIGNMENTS
+              </button>
+              <button
+                type="button"
+                onClick={() => setTab("calendario")}
+                className="min-h-[44px] rounded-full border px-4 text-xs font-bold tracking-wide"
+                style={{
+                  borderColor: tab === "calendario" ? "#FFFA00" : "#2a2a2a",
+                  background: tab === "calendario" ? "#FFFA00" : "#111",
+                  color: tab === "calendario" ? "#111" : "#bbb",
+                }}
+              >
+                CALENDAR
+              </button>
+              {showTurniTab ? (
+                <button
+                  type="button"
+                  onClick={() => setTab("turni")}
+                  className="min-h-[44px] rounded-full border px-4 text-xs font-bold tracking-wide"
+                  style={{
+                    borderColor: tab === "turni" ? "#FFFA00" : "#2a2a2a",
+                    background: tab === "turni" ? "#FFFA00" : "#111",
+                    color: tab === "turni" ? "#111" : "#bbb",
+                  }}
+                >
+                  SHIFTS
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </div>
 
         {tab === "lista" ? (
           <div className="mt-6 space-y-6">

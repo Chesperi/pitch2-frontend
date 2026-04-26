@@ -86,12 +86,30 @@ function eventTitle(event: EventItem): string {
   return event.homeTeamNameShort ?? event.awayTeamNameShort ?? event.showName ?? "—";
 }
 
+function eventKoHour(event: EventItem): string {
+  const raw = event.koItaly?.trim() ?? "";
+  if (!raw) return "—";
+  const direct = raw.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
+  if (direct) return `${direct[4]}:${direct[5]}`;
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return "—";
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
 function statusPillStyle(status: string | null): { bg: string; text: string } {
   const s = (status ?? "").toUpperCase().trim();
   if (s === "OK" || s === "CONFIRMED") return { bg: "#1a2e1a", text: "#4ade80" };
   if (s === "TBC" || s === "TBD") return { bg: "#2e2a10", text: "#FFFA00" };
   if (s === "CANCELLED" || s === "CANCELED") return { bg: "#2e1a1a", text: "#f87171" };
   return { bg: "#1f1f1f", text: "#aaa" };
+}
+
+function statusDotColor(status: string | null): string {
+  const s = (status ?? "").toUpperCase().trim();
+  if (s === "OK" || s === "CONFIRMED") return "#4ade80";
+  if (s === "TBC" || s === "TBD") return "#FFFA00";
+  if (s === "CANCELLED" || s === "CANCELED") return "#f87171";
+  return "#666666";
 }
 
 function toDatetimeLocalValueFromEvent(event: EventItem): string {
@@ -1121,6 +1139,7 @@ export default function EventiPage() {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
+  const [calendarDayPanelIso, setCalendarDayPanelIso] = useState<string | null>(null);
 
   const canImportMatches =
     userLevel != null &&
@@ -1254,6 +1273,13 @@ export default function EventiPage() {
     }
     return map;
   }, [orderedEvents]);
+
+  const selectedCalendarDayEvents = useMemo(() => {
+    if (!calendarDayPanelIso) return [];
+    return [...(eventsByDay.get(calendarDayPanelIso) ?? [])].sort((a, b) =>
+      eventKoHour(a).localeCompare(eventKoHour(b), "it")
+    );
+  }, [calendarDayPanelIso, eventsByDay]);
 
   const allVisibleSelected =
     orderedEvents.length > 0 &&
@@ -1869,32 +1895,51 @@ export default function EventiPage() {
             onNextMonth={() =>
               setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1))
             }
+            onDayClick={(y, m, d) =>
+              setCalendarDayPanelIso(
+                `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`
+              )
+            }
             renderDayContent={(y, m, d) => {
               const iso = `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
               const dayEvents = eventsByDay.get(iso) ?? [];
               return (
-                <div className="mt-1 space-y-1">
-                  {dayEvents.slice(0, 3).map((event) => {
-                    const color = statusPillStyle(event.status);
-                    return (
-                      <button
-                        key={event.id}
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void openEventEditor(event);
-                        }}
-                        className="block w-full cursor-pointer truncate rounded px-1.5 py-0.5 text-left text-[10px]"
-                        style={{ background: color.bg, color: color.text }}
-                        title={eventTitle(event)}
-                      >
-                        {eventTitle(event)}
-                      </button>
-                    );
-                  })}
-                  {dayEvents.length > 3 ? (
-                    <div className="text-[10px] text-[#777]">+{dayEvents.length - 3} more</div>
-                  ) : null}
+                <div className="mt-1">
+                  <div className="flex items-center gap-1 md:hidden">
+                    {dayEvents.slice(0, 3).map((event) => (
+                      <span
+                        key={`dot-${event.id}`}
+                        className="h-1.5 w-1.5 rounded-full"
+                        style={{ background: statusDotColor(event.status) }}
+                      />
+                    ))}
+                    {dayEvents.length > 3 ? (
+                      <span className="text-[10px] text-[#777]">+{dayEvents.length - 3}</span>
+                    ) : null}
+                  </div>
+                  <div className="hidden space-y-1 md:block">
+                    {dayEvents.slice(0, 3).map((event) => {
+                      const color = statusPillStyle(event.status);
+                      return (
+                        <button
+                          key={event.id}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void openEventEditor(event);
+                          }}
+                          className="block w-full cursor-pointer truncate rounded px-1.5 py-0.5 text-left text-[10px]"
+                          style={{ background: color.bg, color: color.text }}
+                          title={eventTitle(event)}
+                        >
+                          {eventTitle(event)}
+                        </button>
+                      );
+                    })}
+                    {dayEvents.length > 3 ? (
+                      <div className="text-[10px] text-[#777]">+{dayEvents.length - 3} more</div>
+                    ) : null}
+                  </div>
                 </div>
               );
             }}
@@ -1919,6 +1964,58 @@ export default function EventiPage() {
           onCancel={() => setShowBulkDeleteModal(false)}
           onConfirm={() => void handleBulkDelete()}
         />
+      ) : null}
+      {calendarDayPanelIso ? (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/60"
+            onClick={() => setCalendarDayPanelIso(null)}
+            aria-label="Close day panel"
+          />
+          <div className="absolute bottom-0 left-0 right-0 max-h-[70vh] overflow-y-auto rounded-t-2xl border border-[#2a2a2a] bg-[#111] p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-[#e5e5e5]">
+                {new Intl.DateTimeFormat("en-GB", {
+                  weekday: "long",
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                }).format(new Date(`${calendarDayPanelIso}T12:00:00`))}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setCalendarDayPanelIso(null)}
+                className="text-sm text-[#888]"
+              >
+                Close
+              </button>
+            </div>
+            {selectedCalendarDayEvents.length === 0 ? (
+              <p className="text-sm text-[#777]">No events</p>
+            ) : (
+              <div className="space-y-2">
+                {selectedCalendarDayEvents.map((event) => (
+                  <button
+                    key={`panel-${event.id}`}
+                    type="button"
+                    onClick={() => {
+                      void openEventEditor(event);
+                      setCalendarDayPanelIso(null);
+                    }}
+                    className="w-full rounded-lg border border-[#2a2a2a] bg-[#161616] px-3 py-2 text-left"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate text-sm text-[#e5e5e5]">{eventTitle(event)}</span>
+                      <span className="text-xs text-[#888]">{eventKoHour(event)}</span>
+                    </div>
+                    <div className="mt-1">{eventStatusBadgeEl(event.status)}</div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       ) : null}
     </>
   );

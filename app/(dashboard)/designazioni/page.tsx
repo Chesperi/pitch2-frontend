@@ -381,31 +381,32 @@ export default function DesignazioniPage() {
           </div>
         ) : (
           <ResponsiveTable minWidth="860px">
+            <div className="overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
-              <tr className="border-b border-pitch-gray-dark">
-                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+              <tr className="h-9 border-b border-[#2a2a2a]">
+                <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                   Match
                 </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+                <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                   Competition
                 </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+                <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                   Category
                 </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+                <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                   MD
                 </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+                <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                   Date & KO
                 </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+                <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                   Status
                 </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+                <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                   Assignments
                 </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-pitch-gray">
+                <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                   Actions
                 </th>
               </tr>
@@ -414,33 +415,33 @@ export default function DesignazioniPage() {
               {filteredItems.map((event) => (
                 <tr
                   key={event.id}
-                  className="border-b border-pitch-gray-dark/50 hover:bg-pitch-gray-dark/30"
+                  className="h-9 border-b border-[#2a2a2a] transition-colors hover:bg-[#1a1a1a]"
                 >
-                  <td className="px-4 py-3 text-sm text-pitch-white">
+                  <td className="h-9 whitespace-nowrap px-2 text-left align-middle text-[12px] text-pitch-white">
                     {eventMatchLabel(event)}
                   </td>
-                  <td className="px-4 py-3 text-sm text-pitch-gray-light">
+                  <td className="h-9 whitespace-nowrap px-2 text-left align-middle text-[12px] text-pitch-gray-light">
                     {event.competitionName}
                     {event.competitionCode
                       ? ` (${event.competitionCode})`
                       : ""}
                   </td>
-                  <td className="px-4 py-3 text-sm text-pitch-gray-light">
+                  <td className="h-9 whitespace-nowrap px-2 text-left align-middle text-[12px] text-pitch-gray-light">
                     <span className="inline-flex rounded-full bg-pitch-gray-dark px-2 py-0.5 text-xs text-pitch-gray-light">
                       {categoryLabel(event.category)}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-pitch-gray-light">
+                  <td className="h-9 whitespace-nowrap px-2 text-left align-middle text-[12px] text-pitch-gray-light">
                     {event.matchDay?.trim() ? event.matchDay : "—"}
                   </td>
-                  <td className="px-4 py-3 text-sm text-pitch-gray-light">
+                  <td className="h-9 whitespace-nowrap px-2 text-left align-middle text-[12px] text-pitch-gray-light">
                     {formatKoItaly(event.koItaly)}
                   </td>
-                  <td className="px-4 py-3">{renderEventStatusBadge(event.status)}</td>
-                  <td className="px-4 py-3">
+                  <td className="h-9 whitespace-nowrap px-2 text-left align-middle text-[12px]">{renderEventStatusBadge(event.status)}</td>
+                  <td className="h-9 whitespace-nowrap px-2 text-left align-middle text-[12px]">
                     {renderAssignmentsStatusBadge(event.assignmentsStatus)}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="h-9 whitespace-nowrap px-2 text-left align-middle text-[12px]">
                     <Link
                       href={`/designazioni/${event.id}`}
                       className="inline-flex min-h-[44px] items-center rounded bg-pitch-accent px-4 py-2 text-sm font-medium text-pitch-bg hover:bg-yellow-200"
@@ -452,6 +453,7 @@ export default function DesignazioniPage() {
               ))}
             </tbody>
           </table>
+            </div>
           </ResponsiveTable>
         )}
       </div>

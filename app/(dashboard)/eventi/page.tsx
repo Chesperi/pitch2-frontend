@@ -1788,11 +1788,10 @@ export default function EventiPage() {
                       {event.category}
                     </td>
                     <td
-                      className={`max-w-[7rem] truncate ${DB_TD_FIRST} ${
-                        rightsTrimmed === "SKY/DAZN"
-                          ? "text-red-400"
-                          : "text-white"
-                      }`}
+                      className={`max-w-[7rem] truncate ${DB_TD_FIRST}`}
+                      style={{
+                        color: rightsTrimmed === "SKY/DAZN" ? "#f87171" : "#ffffff",
+                      }}
                       title={rightsTrimmed || undefined}
                     >
                       {rightsTrimmed ? rightsTrimmed : "—"}

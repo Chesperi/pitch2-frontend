@@ -145,11 +145,13 @@ export default function VisionPage() {
       {
         key: "type",
         label: "Type",
+        allowMultiple: true,
         values: distinctTypes.map((t) => ({ value: t, color: typeColorFromProjects(t) })),
       },
       {
         key: "status",
         label: "Status",
+        allowMultiple: true,
         values: [
           { value: "TBD", color: "#FFFA00" },
           { value: "TBC", color: "#FFFA00" },
@@ -160,6 +162,7 @@ export default function VisionPage() {
       {
         key: "client",
         label: "Client",
+        allowMultiple: true,
         values: distinctClients.map((c) => ({ value: c })),
       },
     ],
@@ -167,19 +170,34 @@ export default function VisionPage() {
   );
 
   const filteredProjects = useMemo(() => {
+    const splitMultiValues = (raw: string | null | undefined): string[] =>
+      String(raw ?? "")
+        .split("||")
+        .map((v) => v.trim())
+        .filter((v) => v.length > 0);
+
     return projects.filter((p) => {
       const typeF = activeFilters.find((f) => f.key === "type");
-      if (typeF?.value && p.type !== typeF.value) return false;
+      if (typeF?.value) {
+        const selectedTypes = splitMultiValues(typeF.value);
+        if (selectedTypes.length > 0 && !selectedTypes.includes(p.type)) return false;
+      }
 
       const clientF = activeFilters.find((f) => f.key === "client");
-      if (clientF?.value && p.client !== clientF.value) return false;
+      if (clientF?.value) {
+        const selectedClients = splitMultiValues(clientF.value);
+        if (selectedClients.length > 0 && !selectedClients.includes(p.client)) return false;
+      }
 
       const statusF = activeFilters.find((f) => f.key === "status");
-      if (
-        statusF?.value &&
-        !p.episodes.some((e) => normalizeStatus(e.status) === normalizeStatus(statusF.value ?? ""))
-      ) {
-        return false;
+      if (statusF?.value) {
+        const selectedStatuses = splitMultiValues(statusF.value).map((v) => normalizeStatus(v));
+        if (
+          selectedStatuses.length > 0 &&
+          !p.episodes.some((e) => selectedStatuses.includes(normalizeStatus(e.status)))
+        ) {
+          return false;
+        }
       }
 
       if (dateFrom && dateTo) {

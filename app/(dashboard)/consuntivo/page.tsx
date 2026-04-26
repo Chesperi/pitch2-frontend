@@ -169,17 +169,36 @@ export default function ConsuntivoPage() {
         const providerIdByLabel = new Map(
           filterOptions.providers.map((provider) => [provider.value, String(provider.id)])
         );
+        const splitMultiValues = (raw: string | null | undefined): string[] =>
+          String(raw ?? "")
+            .split("||")
+            .map((v) => v.trim())
+            .filter((v) => v.length > 0);
         for (const filter of params.activeFilters) {
           if (!filter.value) continue;
-          if (filter.key === "competition") q.set("competition", filter.value);
-          if (filter.key === "staff") q.set("nominativo", filter.value);
-          if (filter.key === "role") q.set("roleCode", filter.value);
-          if (filter.key === "matchday") q.set("matchday", filter.value);
-          if (filter.key === "provider") {
-            const providerId = providerIdByLabel.get(filter.value);
-            if (providerId) q.set("providerId", providerId);
+          const selected = splitMultiValues(filter.value);
+          if (selected.length === 0) continue;
+          if (filter.key === "competition") {
+            for (const value of selected) q.append("competition", value);
           }
-          if (filter.key === "status") q.set("status", filter.value);
+          if (filter.key === "staff") {
+            for (const value of selected) q.append("nominativo", value);
+          }
+          if (filter.key === "role") {
+            for (const value of selected) q.append("roleCode", value);
+          }
+          if (filter.key === "matchday") {
+            for (const value of selected) q.append("matchday", value);
+          }
+          if (filter.key === "provider") {
+            for (const value of selected) {
+              const providerId = providerIdByLabel.get(value);
+              if (providerId) q.append("providerId", providerId);
+            }
+          }
+          if (filter.key === "status") {
+            for (const value of selected) q.append("status", value);
+          }
         }
 
         const qs = q.toString();
@@ -271,14 +290,30 @@ export default function ConsuntivoPage() {
 
   const scorecardFilterOptions = useMemo<FilterOption[]>(
     () => [
-      { key: "competition", label: "Competition", values: filterOptions.competitions },
-      { key: "staff", label: "Staff", values: filterOptions.staff },
-      { key: "role", label: "Role", values: filterOptions.roles },
-      { key: "matchday", label: "Matchday", values: filterOptions.matchdays },
-      { key: "provider", label: "Provider", values: filterOptions.providers },
+      {
+        key: "competition",
+        label: "Competition",
+        allowMultiple: true,
+        values: filterOptions.competitions,
+      },
+      { key: "staff", label: "Staff", allowMultiple: true, values: filterOptions.staff },
+      { key: "role", label: "Role", allowMultiple: true, values: filterOptions.roles },
+      {
+        key: "matchday",
+        label: "Matchday",
+        allowMultiple: true,
+        values: filterOptions.matchdays,
+      },
+      {
+        key: "provider",
+        label: "Provider",
+        allowMultiple: true,
+        values: filterOptions.providers,
+      },
       {
         key: "status",
         label: "Status",
+        allowMultiple: true,
         values: [
           { value: "SENT", label: "Sent", color: "#818cf8" },
           { value: "CONFIRMED", label: "Confirmed", color: "#4ade80" },

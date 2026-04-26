@@ -835,6 +835,7 @@ const EVENT_FILTER_OPTIONS_BASE: FilterOption[] = [
   {
     key: "status",
     label: "Status",
+    allowMultiple: true,
     values: [
       { value: "TBC", color: "#FFFA00" },
       { value: "TBD", color: "#FFFA00" },
@@ -846,26 +847,29 @@ const EVENT_FILTER_OPTIONS_BASE: FilterOption[] = [
   {
     key: "category",
     label: "Category",
+    allowMultiple: true,
     values: [
       { value: "MATCH", label: "Match", color: "#818cf8" },
       { value: "STUDIO_SHOW", label: "Studio show", color: "#fb923c" },
       { value: "MEDIA_CONTENT", label: "Media content", color: "#60a5fa" },
     ],
   },
-  { key: "competition", label: "Competition", values: [] },
+  { key: "competition", label: "Competition", allowMultiple: true, values: [] },
   {
     key: "assignments",
     label: "Assignments",
+    allowMultiple: true,
     values: [
       { value: "DRAFT", label: "Draft", color: "#888" },
       { value: "READY_TO_SEND", label: "Ready", color: "#34d399" },
       { value: "SENT", label: "Sent", color: "#818cf8" },
     ],
   },
-  { key: "matchday", label: "Matchday", values: [] },
+  { key: "matchday", label: "Matchday", allowMultiple: true, values: [] },
   {
     key: "rights",
     label: "Rights holder",
+    allowMultiple: true,
     values: [
       { value: "DAZN", color: "#FFFA00" },
       { value: "SKY/DAZN", color: "#f87171" },
@@ -901,23 +905,33 @@ function applyComposableFilters(
       switch (filter.key) {
         case "status": {
           const currentStatus = normalizeStatus(event.status);
-          const expected = normalizeStatus(filter.value);
-          if (expected === "CANCELLED" && currentStatus === "CANCELED") break;
-          if (currentStatus !== expected) return false;
+          const expectedList = splitMultiValues(filter.value).map((v) => normalizeStatus(v));
+          if (expectedList.length === 0) break;
+          if (!expectedList.includes(currentStatus)) return false;
           break;
         }
         case "category": {
-          if (normalizeCategory(event.category) !== normalizeCategory(filter.value)) {
+          const selectedCategories = splitMultiValues(filter.value).map((v) =>
+            normalizeCategory(v)
+          );
+          if (selectedCategories.length === 0) break;
+          if (!selectedCategories.includes(normalizeCategory(event.category))) {
             return false;
           }
           break;
         }
         case "competition": {
-          if ((event.competitionName ?? "").trim() !== filter.value) return false;
+          const selectedCompetitions = splitMultiValues(filter.value);
+          if (selectedCompetitions.length === 0) break;
+          if (!selectedCompetitions.includes((event.competitionName ?? "").trim())) return false;
           break;
         }
         case "assignments": {
-          if ((event.assignmentsStatus ?? "").toUpperCase().trim() !== filter.value) {
+          const selectedAssignments = splitMultiValues(filter.value).map((v) =>
+            v.toUpperCase().trim()
+          );
+          if (selectedAssignments.length === 0) break;
+          if (!selectedAssignments.includes((event.assignmentsStatus ?? "").toUpperCase().trim())) {
             return false;
           }
           break;
@@ -930,7 +944,9 @@ function applyComposableFilters(
           break;
         }
         case "rights": {
-          if ((event.rightsHolder ?? "").trim() !== filter.value) return false;
+          const selectedRights = splitMultiValues(filter.value);
+          if (selectedRights.length === 0) break;
+          if (!selectedRights.includes((event.rightsHolder ?? "").trim())) return false;
           break;
         }
         default:

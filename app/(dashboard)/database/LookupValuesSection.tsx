@@ -385,9 +385,8 @@ export function LookupValuesSection({
                           >
                             <div className="pl-2 text-left text-sm text-pitch-white">{row.sort_order}</div>
                             <div className="relative pl-2 text-left text-sm text-pitch-white">
-                              <div>{row.value}</div>
                               {showVisionColorColumn ? (
-                                <div className="relative mt-1 inline-flex items-center gap-2">
+                                <div className="relative inline-flex items-center">
                                   <button
                                     type="button"
                                     disabled={!canEditDatabase || savingCurrent}
@@ -396,13 +395,14 @@ export function LookupValuesSection({
                                         prev === row.value ? null : row.value
                                       )
                                     }
-                                    className="inline-flex items-center gap-2 rounded-md border border-[#2a2a2a] px-2 py-1 text-xs text-[#d4d4d4] hover:border-[#FFFA00]"
+                                    className="inline-flex items-center gap-2 text-left disabled:cursor-not-allowed disabled:opacity-60"
                                   >
                                     <span
-                                      className="h-3.5 w-3.5 rounded-full"
+                                      className="h-2.5 w-2.5 rounded-full"
                                       style={{ background: selectedColor }}
                                     />
-                                    <span>{selectedColor}</span>
+                                    <span className="text-sm text-pitch-white">{row.value}</span>
+                                    <span className="text-xs text-[#888]">{selectedColor}</span>
                                   </button>
                                   {pickerOpen ? (
                                     <div className="absolute left-0 top-[calc(100%+6px)] z-20 rounded-lg border border-[#2a2a2a] bg-[#111] p-2 shadow-lg">
@@ -434,7 +434,9 @@ export function LookupValuesSection({
                                     </div>
                                   ) : null}
                                 </div>
-                              ) : null}
+                              ) : (
+                                <div>{row.value}</div>
+                              )}
                             </div>
                             <div className="pr-2 text-right">
                               {canEditDatabase ? (

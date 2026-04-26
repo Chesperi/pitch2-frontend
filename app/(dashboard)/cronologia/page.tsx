@@ -234,7 +234,7 @@ function fullMetadataJson(meta: unknown): string {
 }
 
 const FILTER_ENTITY_OPTIONS: { value: string; label: string }[] = [
-  { value: "", label: "Tutte le entità" },
+  { value: "", label: "All entities" },
   { value: "assignment", label: "Assignment" },
   { value: "event", label: "Event" },
   { value: "role", label: "Role" },
@@ -309,7 +309,7 @@ export default function CronologiaPage() {
 
   return (
     <>
-      <PageHeader title="Cronologia" />
+      <PageHeader title="History" />
       <DesktopRecommended />
 
       <div className="mt-4 flex flex-wrap items-end gap-2">
@@ -318,7 +318,7 @@ export default function CronologiaPage() {
             htmlFor="cronologia-entity-type"
             className="mb-1 block text-xs text-pitch-gray"
           >
-            Tipo entità
+            Entity type
           </label>
           <select
             id="cronologia-entity-type"
@@ -356,7 +356,7 @@ export default function CronologiaPage() {
 
       {!loading && !error && items.length === 0 ? (
         <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30">
-          <EmptyState message="Nessuna attività registrata" icon="list" />
+          <EmptyState message="No activity recorded" icon="list" />
         </div>
       ) : null}
 
@@ -369,13 +369,13 @@ export default function CronologiaPage() {
             <thead>
               <tr className="border-b border-pitch-gray-dark bg-pitch-gray-dark/30">
                 <th className="px-4 py-3 text-left font-medium text-pitch-gray">
-                  Data/Ora
+                  Date/Time
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-pitch-gray">
-                  Utente
+                  User
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-pitch-gray">
-                  Pagina
+                  Page
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-pitch-gray">
                   Element

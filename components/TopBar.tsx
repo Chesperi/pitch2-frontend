@@ -22,7 +22,7 @@ const TOPBAR_LINKS: { href: string; label: string; pageKey: string }[] = [
   { href: "/database", label: "Database", pageKey: "database" },
   { href: "/call-sheet", label: "Call sheet", pageKey: "call_sheet" },
   { href: "/consuntivo", label: "Scorecard", pageKey: "consuntivo" },
-  { href: "/cronologia", label: "Cronologia", pageKey: "cronologia" },
+  { href: "/cronologia", label: "History", pageKey: "cronologia" },
   { href: "/master", label: "Master", pageKey: "master" },
 ];
 

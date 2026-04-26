@@ -123,7 +123,7 @@ export default function MasterPage() {
   }, [items]);
 
   const isSystemMaster = (item: StaffPermissionsItem): boolean =>
-    item.userLevel === "MASTER" && item.name.trim().toUpperCase() === "ANDRISANO ANDREA";
+    String(item.userLevel ?? "").toUpperCase() === "MASTER";
 
   const isFreelanceOrProvider = (item: StaffPermissionsItem): boolean => {
     const u = String(item.userLevel ?? "").toUpperCase();
@@ -458,11 +458,20 @@ export default function MasterPage() {
                     </span>
                   </td>
                   <td className="whitespace-nowrap px-4 py-2 text-xs align-top">
+                    {(() => {
+                      const masterRow = isSystemMaster(row);
+                      const restrictedRow = isFreelanceOrProvider(row);
+                      const financeChecked = masterRow
+                        ? true
+                        : restrictedRow
+                          ? false
+                          : row.financeVisibility === "VISIBLE";
+                      return (
                     <ToggleSwitch
-                      checked={row.financeVisibility === "VISIBLE"}
+                      checked={financeChecked}
                       disabled={
-                        isSystemMaster(row) ||
-                        isFreelanceOrProvider(row) ||
+                        masterRow ||
+                        restrictedRow ||
                         savingKeys.has(`finance:${row.staffId}`)
                       }
                       tooltip="Financial visibility"
@@ -476,14 +485,25 @@ export default function MasterPage() {
                         }
                       }}
                     />
+                      );
+                    })()}
                   </td>
                   <td className="min-w-[200px] px-4 py-2 text-xs align-top">
                     <div className="flex flex-col gap-2">
+                      {(() => {
+                        const masterRow = isSystemMaster(row);
+                        const restrictedRow = isFreelanceOrProvider(row);
+                        const shiftsChecked = masterRow
+                          ? true
+                          : restrictedRow
+                            ? false
+                            : row.shiftsManagement;
+                        return (
                       <ToggleSwitch
-                        checked={row.shiftsManagement}
+                        checked={shiftsChecked}
                         disabled={
-                          isSystemMaster(row) ||
-                          isFreelanceOrProvider(row) ||
+                          masterRow ||
+                          restrictedRow ||
                           savingKeys.has(`shifts:${row.staffId}`)
                         }
                         tooltip="Shifts management"
@@ -496,6 +516,8 @@ export default function MasterPage() {
                           }
                         }}
                       />
+                        );
+                      })()}
                       {row.shiftsManagement &&
                       !isFreelanceOrProvider(row) &&
                       !isSystemMaster(row) ? (
@@ -541,11 +563,31 @@ export default function MasterPage() {
                   {row.permissions.map((perm) => (
                     <td key={perm.pageKey} className="whitespace-nowrap px-4 py-2 text-xs">
                       {isFreelanceOrProvider(row) ? (
+                        perm.pageKey === "le_mie_assegnazioni" ? (
+                          <span
+                            className={`inline-flex min-w-[90px] cursor-not-allowed items-center justify-center rounded border px-2 py-1.5 text-xs font-semibold opacity-60 ${accessCellClass(
+                              "edit"
+                            )}`}
+                            aria-hidden
+                          >
+                            edit
+                          </span>
+                        ) : (
+                          <span
+                            className="inline-flex min-w-[90px] cursor-not-allowed items-center justify-center rounded border border-pitch-gray-dark/40 bg-pitch-gray-dark/15 px-2 py-1.5 text-xs font-semibold text-pitch-gray opacity-60"
+                            aria-hidden
+                          >
+                            —
+                          </span>
+                        )
+                      ) : isSystemMaster(row) ? (
                         <span
-                          className="inline-flex min-w-[90px] cursor-not-allowed items-center justify-center rounded border border-pitch-gray-dark/40 bg-pitch-gray-dark/15 px-2 py-1.5 text-xs font-semibold text-pitch-gray opacity-60"
+                          className={`inline-flex min-w-[90px] cursor-not-allowed items-center justify-center rounded border px-2 py-1.5 text-xs font-semibold opacity-60 ${accessCellClass(
+                            "edit"
+                          )}`}
                           aria-hidden
                         >
-                          —
+                          edit
                         </span>
                       ) : (
                         <button
@@ -563,11 +605,7 @@ export default function MasterPage() {
                           }
                           className={`inline-flex min-w-[90px] items-center justify-center rounded border px-2 py-1.5 text-xs font-semibold transition-colors duration-150 ease-out ${accessCellClass(
                             perm.accessLevel
-                          )} ${
-                            isSystemMaster(row)
-                              ? "cursor-not-allowed opacity-50"
-                              : "hover:opacity-90"
-                          }`}
+                          )} hover:opacity-90`}
                         >
                           {perm.accessLevel === "none" ? "—" : perm.accessLevel}
                         </button>

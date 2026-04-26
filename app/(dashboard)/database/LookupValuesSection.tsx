@@ -370,7 +370,7 @@ export function LookupValuesSection({
                   <table className="w-full min-w-[480px] border-collapse">
                     <thead>
                       <tr className="border-b border-[#2a2a2a]">
-                        <th className={`${DB_TH_FIRST} w-[60px] text-center`}>Order</th>
+                        <th className={`${DB_TH_FIRST} w-[60px] whitespace-nowrap text-left`}>Order</th>
                         <th className={DB_TH_CELL}>Value</th>
                         {showVisionColorColumn ? (
                           <th className={DB_TH_CELL}>Color</th>
@@ -391,7 +391,7 @@ export function LookupValuesSection({
                       ) : (
                         rows.map((row) => (
                           <tr key={row.id} className={DB_TBODY_TR_COMPACT}>
-                            <td className={`${DB_TD_FIRST} w-[60px] text-center`}>{row.sort_order}</td>
+                            <td className={`${DB_TD_FIRST} w-[60px] whitespace-nowrap text-left`}>{row.sort_order}</td>
                             <td className={DB_TD_CELL}>{row.value}</td>
                             {showVisionColorColumn ? (
                               <td className={`${DB_TD_CELL} relative`}>

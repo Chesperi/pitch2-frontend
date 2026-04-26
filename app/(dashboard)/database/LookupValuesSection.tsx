@@ -10,12 +10,7 @@ import {
 } from "@/lib/api/lookupValues";
 import type { LookupValue } from "@/lib/types";
 import {
-  DB_TH_CELL,
-  DB_TH_FIRST,
   DB_TBODY_TR_COMPACT,
-  DB_TD_CELL,
-  DB_TD_EMPTY_CELL,
-  DB_TD_FIRST,
 } from "./dbSectionStyles";
 
 const PRIMARY_BTN_SM =
@@ -367,92 +362,81 @@ export function LookupValuesSection({
                   ) : null}
                 </div>
                 <div className="overflow-x-auto rounded-lg border border-[#2a2a2a]">
-                  <table className="w-full min-w-[480px] border-collapse">
-                    <thead>
-                      <tr className="border-b border-[#2a2a2a]">
-                        <th className={`${DB_TH_FIRST} w-[60px] whitespace-nowrap text-left`}>Order</th>
-                        <th className={DB_TH_CELL}>Value</th>
-                        {showVisionColorColumn ? (
-                          <th className={DB_TH_CELL}>Color</th>
-                        ) : null}
-                        <th className={`${DB_TH_CELL} text-right`}>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {rows.length === 0 ? (
-                        <tr className={DB_TBODY_TR_COMPACT}>
-                          <td
-                            colSpan={showVisionColorColumn ? 4 : 3}
-                            className={`${DB_TD_EMPTY_CELL} text-center`}
+                  <div className="min-w-[480px]">
+                    <div className="grid grid-cols-[60px_1fr_auto] border-b border-[#2a2a2a] py-2 text-xs font-semibold uppercase tracking-wide text-[#9ca3af]">
+                      <div className="pl-2 text-left">Order</div>
+                      <div className="pl-2 text-left">Value</div>
+                      <div className="pr-2 text-right">Actions</div>
+                    </div>
+                    {rows.length === 0 ? (
+                      <div className={`${DB_TBODY_TR_COMPACT} px-2 py-3 text-left text-sm text-[#8a8a8a]`}>
+                        No values — use &quot;Add value&quot;.
+                      </div>
+                    ) : (
+                      rows.map((row) => {
+                        const colorInfo = visionTypeColorByName.get(row.value);
+                        const selectedColor = colorInfo?.color ?? "#888888";
+                        const pickerOpen = openColorPickerForType === row.value;
+                        const savingCurrent = savingColorForType === row.value;
+                        return (
+                          <div
+                            key={row.id}
+                            className={`grid grid-cols-[60px_1fr_auto] items-center ${DB_TBODY_TR_COMPACT}`}
                           >
-                            No values — use &quot;Add value&quot;.
-                          </td>
-                        </tr>
-                      ) : (
-                        rows.map((row) => (
-                          <tr key={row.id} className={DB_TBODY_TR_COMPACT}>
-                            <td className={`${DB_TD_FIRST} w-[60px] whitespace-nowrap text-left`}>{row.sort_order}</td>
-                            <td className={DB_TD_CELL}>{row.value}</td>
-                            {showVisionColorColumn ? (
-                              <td className={`${DB_TD_CELL} relative`}>
-                                {(() => {
-                                  const colorInfo = visionTypeColorByName.get(row.value);
-                                  const selectedColor = colorInfo?.color ?? "#888888";
-                                  const pickerOpen = openColorPickerForType === row.value;
-                                  const savingCurrent = savingColorForType === row.value;
-                                  return (
-                                    <div className="relative inline-flex items-center gap-2">
-                                      <button
-                                        type="button"
-                                        disabled={!canEditDatabase || savingCurrent}
-                                        onClick={() =>
-                                          setOpenColorPickerForType((prev) =>
-                                            prev === row.value ? null : row.value
-                                          )
-                                        }
-                                        className="inline-flex items-center gap-2 rounded-md border border-[#2a2a2a] px-2 py-1 text-xs text-[#d4d4d4] hover:border-[#FFFA00]"
-                                      >
-                                        <span
-                                          className="h-3.5 w-3.5 rounded-full"
-                                          style={{ background: selectedColor }}
-                                        />
-                                        <span>{selectedColor}</span>
-                                      </button>
-                                      {pickerOpen ? (
-                                        <div className="absolute left-0 top-[calc(100%+6px)] z-20 rounded-lg border border-[#2a2a2a] bg-[#111] p-2 shadow-lg">
-                                          <div className="grid grid-cols-5 gap-2">
-                                            {PRESET_COLORS.map((preset) => (
-                                              <button
-                                                key={preset}
-                                                type="button"
-                                                title={preset}
-                                                onClick={() =>
-                                                  void saveVisionTypeColor(
-                                                    row.value,
-                                                    preset,
-                                                    row.sort_order
-                                                  )
-                                                }
-                                                className="h-7 w-7 rounded-full"
-                                                style={{
-                                                  background: preset,
-                                                  border:
-                                                    selectedColor.toLowerCase() ===
-                                                    preset.toLowerCase()
-                                                      ? "2px solid #FFFA00"
-                                                      : "1px solid #2a2a2a",
-                                                }}
-                                              />
-                                            ))}
-                                          </div>
-                                        </div>
-                                      ) : null}
+                            <div className="pl-2 text-left text-sm text-pitch-white">{row.sort_order}</div>
+                            <div className="relative pl-2 text-left text-sm text-pitch-white">
+                              <div>{row.value}</div>
+                              {showVisionColorColumn ? (
+                                <div className="relative mt-1 inline-flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    disabled={!canEditDatabase || savingCurrent}
+                                    onClick={() =>
+                                      setOpenColorPickerForType((prev) =>
+                                        prev === row.value ? null : row.value
+                                      )
+                                    }
+                                    className="inline-flex items-center gap-2 rounded-md border border-[#2a2a2a] px-2 py-1 text-xs text-[#d4d4d4] hover:border-[#FFFA00]"
+                                  >
+                                    <span
+                                      className="h-3.5 w-3.5 rounded-full"
+                                      style={{ background: selectedColor }}
+                                    />
+                                    <span>{selectedColor}</span>
+                                  </button>
+                                  {pickerOpen ? (
+                                    <div className="absolute left-0 top-[calc(100%+6px)] z-20 rounded-lg border border-[#2a2a2a] bg-[#111] p-2 shadow-lg">
+                                      <div className="grid grid-cols-5 gap-2">
+                                        {PRESET_COLORS.map((preset) => (
+                                          <button
+                                            key={preset}
+                                            type="button"
+                                            title={preset}
+                                            onClick={() =>
+                                              void saveVisionTypeColor(
+                                                row.value,
+                                                preset,
+                                                row.sort_order
+                                              )
+                                            }
+                                            className="h-7 w-7 rounded-full"
+                                            style={{
+                                              background: preset,
+                                              border:
+                                                selectedColor.toLowerCase() ===
+                                                preset.toLowerCase()
+                                                  ? "2px solid #FFFA00"
+                                                  : "1px solid #2a2a2a",
+                                            }}
+                                          />
+                                        ))}
+                                      </div>
                                     </div>
-                                  );
-                                })()}
-                              </td>
-                            ) : null}
-                            <td className={`${DB_TD_CELL} whitespace-nowrap text-right`}>
+                                  ) : null}
+                                </div>
+                              ) : null}
+                            </div>
+                            <div className="pr-2 text-right">
                               {canEditDatabase ? (
                                 <>
                                   <button
@@ -473,12 +457,12 @@ export function LookupValuesSection({
                               ) : (
                                 <span className="text-sm text-[#3F4547]">—</span>
                               )}
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
               </CategoryCollapsible>
             );

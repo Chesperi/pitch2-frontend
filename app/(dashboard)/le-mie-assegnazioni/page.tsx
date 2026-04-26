@@ -973,7 +973,7 @@ export default function LeMieAssegnazioniPage() {
                       e.stopPropagation();
                       toggleCarPass(assignment.id);
                     }}
-                    className="rounded border-pitch-gray-dark bg-pitch-gray-dark text-pitch-accent focus:ring-pitch-accent"
+                    className="dazn-checkbox"
                   />
                   Use plate
                 </label>

@@ -403,7 +403,7 @@ export function EventAccreditationsTab({ eventId }: Props) {
               type="checkbox"
               checked={filterOnlyWithAreas}
               onChange={(e) => setFilterOnlyWithAreas(e.target.checked)}
-              className="h-3 w-3 rounded border border-pitch-gray-dark bg-pitch-gray-dark/60"
+              className="dazn-checkbox h-3 w-3"
             />
             With areas only
           </label>

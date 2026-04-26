@@ -85,3 +85,47 @@ body {
   background-color: var(--color-pitch-bg);
   color: var(--color-pitch-white);
 }
+
+.dazn-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  border: 1px solid #FFFA00;
+  border-radius: 0.25rem;
+  background: transparent;
+  cursor: pointer;
+  outline: none;
+}
+
+.dazn-checkbox::after {
+  content: "✓";
+  color: #ffffff;
+  font-size: 0.75rem;
+  line-height: 1;
+  opacity: 0;
+  transform: translateY(-0.01rem);
+}
+
+.dazn-checkbox:checked {
+  background: #FFFA00;
+}
+
+.dazn-checkbox:checked::after {
+  opacity: 1;
+}
+
+.dazn-checkbox:focus,
+.dazn-checkbox:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 250, 0, 0.35);
+}
+
+.dazn-checkbox:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}

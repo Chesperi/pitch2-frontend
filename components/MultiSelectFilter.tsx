@@ -121,7 +121,7 @@ export default function MultiSelectFilter({
                   type="checkbox"
                   checked={selectedSet.has(opt.value)}
                   onChange={() => toggleValue(opt.value)}
-                  className="h-4 w-4 rounded border-pitch-gray-dark bg-pitch-gray-dark accent-pitch-accent"
+                  className="dazn-checkbox h-4 w-4"
                 />
                 <span>{opt.label}</span>
               </label>

@@ -487,7 +487,7 @@ export function ImportEventsModal({ open, onClose, onImported }: Props) {
                             onChange={() =>
                               toggleRow(row.external_match_id, disabled)
                             }
-                            className="h-4 w-4 accent-pitch-accent disabled:cursor-not-allowed"
+                            className="dazn-checkbox h-4 w-4 disabled:cursor-not-allowed"
                           />
                         </td>
                         <td className="px-3 py-2 text-pitch-white">

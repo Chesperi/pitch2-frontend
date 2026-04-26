@@ -472,7 +472,7 @@ function EventModal({
                     onChange={(e) =>
                       setForm((f) => ({ ...f, isTopMatch: e.target.checked }))
                     }
-                    className="rounded border-pitch-gray-dark"
+                    className="dazn-checkbox"
                   />
                   Top match
                 </label>
@@ -1469,7 +1469,7 @@ export default function EventiPage() {
                     type="checkbox"
                     checked={allVisibleSelected}
                     onChange={handleToggleSelectAllVisible}
-                    className="h-4 w-4 rounded border-pitch-gray-dark"
+                    className="dazn-checkbox h-4 w-4"
                     aria-label="Seleziona tutti gli eventi visibili"
                   />
                 </th>
@@ -1560,7 +1560,7 @@ export default function EventiPage() {
                         type="checkbox"
                         checked={selectedEventIds.has(event.id)}
                         onChange={() => handleToggleRowSelection(event.id)}
-                        className="h-4 w-4 rounded border-pitch-gray-dark"
+                        className="dazn-checkbox h-4 w-4"
                         aria-label={`Seleziona evento ${event.id}`}
                       />
                     </td>

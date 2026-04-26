@@ -172,7 +172,7 @@ function LoginContent() {
               type="checkbox"
               checked={rememberMe}
               onChange={(e) => setRememberMe(e.target.checked)}
-              className="rounded border-pitch-gray-dark bg-pitch-gray-dark text-pitch-accent focus:ring-pitch-accent"
+              className="dazn-checkbox"
             />
             Ricordami su questo dispositivo
           </label>

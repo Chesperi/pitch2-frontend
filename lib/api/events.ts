@@ -425,3 +425,27 @@ export async function bulkPermanentDeleteEvents(params: {
   }
   return res.json();
 }
+
+export interface BulkUpdateEventFieldsPayload {
+  standard_onsite?: string;
+  standard_cologno?: string;
+  facilities?: string;
+  studio?: string;
+  pre_duration_minutes?: number;
+  rights_holder?: string;
+}
+
+export async function bulkUpdateEventsFields(params: {
+  eventIds: string[];
+  fields: BulkUpdateEventFieldsPayload;
+}): Promise<{ requested: number; updated: number }> {
+  const res = await apiFetch("/api/events/bulk-update", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to bulk update event fields: ${res.status}`);
+  }
+  return res.json();
+}

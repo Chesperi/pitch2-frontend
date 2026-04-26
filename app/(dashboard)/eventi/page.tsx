@@ -7,6 +7,7 @@ import {
   createEvent,
   updateEvent,
   bulkUpdateEventsStatus,
+  bulkUpdateEventsFields,
   bulkPermanentDeleteEvents,
   type EventItem,
   type EventAssignmentsStatus,
@@ -1091,9 +1092,30 @@ export default function EventiPage() {
     () => new Set()
   );
   const [bulkUpdating, setBulkUpdating] = useState(false);
+  const [bulkEditing, setBulkEditing] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [autoMatchingCombos, setAutoMatchingCombos] = useState(false);
+  const [lookupOnsite, setLookupOnsite] = useState<LookupValue[]>([]);
+  const [lookupCologno, setLookupCologno] = useState<LookupValue[]>([]);
+  const [lookupFacilities, setLookupFacilities] = useState<LookupValue[]>([]);
+  const [lookupStudio, setLookupStudio] = useState<LookupValue[]>([]);
+  const [lookupRightsHolder, setLookupRightsHolder] = useState<LookupValue[]>([]);
+  const [bulkEditFields, setBulkEditFields] = useState<{
+    standardOnsite: string;
+    standardCologno: string;
+    facilities: string;
+    studio: string;
+    preDurationMinutes: string;
+    rightsHolder: string;
+  }>({
+    standardOnsite: "",
+    standardCologno: "",
+    facilities: "",
+    studio: "",
+    preDurationMinutes: "",
+    rightsHolder: "",
+  });
   const [eventsView, setEventsView] = useState<"list" | "calendar">("list");
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const d = new Date();
@@ -1143,6 +1165,39 @@ export default function EventiPage() {
         }
       } catch {
         if (!cancelled) setUserLevel(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const [a, b, c, d, e] = await Promise.all([
+          fetchLookupValues("standard_onsite"),
+          fetchLookupValues("standard_cologno"),
+          fetchLookupValues("facilities"),
+          fetchLookupValues("studio"),
+          fetchLookupValues("rights_holder"),
+        ]);
+        if (!cancelled) {
+          setLookupOnsite(a);
+          setLookupCologno(b);
+          setLookupFacilities(c);
+          setLookupStudio(d);
+          setLookupRightsHolder(e);
+        }
+      } catch {
+        if (!cancelled) {
+          setLookupOnsite([]);
+          setLookupCologno([]);
+          setLookupFacilities([]);
+          setLookupStudio([]);
+          setLookupRightsHolder([]);
+        }
       }
     })();
     return () => {
@@ -1261,6 +1316,67 @@ export default function EventiPage() {
       alert(err instanceof Error ? err.message : "Bulk delete failed");
     } finally {
       setBulkDeleting(false);
+    }
+  };
+
+  const handleBulkApplyFields = async () => {
+    if (selectedEventIds.size === 0) return;
+    const fields: {
+      standard_onsite?: string;
+      standard_cologno?: string;
+      facilities?: string;
+      studio?: string;
+      pre_duration_minutes?: number;
+      rights_holder?: string;
+    } = {};
+    if (bulkEditFields.standardOnsite.trim()) {
+      fields.standard_onsite = bulkEditFields.standardOnsite.trim();
+    }
+    if (bulkEditFields.standardCologno.trim()) {
+      fields.standard_cologno = bulkEditFields.standardCologno.trim();
+    }
+    if (bulkEditFields.facilities.trim()) {
+      fields.facilities = bulkEditFields.facilities.trim();
+    }
+    if (bulkEditFields.studio.trim()) {
+      fields.studio = bulkEditFields.studio.trim();
+    }
+    if (bulkEditFields.rightsHolder.trim()) {
+      fields.rights_holder = bulkEditFields.rightsHolder.trim();
+    }
+    if (bulkEditFields.preDurationMinutes.trim()) {
+      const n = Number(bulkEditFields.preDurationMinutes);
+      if (!Number.isFinite(n) || n < 0) {
+        alert("PRE must be a non-negative number");
+        return;
+      }
+      fields.pre_duration_minutes = Math.trunc(n);
+    }
+    if (Object.keys(fields).length === 0) {
+      alert("Select at least one field to apply.");
+      return;
+    }
+
+    setBulkEditing(true);
+    try {
+      await bulkUpdateEventsFields({
+        eventIds: Array.from(selectedEventIds),
+        fields,
+      });
+      setBulkEditFields({
+        standardOnsite: "",
+        standardCologno: "",
+        facilities: "",
+        studio: "",
+        preDurationMinutes: "",
+        rightsHolder: "",
+      });
+      setSelectedEventIds(new Set());
+      await loadEvents();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Bulk edit failed");
+    } finally {
+      setBulkEditing(false);
     }
   };
 
@@ -1392,10 +1508,101 @@ export default function EventiPage() {
           Calendar
         </button>
       </div>
-      {selectedEventIds.size > 0 ? (
-        <div className="mb-3 mt-4 flex items-center gap-3 rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] px-3 py-2 text-[12px] text-[#888]">
+      {selectedEventIds.size > 1 ? (
+        <div className="mb-3 mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] px-3 py-2 text-[12px] text-[#888]">
           <span className="text-[#888]">{selectedEventIds.size} events selected</span>
-          <div className="ml-auto flex gap-2">
+          <div className="ml-2 flex flex-wrap items-center gap-2">
+            <select
+              value={bulkEditFields.standardOnsite}
+              onChange={(e) =>
+                setBulkEditFields((prev) => ({ ...prev, standardOnsite: e.target.value }))
+              }
+              className="h-8 rounded border border-[#2a2a2a] bg-[#141414] px-2 text-[11px] text-[#ddd]"
+            >
+              <option value="">Onsite —</option>
+              {lookupOnsite.map((opt) => (
+                <option key={`bulk-onsite-${opt.id}`} value={opt.value}>
+                  {opt.value}
+                </option>
+              ))}
+            </select>
+            <select
+              value={bulkEditFields.standardCologno}
+              onChange={(e) =>
+                setBulkEditFields((prev) => ({ ...prev, standardCologno: e.target.value }))
+              }
+              className="h-8 rounded border border-[#2a2a2a] bg-[#141414] px-2 text-[11px] text-[#ddd]"
+            >
+              <option value="">Cologno —</option>
+              {lookupCologno.map((opt) => (
+                <option key={`bulk-cologno-${opt.id}`} value={opt.value}>
+                  {opt.value}
+                </option>
+              ))}
+            </select>
+            <select
+              value={bulkEditFields.facilities}
+              onChange={(e) =>
+                setBulkEditFields((prev) => ({ ...prev, facilities: e.target.value }))
+              }
+              className="h-8 rounded border border-[#2a2a2a] bg-[#141414] px-2 text-[11px] text-[#ddd]"
+            >
+              <option value="">Facilities —</option>
+              {lookupFacilities.map((opt) => (
+                <option key={`bulk-facilities-${opt.id}`} value={opt.value}>
+                  {opt.value}
+                </option>
+              ))}
+            </select>
+            <select
+              value={bulkEditFields.studio}
+              onChange={(e) =>
+                setBulkEditFields((prev) => ({ ...prev, studio: e.target.value }))
+              }
+              className="h-8 rounded border border-[#2a2a2a] bg-[#141414] px-2 text-[11px] text-[#ddd]"
+            >
+              <option value="">Studio —</option>
+              {lookupStudio.map((opt) => (
+                <option key={`bulk-studio-${opt.id}`} value={opt.value}>
+                  {opt.value}
+                </option>
+              ))}
+            </select>
+            <input
+              type="number"
+              min={0}
+              value={bulkEditFields.preDurationMinutes}
+              onChange={(e) =>
+                setBulkEditFields((prev) => ({
+                  ...prev,
+                  preDurationMinutes: e.target.value,
+                }))
+              }
+              placeholder="PRE"
+              className="h-8 w-[70px] rounded border border-[#2a2a2a] bg-[#141414] px-2 text-[11px] text-[#ddd]"
+            />
+            <select
+              value={bulkEditFields.rightsHolder}
+              onChange={(e) =>
+                setBulkEditFields((prev) => ({ ...prev, rightsHolder: e.target.value }))
+              }
+              className="h-8 rounded border border-[#2a2a2a] bg-[#141414] px-2 text-[11px] text-[#ddd]"
+            >
+              <option value="">Rights —</option>
+              {lookupRightsHolder.map((opt) => (
+                <option key={`bulk-rights-${opt.id}`} value={opt.value}>
+                  {opt.value}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              disabled={bulkEditing || bulkUpdating}
+              onClick={() => void handleBulkApplyFields()}
+              className="rounded-lg border border-[#FFFA00] bg-[#FFFA00] px-3 py-1 text-[12px] font-medium text-black hover:bg-yellow-200 disabled:opacity-50"
+            >
+              {bulkEditing ? "Applying..." : "Apply"}
+            </button>
             <button
               type="button"
               disabled={bulkUpdating}

@@ -9,6 +9,7 @@ export interface FilterOption {
   label: string;
   icon?: React.ReactNode;
   values: Array<{ value: string; label?: string; color?: string }>;
+  allowMultiple?: boolean;
 }
 
 export interface ActiveFilter {
@@ -35,6 +36,14 @@ interface ComposableFiltersProps {
 
 function cn(...classes: Array<string | undefined | false>): string {
   return classes.filter(Boolean).join(" ");
+}
+
+function splitMultiValue(value: string | null): string[] {
+  if (!value) return [];
+  return value
+    .split("||")
+    .map((v) => v.trim())
+    .filter((v) => v.length > 0);
 }
 
 export default function ComposableFilters({
@@ -113,6 +122,15 @@ export default function ComposableFilters({
   const getLabelForValue = (key: string, value: string | null) => {
     if (!value) return "Select...";
     const option = getFilterByKey(key);
+    if (option?.allowMultiple) {
+      const selectedValues = splitMultiValue(value);
+      if (selectedValues.length === 0) return "Select...";
+      const labels = selectedValues.map((selected) => {
+        const found = option.values.find((v) => v.value === selected);
+        return found?.label ?? selected;
+      });
+      return labels.join(", ");
+    }
     const found = option?.values.find((v) => v.value === value);
     return found?.label ?? value;
   };
@@ -133,6 +151,19 @@ export default function ComposableFilters({
       activeFilters.map((f) => (f.key === key ? { ...f, value } : f))
     );
     setValuePickerKey(null);
+  };
+
+  const toggleFilterMultiValue = (key: string, value: string) => {
+    onChange(
+      activeFilters.map((f) => {
+        if (f.key !== key) return f;
+        const selected = new Set(splitMultiValue(f.value));
+        if (selected.has(value)) selected.delete(value);
+        else selected.add(value);
+        const merged = Array.from(selected);
+        return { ...f, value: merged.length > 0 ? merged.join("||") : null };
+      })
+    );
   };
 
   const clearAll = () => {
@@ -360,10 +391,21 @@ export default function ComposableFilters({
                     key={valueOption.value}
                     type="button"
                     onClick={() =>
-                      setFilterValue(currentValueFilter.key, valueOption.value)
+                      currentValueFilter.allowMultiple
+                        ? toggleFilterMultiValue(currentValueFilter.key, valueOption.value)
+                        : setFilterValue(currentValueFilter.key, valueOption.value)
                     }
                     className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[12px] text-[#ddd] hover:bg-[#1b1b1b]"
                   >
+                    {currentValueFilter.allowMultiple ? (
+                      <span className="w-3 text-[11px] text-[#FFFA00]">
+                        {splitMultiValue(
+                          activeFilters.find((f) => f.key === currentValueFilter.key)?.value ?? null
+                        ).includes(valueOption.value)
+                          ? "✓"
+                          : ""}
+                      </span>
+                    ) : null}
                     <span
                       className="h-2 w-2 rounded-full"
                       style={{ backgroundColor: valueOption.color ?? "#777" }}

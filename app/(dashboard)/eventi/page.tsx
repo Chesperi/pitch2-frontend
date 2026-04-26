@@ -888,6 +888,12 @@ function applyComposableFilters(
   activeFilters: ActiveFilter[],
   searchValue: string
 ): EventItem[] {
+  const splitMultiValues = (raw: string | null | undefined): string[] =>
+    String(raw ?? "")
+      .split("||")
+      .map((v) => v.trim())
+      .filter((v) => v.length > 0);
+
   const q = searchValue.trim().toLowerCase();
   return items.filter((event) => {
     for (const filter of activeFilters) {
@@ -917,7 +923,10 @@ function applyComposableFilters(
           break;
         }
         case "matchday": {
-          if ((event.matchDay?.toString() ?? "").trim() !== filter.value) return false;
+          const selectedMatchdays = splitMultiValues(filter.value);
+          if (selectedMatchdays.length === 0) break;
+          const current = (event.matchDay?.toString() ?? "").trim();
+          if (!selectedMatchdays.includes(current)) return false;
           break;
         }
         case "rights": {
@@ -1102,7 +1111,7 @@ export default function EventiPage() {
         return { ...option, values: competitions };
       }
       if (option.key === "matchday") {
-        return { ...option, values: matchdays };
+        return { ...option, values: matchdays, allowMultiple: true };
       }
       return option;
     });

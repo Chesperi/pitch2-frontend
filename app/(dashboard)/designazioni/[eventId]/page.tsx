@@ -177,9 +177,9 @@ const ASSIGNMENT_STATUS_INFO = {
 } satisfies Record<AssignmentStatus, { label: string; description: string }>;
 
 const btnSmallYellow =
-  "inline-flex min-h-[44px] items-center rounded bg-pitch-accent px-3 py-2 text-xs font-medium text-pitch-bg hover:bg-yellow-200 disabled:opacity-50";
+  "inline-flex h-7 items-center rounded border border-[#FFFA00] bg-transparent px-2 text-[11px] font-medium text-[#FFFA00] hover:bg-[#2a2a00] disabled:opacity-50";
 const btnSmallGrey =
-  "inline-flex min-h-[44px] items-center rounded border border-pitch-gray px-3 py-2 text-xs text-pitch-gray hover:bg-pitch-gray-dark disabled:opacity-50";
+  "inline-flex h-7 items-center rounded border border-[#3F4547] bg-transparent px-2 text-[11px] text-[#cfcfcf] hover:bg-[#1c1c1c] disabled:opacity-50";
 
 type RoleSummary = {
   roleKey: string;
@@ -1028,13 +1028,13 @@ export default function DesignazioniEventPage() {
     return (
       <div
         key={a.id}
-        className="flex flex-col gap-2 rounded border border-pitch-gray-dark/60 bg-pitch-gray-dark/20 px-3 py-2 transition-colors duration-150 hover:bg-pitch-gray-dark/35 md:flex-row md:items-center md:justify-between"
+        className="flex min-h-10 flex-col gap-2 rounded border border-pitch-gray-dark/60 bg-pitch-gray-dark/20 px-3 py-2 transition-colors duration-150 hover:bg-pitch-gray-dark/35 md:flex-row md:items-center md:justify-between"
       >
         <div className="min-w-0">
-          <div className="text-sm font-medium text-pitch-white">
-            {roleCode} <span className="text-pitch-gray">({roleLocation})</span>
+          <div className="text-[12px] font-medium uppercase text-pitch-white">
+            {roleCode} <span className="text-[11px] font-normal normal-case text-[#888]">({roleLocation})</span>
           </div>
-          <div className="text-xs text-pitch-gray-light">
+          <div className={`text-[12px] ${isAssigned ? "text-white" : "text-[#888]"}`}>
             {isAssigned
               ? `${a.staffSurname ?? a.staff_surname ?? ""} ${a.staffName ?? a.staff_name ?? ""}`.trim()
               : "Unassigned"}
@@ -1042,7 +1042,7 @@ export default function DesignazioniEventPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <span
-            className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getAssignmentStatusClasses(a.status)}`}
+            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${getAssignmentStatusClasses(a.status)}`}
           >
             {getAssignmentStatusLabel(a.status)}
           </span>
@@ -1065,7 +1065,7 @@ export default function DesignazioniEventPage() {
           <button
             type="button"
             onClick={() => void handleDeleteSlot(a.id)}
-            className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded border border-red-700/70 px-2 py-1 text-xs font-semibold text-red-300 hover:bg-red-950/40"
+            className="inline-flex h-7 w-7 items-center justify-center rounded border border-[#f87171] bg-transparent text-[11px] font-semibold text-[#f87171] hover:bg-red-950/30"
             title="Delete slot"
             aria-label="Delete slot"
           >
@@ -1217,54 +1217,54 @@ export default function DesignazioniEventPage() {
       </div>
 
       {/* Riepilogo evento */}
-      <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-6">
-        <div className="flex flex-wrap items-center gap-4">
+      <div className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-4">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <div>
-            <span className="text-sm text-pitch-gray">Competition: </span>
-            <span className="text-pitch-white">
+            <span className="text-[11px] uppercase text-[#888]">Competition: </span>
+            <span className="text-[12px] font-medium text-white">
               {event.competitionName}
               {event.competitionCode ? ` (${event.competitionCode})` : ""}
             </span>
           </div>
           <div>
-            <span className="text-sm text-pitch-gray">Standard Onsite: </span>
-            <span className="text-pitch-white">
+            <span className="text-[11px] uppercase text-[#888]">Standard Onsite: </span>
+            <span className="text-[12px] font-medium text-white">
               {event.standardOnsite ?? "—"}
             </span>
           </div>
           <div>
-            <span className="text-sm text-pitch-gray">Standard Cologno: </span>
-            <span className="text-pitch-white">
+            <span className="text-[11px] uppercase text-[#888]">Standard Cologno: </span>
+            <span className="text-[12px] font-medium text-white">
               {event.standardCologno ?? "—"}
             </span>
           </div>
           <div>
-            <span className="text-sm text-pitch-gray">Facilities: </span>
-            <span className="text-pitch-white">
+            <span className="text-[11px] uppercase text-[#888]">Facilities: </span>
+            <span className="text-[12px] font-medium text-white">
               {event.facilities ?? "—"}
             </span>
           </div>
           <div>
-            <span className="text-sm text-pitch-gray">Studio: </span>
-            <span className="text-pitch-white">
+            <span className="text-[11px] uppercase text-[#888]">Studio: </span>
+            <span className="text-[12px] font-medium text-white">
               {event.studio ?? "—"}
             </span>
           </div>
           <div>
-            <span className="text-sm text-pitch-gray">Show: </span>
-            <span className="text-pitch-white">{event.showName ?? "—"}</span>
+            <span className="text-[11px] uppercase text-[#888]">Show: </span>
+            <span className="text-[12px] font-medium text-white">{event.showName ?? "—"}</span>
           </div>
           <div>
-            <span className="text-sm text-pitch-gray">Event status: </span>
-            <span className="text-pitch-white">{event.status}</span>
+            <span className="text-[11px] uppercase text-[#888]">Event status: </span>
+            <span className="text-[12px] font-medium text-white">{event.status}</span>
           </div>
           <div>
-            <span className="text-sm text-pitch-gray">Assignments status: </span>
+            <span className="text-[11px] uppercase text-[#888]">Assignments status: </span>
             {renderAssignmentsStatusBadge(event.assignmentsStatus)}
           </div>
           <div>
-            <span className="text-sm text-pitch-gray">Combo ID: </span>
-            <span className="text-pitch-white">
+            <span className="text-[11px] uppercase text-[#888]">Combo ID: </span>
+            <span className="text-[12px] font-medium text-white">
               {event.standardComboId != null ? String(event.standardComboId) : "—"}
             </span>
           </div>
@@ -1274,7 +1274,7 @@ export default function DesignazioniEventPage() {
               type="button"
               onClick={handleReadySelected}
               disabled={!hasAnyReady}
-              className="inline-flex min-h-[44px] items-center rounded bg-pitch-accent px-3 py-2 text-xs font-semibold text-pitch-bg hover:bg-yellow-200 disabled:cursor-not-allowed disabled:bg-pitch-gray-dark disabled:text-pitch-gray"
+              className="inline-flex h-8 items-center rounded border border-[#FFFA00] bg-transparent px-3 text-[12px] font-medium text-[#FFFA00] hover:bg-[#2a2a00] disabled:cursor-not-allowed disabled:opacity-50"
             >
               Mark as ready
             </button>
@@ -1282,7 +1282,7 @@ export default function DesignazioniEventPage() {
               type="button"
               onClick={handleReadyToSendEvent}
               disabled={assignments.every((a) => (a.staffId ?? a.staff_id) == null)}
-              className="inline-flex min-h-[44px] items-center rounded bg-yellow-700 px-3 py-2 text-xs font-semibold text-white hover:bg-yellow-600 disabled:cursor-not-allowed disabled:bg-pitch-gray-dark disabled:text-pitch-gray"
+              className="inline-flex h-8 items-center rounded border border-[#22d3ee] bg-transparent px-3 text-[12px] font-medium text-[#22d3ee] hover:bg-[#0d2a30] disabled:cursor-not-allowed disabled:opacity-50"
             >
               Ready to send
             </button>
@@ -1294,7 +1294,7 @@ export default function DesignazioniEventPage() {
                 !event.standardCologno ||
                 isGeneratingFromStandard
               }
-              className="inline-flex min-h-[44px] items-center rounded border border-pitch-gray px-3 py-2 text-xs text-pitch-gray-light hover:bg-pitch-gray-dark disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex h-8 items-center rounded border border-[#3F4547] bg-transparent px-3 text-[12px] text-[#cfcfcf] hover:bg-[#1c1c1c] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isGeneratingFromStandard
                 ? "Regenerating…"
@@ -1304,8 +1304,8 @@ export default function DesignazioniEventPage() {
       </div>
 
       <section className="mt-6 rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/20 p-5">
-        <h3 className="text-base font-semibold text-pitch-white">Requirements</h3>
-        <p className="mt-1 text-xs text-pitch-gray">
+        <h3 className="text-sm font-medium uppercase text-[#e5e5e5]">Requirements</h3>
+        <p className="mt-1 text-[12px] text-[#888]">
           Slots derived from the event standard.
         </p>
         <div className="mt-3 space-y-2">

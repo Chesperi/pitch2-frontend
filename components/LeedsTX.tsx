@@ -7,6 +7,10 @@ import { fetchLookupValues } from "@/lib/api/lookupValues";
 import ResponsiveTable from "@/components/ui/ResponsiveTable";
 import PageLoading from "@/components/ui/PageLoading";
 import DesktopRecommended from "@/components/ui/DesktopRecommended";
+import ComposableFilters, {
+  type ActiveFilter,
+  type FilterOption,
+} from "@/components/ui/ComposableFilters";
 import {
   fetchLeedsTx,
   patchLeedsTx,
@@ -55,9 +59,8 @@ export default function LeedsTX() {
   const [saving, setSaving] = useState(false);
   const [podTxOptions, setPodTxOptions] = useState<string[]>([]);
   const [mcrPhoneOptions, setMcrPhoneOptions] = useState<string[]>([]);
-  const [filterCompetition, setFilterCompetition] = useState<string>("");
-  const [filterMd, setFilterMd] = useState<string>("");
-  const [filterDate, setFilterDate] = useState<string>("");
+  const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
+  const [searchValue, setSearchValue] = useState("");
 
   const [editModal, setEditModal] = useState<LeedsTxRow | null>(null);
   const [editForm, setEditForm] = useState({
@@ -104,18 +107,40 @@ export default function LeedsTX() {
 
   const canEditGreen = ["MASTER", "MANAGER"].includes(userLevel);
   const canEditBlue = leedsAccess;
-  const filteredRows = rows.filter((row) => {
-    if (filterCompetition && row.competition_name !== filterCompetition) return false;
-    if (filterMd && String(row.matchday ?? "") !== filterMd) return false;
-    if (filterDate && row.date !== filterDate) return false;
-    return true;
-  });
   const competitionOptions = [
     ...new Set(rows.map((r) => r.competition_name).filter(Boolean)),
   ] as string[];
   const mdOptions = [...new Set(rows.map((r) => r.matchday).filter((v) => v != null))]
     .sort((a, b) => Number(a) - Number(b))
     .map(String);
+  const filterOptions: FilterOption[] = [
+    {
+      key: "competition",
+      label: "Competition",
+      values: competitionOptions.map((c) => ({ value: c, label: c })),
+    },
+    {
+      key: "md",
+      label: "MD",
+      values: mdOptions.map((m) => ({ value: m, label: `MD ${m}` })),
+    },
+  ];
+  const filteredRows = rows.filter((row) => {
+    if (searchValue) {
+      const s = searchValue.toLowerCase();
+      const matchSearch =
+        (row.competition_name ?? "").toLowerCase().includes(s) ||
+        (row.home_team ?? "").toLowerCase().includes(s) ||
+        (row.away_team ?? "").toLowerCase().includes(s) ||
+        (row.show_name ?? "").toLowerCase().includes(s);
+      if (!matchSearch) return false;
+    }
+    for (const af of activeFilters) {
+      if (af.key === "competition" && row.competition_name !== af.value) return false;
+      if (af.key === "md" && String(row.matchday ?? "") !== af.value) return false;
+    }
+    return true;
+  });
 
   const openEditModal = (row: LeedsTxRow) => {
     setEditModal(row);
@@ -369,53 +394,18 @@ export default function LeedsTX() {
         )}
       </div>
 
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <select
-          value={filterCompetition}
-          onChange={(e) => setFilterCompetition(e.target.value)}
-          className="rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-1.5 text-xs text-pitch-white focus:border-pitch-accent focus:outline-none"
-        >
-          <option value="">All competitions</option>
-          {competitionOptions.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-        <select
-          value={filterMd}
-          onChange={(e) => setFilterMd(e.target.value)}
-          className="rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-1.5 text-xs text-pitch-white focus:border-pitch-accent focus:outline-none"
-        >
-          <option value="">All MD</option>
-          {mdOptions.map((m) => (
-            <option key={m} value={m}>
-              MD {m}
-            </option>
-          ))}
-        </select>
-        <input
-          type="date"
-          value={filterDate}
-          onChange={(e) => setFilterDate(e.target.value)}
-          className="rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-1.5 text-xs text-pitch-white focus:border-pitch-accent focus:outline-none"
-        />
-        {(filterCompetition || filterMd || filterDate) && (
-          <button
-            onClick={() => {
-              setFilterCompetition("");
-              setFilterMd("");
-              setFilterDate("");
-            }}
-            className="text-xs text-pitch-gray hover:text-pitch-white"
-          >
-            Clear filters
-          </button>
-        )}
-        <span className="ml-auto text-xs text-pitch-gray">
-          {filteredRows.length} / {rows.length} events
-        </span>
-      </div>
+      <ComposableFilters
+        className="mb-4"
+        filters={filterOptions}
+        activeFilters={activeFilters}
+        onChange={setActiveFilters}
+        searchValue={searchValue}
+        onSearchChange={setSearchValue}
+        searchPlaceholder="Search competition, teams..."
+      />
+      <p className="mb-3 text-xs text-pitch-gray">
+        {filteredRows.length} / {rows.length} events
+      </p>
 
       <ResponsiveTable minWidth="2400px">
         {rows.length === 0 ? (

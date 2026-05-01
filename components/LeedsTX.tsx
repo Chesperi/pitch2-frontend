@@ -55,6 +55,9 @@ export default function LeedsTX() {
   const [saving, setSaving] = useState(false);
   const [podTxOptions, setPodTxOptions] = useState<string[]>([]);
   const [mcrPhoneOptions, setMcrPhoneOptions] = useState<string[]>([]);
+  const [filterCompetition, setFilterCompetition] = useState<string>("");
+  const [filterMd, setFilterMd] = useState<string>("");
+  const [filterDate, setFilterDate] = useState<string>("");
 
   const [editModal, setEditModal] = useState<LeedsTxRow | null>(null);
   const [editForm, setEditForm] = useState({
@@ -101,6 +104,18 @@ export default function LeedsTX() {
 
   const canEditGreen = ["MASTER", "MANAGER"].includes(userLevel);
   const canEditBlue = leedsAccess;
+  const filteredRows = rows.filter((row) => {
+    if (filterCompetition && row.competition_name !== filterCompetition) return false;
+    if (filterMd && String(row.matchday ?? "") !== filterMd) return false;
+    if (filterDate && row.date !== filterDate) return false;
+    return true;
+  });
+  const competitionOptions = [
+    ...new Set(rows.map((r) => r.competition_name).filter(Boolean)),
+  ] as string[];
+  const mdOptions = [...new Set(rows.map((r) => r.matchday).filter((v) => v != null))]
+    .sort((a, b) => Number(a) - Number(b))
+    .map(String);
 
   const openEditModal = (row: LeedsTxRow) => {
     setEditModal(row);
@@ -194,12 +209,14 @@ export default function LeedsTX() {
     canEdit,
     colorClass,
     options,
+    widthClass,
   }: {
     row: LeedsTxRow;
     field: keyof LeedsTxRow;
     canEdit: boolean;
     colorClass: string;
     options?: string[];
+    widthClass: string;
   }) => {
     const isEditing = editing?.eventId === row.event_id && editing?.field === field;
     const value = row[field] as string | null;
@@ -208,7 +225,7 @@ export default function LeedsTX() {
       if (options && options.length > 0) {
         return (
           <td
-            className="whitespace-nowrap px-2 py-1"
+            className={`whitespace-nowrap px-2 py-1 ${widthClass}`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-1">
@@ -261,7 +278,7 @@ export default function LeedsTX() {
       }
       return (
         <td
-          className="whitespace-nowrap px-2 py-1"
+          className={`whitespace-nowrap px-2 py-1 ${widthClass}`}
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center gap-1">
@@ -311,7 +328,7 @@ export default function LeedsTX() {
       <td
         className={`whitespace-nowrap px-4 py-3 text-xs ${colorClass} ${
           canEdit ? "cursor-pointer hover:bg-white/5" : ""
-        }`}
+        } ${widthClass}`}
         onClick={() => (canEdit ? startEdit(row.event_id, field, value) : undefined)}
         title={canEdit ? "Click per modificare" : undefined}
       >
@@ -352,6 +369,54 @@ export default function LeedsTX() {
         )}
       </div>
 
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <select
+          value={filterCompetition}
+          onChange={(e) => setFilterCompetition(e.target.value)}
+          className="rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-1.5 text-xs text-pitch-white focus:border-pitch-accent focus:outline-none"
+        >
+          <option value="">All competitions</option>
+          {competitionOptions.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+        <select
+          value={filterMd}
+          onChange={(e) => setFilterMd(e.target.value)}
+          className="rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-1.5 text-xs text-pitch-white focus:border-pitch-accent focus:outline-none"
+        >
+          <option value="">All MD</option>
+          {mdOptions.map((m) => (
+            <option key={m} value={m}>
+              MD {m}
+            </option>
+          ))}
+        </select>
+        <input
+          type="date"
+          value={filterDate}
+          onChange={(e) => setFilterDate(e.target.value)}
+          className="rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-1.5 text-xs text-pitch-white focus:border-pitch-accent focus:outline-none"
+        />
+        {(filterCompetition || filterMd || filterDate) && (
+          <button
+            onClick={() => {
+              setFilterCompetition("");
+              setFilterMd("");
+              setFilterDate("");
+            }}
+            className="text-xs text-pitch-gray hover:text-pitch-white"
+          >
+            Clear filters
+          </button>
+        )}
+        <span className="ml-auto text-xs text-pitch-gray">
+          {filteredRows.length} / {rows.length} events
+        </span>
+      </div>
+
       <ResponsiveTable minWidth="2400px">
         {rows.length === 0 ? (
           <div className="rounded-lg border border-pitch-gray-dark bg-pitch-gray-dark/30 p-8 text-center text-pitch-gray">
@@ -361,61 +426,61 @@ export default function LeedsTX() {
           <table className="w-full border-collapse">
             <thead>
               <tr className="border-b border-pitch-gray-dark">
-                <th className="whitespace-nowrap bg-emerald-950/30 px-4 py-3 text-left text-xs font-medium text-emerald-400">Competition</th>
-                <th className="whitespace-nowrap bg-emerald-950/30 px-4 py-3 text-left text-xs font-medium text-emerald-400">MD</th>
-                <th className="whitespace-nowrap bg-emerald-950/30 px-4 py-3 text-left text-xs font-medium text-emerald-400">Date</th>
-                <th className="whitespace-nowrap bg-emerald-950/30 px-4 py-3 text-left text-xs font-medium text-emerald-400">Home</th>
-                <th className="whitespace-nowrap bg-emerald-950/30 px-4 py-3 text-left text-xs font-medium text-emerald-400">Away</th>
-                <th className="whitespace-nowrap bg-emerald-950/30 px-4 py-3 text-left text-xs font-medium text-emerald-400">KO Italy</th>
-                <th className="whitespace-nowrap bg-emerald-950/30 px-4 py-3 text-left text-xs font-medium text-emerald-400">KO GMT</th>
-                <th className="whitespace-nowrap bg-emerald-950/30 px-4 py-3 text-left text-xs font-medium text-emerald-400">MCR Lineup GMT</th>
-                <th className="whitespace-nowrap bg-emerald-950/30 px-4 py-3 text-left text-xs font-medium text-emerald-400">POD Lineup GMT</th>
-                <th className="whitespace-nowrap bg-emerald-950/30 px-4 py-3 text-left text-xs font-medium text-emerald-400">Facilities</th>
-                <th className="whitespace-nowrap bg-emerald-950/30 px-4 py-3 text-left text-xs font-medium text-emerald-400">Party Line</th>
-                <th className="whitespace-nowrap bg-emerald-950/30 px-4 py-3 text-left text-xs font-medium text-emerald-400">Live Prod. Coordinator</th>
-                <th className="whitespace-nowrap bg-emerald-950/30 px-4 py-3 text-left text-xs font-medium text-emerald-400">Coordinator Contact</th>
-                <th className="whitespace-nowrap bg-blue-950/30 px-4 py-3 text-left text-xs font-medium text-blue-400">POD TX</th>
-                <th className="whitespace-nowrap bg-blue-950/30 px-4 py-3 text-left text-xs font-medium text-blue-400">POD Phone</th>
-                <th className="whitespace-nowrap bg-blue-950/30 px-4 py-3 text-left text-xs font-medium text-blue-400">MCR Phone</th>
-                <th className="whitespace-nowrap bg-blue-950/30 px-4 py-3 text-left text-xs font-medium text-blue-400">LD Initials</th>
-                <th className="whitespace-nowrap bg-blue-950/30 px-4 py-3 text-left text-xs font-medium text-blue-400">LD Name</th>
+                <th className="w-[120px] whitespace-nowrap overflow-hidden text-ellipsis bg-emerald-950/30 px-4 py-3 text-left text-xs font-medium text-emerald-400">Competition</th>
+                <th className="w-[48px] whitespace-nowrap overflow-hidden text-ellipsis bg-emerald-950/30 px-4 py-3 text-left text-xs font-medium text-emerald-400">MD</th>
+                <th className="w-[100px] whitespace-nowrap overflow-hidden text-ellipsis bg-emerald-950/30 px-4 py-3 text-left text-xs font-medium text-emerald-400">Date</th>
+                <th className="w-[110px] whitespace-nowrap overflow-hidden text-ellipsis bg-emerald-950/30 px-4 py-3 text-left text-xs font-medium text-emerald-400">Home</th>
+                <th className="w-[110px] whitespace-nowrap overflow-hidden text-ellipsis bg-emerald-950/30 px-4 py-3 text-left text-xs font-medium text-emerald-400">Away</th>
+                <th className="w-[72px] whitespace-nowrap overflow-hidden text-ellipsis bg-emerald-950/30 px-4 py-3 text-left text-xs font-medium text-emerald-400">KO Italy</th>
+                <th className="w-[72px] whitespace-nowrap overflow-hidden text-ellipsis bg-emerald-950/30 px-4 py-3 text-left text-xs font-medium text-emerald-400">KO GMT</th>
+                <th className="w-[100px] whitespace-nowrap overflow-hidden text-ellipsis bg-emerald-950/30 px-4 py-3 text-left text-xs font-medium text-emerald-400">MCR Lineup GMT</th>
+                <th className="w-[100px] whitespace-nowrap overflow-hidden text-ellipsis bg-emerald-950/30 px-4 py-3 text-left text-xs font-medium text-emerald-400">POD Lineup GMT</th>
+                <th className="w-[100px] whitespace-nowrap overflow-hidden text-ellipsis bg-emerald-950/30 px-4 py-3 text-left text-xs font-medium text-emerald-400">Facilities</th>
+                <th className="w-[80px] whitespace-nowrap overflow-hidden text-ellipsis bg-emerald-950/30 px-4 py-3 text-left text-xs font-medium text-emerald-400">Party Line</th>
+                <th className="w-[160px] whitespace-nowrap overflow-hidden text-ellipsis bg-emerald-950/30 px-4 py-3 text-left text-xs font-medium text-emerald-400">Live Prod. Coordinator</th>
+                <th className="w-[140px] whitespace-nowrap overflow-hidden text-ellipsis bg-emerald-950/30 px-4 py-3 text-left text-xs font-medium text-emerald-400">Coordinator Contact</th>
+                <th className="w-[180px] whitespace-nowrap overflow-hidden text-ellipsis bg-blue-950/30 px-4 py-3 text-left text-xs font-medium text-blue-400">POD TX</th>
+                <th className="w-[110px] whitespace-nowrap overflow-hidden text-ellipsis bg-blue-950/30 px-4 py-3 text-left text-xs font-medium text-blue-400">POD Phone</th>
+                <th className="w-[180px] whitespace-nowrap overflow-hidden text-ellipsis bg-blue-950/30 px-4 py-3 text-left text-xs font-medium text-blue-400">MCR Phone</th>
+                <th className="w-[80px] whitespace-nowrap overflow-hidden text-ellipsis bg-blue-950/30 px-4 py-3 text-left text-xs font-medium text-blue-400">LD Initials</th>
+                <th className="w-[130px] whitespace-nowrap overflow-hidden text-ellipsis bg-blue-950/30 px-4 py-3 text-left text-xs font-medium text-blue-400">LD Name</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
+              {filteredRows.map((row) => (
                 <tr
                   key={row.event_id}
                   className="cursor-pointer border-b border-pitch-gray-dark/50 transition-colors hover:bg-pitch-gray-dark/20"
                   onClick={() => (canEditGreen ? openEditModal(row) : undefined)}
                 >
-                  <td className="whitespace-nowrap bg-emerald-950/10 px-4 py-3 text-xs font-medium text-pitch-white">
+                  <td className="w-[120px] whitespace-nowrap bg-emerald-950/10 px-4 py-3 text-xs font-medium text-pitch-white">
                     {displayCell(row.competition_name)}
                   </td>
-                  <td className="whitespace-nowrap bg-emerald-950/10 px-4 py-3 text-xs text-pitch-gray-light">{displayCell(row.matchday)}</td>
-                  <td className="whitespace-nowrap bg-emerald-950/10 px-4 py-3 text-xs text-pitch-gray-light">{formatDate(row.date)}</td>
-                  <td className="whitespace-nowrap bg-emerald-950/10 px-4 py-3 text-xs text-pitch-gray-light">{displayCell(row.home_team)}</td>
-                  <td className="whitespace-nowrap bg-emerald-950/10 px-4 py-3 text-xs text-pitch-gray-light">{displayCell(row.away_team)}</td>
-                  <td className="whitespace-nowrap bg-emerald-950/10 px-4 py-3 text-xs text-pitch-gray-light">{formatTime(row.ko_italy_time)}</td>
-                  <td className="whitespace-nowrap bg-emerald-950/10 px-4 py-3 text-xs font-medium text-pitch-white">{displayCell(row.ko_gmt_time)}</td>
-                  <td className="whitespace-nowrap bg-emerald-950/10 px-4 py-3 text-xs font-medium text-pitch-white">{displayCell(row.mcr_lineup_gmt)}</td>
-                  <td className="whitespace-nowrap bg-emerald-950/10 px-4 py-3 text-xs font-medium text-pitch-white">{displayCell(row.pod_lineup_gmt)}</td>
-                  <td className="px-4 py-3 text-xs text-pitch-gray-light whitespace-nowrap bg-emerald-950/10">
+                  <td className="w-[48px] whitespace-nowrap bg-emerald-950/10 px-4 py-3 text-xs text-pitch-gray-light">{displayCell(row.matchday)}</td>
+                  <td className="w-[100px] whitespace-nowrap bg-emerald-950/10 px-4 py-3 text-xs text-pitch-gray-light">{formatDate(row.date)}</td>
+                  <td className="w-[110px] whitespace-nowrap bg-emerald-950/10 px-4 py-3 text-xs text-pitch-gray-light">{displayCell(row.home_team)}</td>
+                  <td className="w-[110px] whitespace-nowrap bg-emerald-950/10 px-4 py-3 text-xs text-pitch-gray-light">{displayCell(row.away_team)}</td>
+                  <td className="w-[72px] whitespace-nowrap bg-emerald-950/10 px-4 py-3 text-xs text-pitch-gray-light">{formatTime(row.ko_italy_time)}</td>
+                  <td className="w-[72px] whitespace-nowrap bg-emerald-950/10 px-4 py-3 text-xs font-medium text-pitch-white">{displayCell(row.ko_gmt_time)}</td>
+                  <td className="w-[100px] whitespace-nowrap bg-emerald-950/10 px-4 py-3 text-xs font-medium text-pitch-white">{displayCell(row.mcr_lineup_gmt)}</td>
+                  <td className="w-[100px] whitespace-nowrap bg-emerald-950/10 px-4 py-3 text-xs font-medium text-pitch-white">{displayCell(row.pod_lineup_gmt)}</td>
+                  <td className="w-[100px] px-4 py-3 text-xs text-pitch-gray-light whitespace-nowrap bg-emerald-950/10">
                     {displayCell(row.facilities)}
                   </td>
-                  <td className="px-4 py-3 text-xs text-pitch-accent whitespace-nowrap bg-emerald-950/10 font-medium">
+                  <td className="w-[80px] px-4 py-3 text-xs text-pitch-accent whitespace-nowrap bg-emerald-950/10 font-medium">
                     {displayCell(row.party_line)}
                   </td>
-                  <td className="px-4 py-3 text-xs text-pitch-gray-light whitespace-nowrap bg-emerald-950/10">
+                  <td className="w-[160px] px-4 py-3 text-xs text-pitch-gray-light whitespace-nowrap bg-emerald-950/10">
                     {displayCell(row.live_prod_coordinator)}
                   </td>
-                  <td className="px-4 py-3 text-xs text-pitch-gray-light whitespace-nowrap bg-emerald-950/10">
+                  <td className="w-[140px] px-4 py-3 text-xs text-pitch-gray-light whitespace-nowrap bg-emerald-950/10">
                     {displayCell(row.live_prod_coordinator_contact)}
                   </td>
-                  <EditableCell row={row} field="pod_tx" canEdit={canEditBlue} colorClass="text-blue-300 bg-blue-950/10" options={podTxOptions} />
-                  <EditableCell row={row} field="pod_phone_number" canEdit={canEditBlue} colorClass="bg-blue-950/10 text-blue-300" />
-                  <EditableCell row={row} field="mcr_phone_number" canEdit={canEditBlue} colorClass="text-blue-300 bg-blue-950/10" options={mcrPhoneOptions} />
-                  <EditableCell row={row} field="ld_initials" canEdit={canEditBlue} colorClass="bg-blue-950/10 text-blue-300" />
-                  <EditableCell row={row} field="ld_name" canEdit={canEditBlue} colorClass="bg-blue-950/10 text-blue-300" />
+                  <EditableCell row={row} field="pod_tx" canEdit={canEditBlue} colorClass="text-blue-300 bg-blue-950/10" options={podTxOptions} widthClass="w-[180px]" />
+                  <EditableCell row={row} field="pod_phone_number" canEdit={canEditBlue} colorClass="bg-blue-950/10 text-blue-300" widthClass="w-[110px]" />
+                  <EditableCell row={row} field="mcr_phone_number" canEdit={canEditBlue} colorClass="text-blue-300 bg-blue-950/10" options={mcrPhoneOptions} widthClass="w-[180px]" />
+                  <EditableCell row={row} field="ld_initials" canEdit={canEditBlue} colorClass="bg-blue-950/10 text-blue-300" widthClass="w-[80px]" />
+                  <EditableCell row={row} field="ld_name" canEdit={canEditBlue} colorClass="bg-blue-950/10 text-blue-300" widthClass="w-[130px]" />
                 </tr>
               ))}
             </tbody>

@@ -366,30 +366,30 @@ export default function CronologiaPage() {
           minWidth="1280px"
         >
           <table className="w-full border-collapse text-sm">
-            <thead>
+            <thead className="sticky top-0 z-10">
               <tr className="border-b border-pitch-gray-dark bg-pitch-gray-dark/30">
-                <th className="px-4 py-3 text-left font-medium text-pitch-gray">
+                <th className="bg-[#0d0d0d] px-4 py-3 text-left font-medium text-pitch-gray">
                   Date/Time
                 </th>
-                <th className="px-4 py-3 text-left font-medium text-pitch-gray">
+                <th className="bg-[#0d0d0d] px-4 py-3 text-left font-medium text-pitch-gray">
                   User
                 </th>
-                <th className="px-4 py-3 text-left font-medium text-pitch-gray">
+                <th className="bg-[#0d0d0d] px-4 py-3 text-left font-medium text-pitch-gray">
                   Page
                 </th>
-                <th className="px-4 py-3 text-left font-medium text-pitch-gray">
+                <th className="bg-[#0d0d0d] px-4 py-3 text-left font-medium text-pitch-gray">
                   Element
                 </th>
-                <th className="px-4 py-3 text-left font-medium text-pitch-gray">
+                <th className="bg-[#0d0d0d] px-4 py-3 text-left font-medium text-pitch-gray">
                   Field
                 </th>
-                <th className="px-4 py-3 text-left font-medium text-pitch-gray">
+                <th className="bg-[#0d0d0d] px-4 py-3 text-left font-medium text-pitch-gray">
                   Action
                 </th>
-                <th className="px-4 py-3 text-left font-medium text-pitch-gray">
+                <th className="bg-[#0d0d0d] px-4 py-3 text-left font-medium text-pitch-gray">
                   Previous value
                 </th>
-                <th className="px-4 py-3 text-left font-medium text-pitch-gray">
+                <th className="bg-[#0d0d0d] px-4 py-3 text-left font-medium text-pitch-gray">
                   New value
                 </th>
               </tr>

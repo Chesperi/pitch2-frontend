@@ -383,30 +383,30 @@ export default function DesignazioniPage() {
           <ResponsiveTable minWidth="860px">
             <div className="overflow-x-auto">
           <table className="w-full border-collapse">
-            <thead>
+            <thead className="sticky top-0 z-10">
               <tr className="h-9 border-b border-[#2a2a2a]">
-                <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
+                <th className="h-9 whitespace-nowrap bg-[#0d0d0d] px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                   Match
                 </th>
-                <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
+                <th className="h-9 whitespace-nowrap bg-[#0d0d0d] px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                   Competition
                 </th>
-                <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
+                <th className="h-9 whitespace-nowrap bg-[#0d0d0d] px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                   Category
                 </th>
-                <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
+                <th className="h-9 whitespace-nowrap bg-[#0d0d0d] px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                   MD
                 </th>
-                <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
+                <th className="h-9 whitespace-nowrap bg-[#0d0d0d] px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                   Date & KO
                 </th>
-                <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
+                <th className="h-9 whitespace-nowrap bg-[#0d0d0d] px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                   Status
                 </th>
-                <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
+                <th className="h-9 whitespace-nowrap bg-[#0d0d0d] px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                   Assignments
                 </th>
-                <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
+                <th className="h-9 whitespace-nowrap bg-[#0d0d0d] px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                   Actions
                 </th>
               </tr>
@@ -515,12 +515,12 @@ export default function DesignazioniPage() {
             </div>
           ) : (
             <table className="w-full border-collapse text-xs">
-              <thead>
+              <thead className="sticky top-0 z-10">
                 <tr className="border-b border-pitch-gray-dark text-left text-pitch-gray">
-                  <th className="px-4 py-2">Person</th>
-                  <th className="px-4 py-2">Roles</th>
-                  <th className="px-4 py-2">N. events</th>
-                  <th className="px-4 py-2"></th>
+                  <th className="bg-[#0d0d0d] px-4 py-2">Person</th>
+                  <th className="bg-[#0d0d0d] px-4 py-2">Roles</th>
+                  <th className="bg-[#0d0d0d] px-4 py-2">N. events</th>
+                  <th className="bg-[#0d0d0d] px-4 py-2"></th>
                 </tr>
               </thead>
               <tbody>
@@ -563,13 +563,13 @@ export default function DesignazioniPage() {
                       <tr>
                         <td colSpan={4} className="pb-2 pt-0">
                           <table className="mt-1 w-full text-[11px]">
-                            <thead>
+                            <thead className="sticky top-0 z-10">
                               <tr className="text-pitch-gray">
-                                <th className="py-1 text-left">Event</th>
-                                <th className="py-1 text-left">Match</th>
-                                <th className="py-1 text-left">Role</th>
-                                <th className="py-1 text-left">Status</th>
-                                <th className="py-1 text-right"></th>
+                                <th className="bg-[#0d0d0d] py-1 text-left">Event</th>
+                                <th className="bg-[#0d0d0d] py-1 text-left">Match</th>
+                                <th className="bg-[#0d0d0d] py-1 text-left">Role</th>
+                                <th className="bg-[#0d0d0d] py-1 text-left">Status</th>
+                                <th className="bg-[#0d0d0d] py-1 text-right"></th>
                               </tr>
                             </thead>
                             <tbody>

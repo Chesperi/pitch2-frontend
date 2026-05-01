@@ -438,16 +438,16 @@ export function EventAccreditationsTab({ eventId }: Props) {
 
         <div className="overflow-x-auto">
           <table className="min-w-full border-collapse text-xs">
-            <thead>
+            <thead className="sticky top-0 z-10">
               <tr className="border-b border-pitch-gray-dark text-[11px] text-pitch-gray-light">
-                <th className="px-2 py-1 text-left">COMPANY</th>
-                <th className="px-2 py-1 text-left">LAST NAME</th>
-                <th className="px-2 py-1 text-left">FIRST NAME</th>
-                <th className="px-2 py-1 text-left">ROLE</th>
-                <th className="px-2 py-1 text-left">AREAS</th>
-                <th className="px-2 py-1 text-left">VEHICLE</th>
-                <th className="px-2 py-1 text-left">NOTES</th>
-                <th className="px-2 py-1 text-left">Actions</th>
+                <th className="bg-[#0d0d0d] px-2 py-1 text-left">COMPANY</th>
+                <th className="bg-[#0d0d0d] px-2 py-1 text-left">LAST NAME</th>
+                <th className="bg-[#0d0d0d] px-2 py-1 text-left">FIRST NAME</th>
+                <th className="bg-[#0d0d0d] px-2 py-1 text-left">ROLE</th>
+                <th className="bg-[#0d0d0d] px-2 py-1 text-left">AREAS</th>
+                <th className="bg-[#0d0d0d] px-2 py-1 text-left">VEHICLE</th>
+                <th className="bg-[#0d0d0d] px-2 py-1 text-left">NOTES</th>
+                <th className="bg-[#0d0d0d] px-2 py-1 text-left">Actions</th>
               </tr>
             </thead>
             <tbody>

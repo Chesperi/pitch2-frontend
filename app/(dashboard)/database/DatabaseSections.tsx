@@ -1328,7 +1328,7 @@ export function DatabaseSections({
             </div>
           ) : (
             <table className="w-full border-collapse overflow-visible">
-              <thead>
+              <thead className="sticky top-0 z-10">
                 <tr className="border-b border-[#2a2a2a]">
                   <th className={DB_TH_FIRST}>Last name</th>
                   <th className={DB_TH_FIRST}>First name</th>
@@ -1616,7 +1616,7 @@ export function DatabaseSections({
             </div>
           ) : (
             <table className="w-full border-collapse">
-              <thead>
+              <thead className="sticky top-0 z-10">
                 <tr className="border-b border-[#2a2a2a]">
                   <th className={DB_TH_FIRST}>Code</th>
                   <th className={DB_TH_CELL}>Location</th>
@@ -1893,7 +1893,7 @@ export function DatabaseSections({
           ) : (
             <ResponsiveTable minWidth="1200px">
               <table className="w-full border-collapse text-sm">
-                <thead>
+                <thead className="sticky top-0 z-10">
                   <tr className="border-b border-[#2a2a2a]">
                     <th className={DB_TH_CELL}>ID</th>
                     <th className={DB_TH_FIRST}>Standard onsite</th>
@@ -1970,7 +1970,7 @@ export function DatabaseSections({
                           <div className="border-t border-[#2a2a2a] px-4 py-3">
                         <ResponsiveTable minWidth="800px">
                           <table className="w-full border-collapse text-sm">
-                            <thead>
+                            <thead className="sticky top-0 z-10">
                               <tr className="border-b border-[#2a2a2a]">
                                 <th className={DB_TH_FIRST}>role_code</th>
                                 <th className={DB_TH_CELL}>site</th>
@@ -2049,7 +2049,7 @@ export function DatabaseSections({
 
         <ResponsiveTable minWidth="720px">
           <table className="w-full border-collapse text-sm">
-            <thead>
+            <thead className="sticky top-0 z-10">
               <tr className="border-b border-[#2a2a2a]">
                 <th className={DB_TH_FIRST}>Ruolo</th>
                 <th className={DB_TH_CELL}>Aree assegnate</th>
@@ -2177,7 +2177,7 @@ export function DatabaseSections({
 
         <ResponsiveTable minWidth="640px">
           <table className="w-full border-collapse text-sm">
-            <thead>
+            <thead className="sticky top-0 z-10">
               <tr className="border-b border-[#2a2a2a]">
                 <th className={DB_TH_FIRST}>Area code</th>
                 <th className={DB_TH_CELL}>Descrizione</th>
@@ -2430,7 +2430,7 @@ export function DatabaseSections({
                   minWidth="1000px"
                 >
                   <table className="w-full border-collapse text-left text-xs">
-                    <thead>
+                    <thead className="sticky top-0 z-10">
                       <tr className="border-b border-[#2a2a2a]">
                         <th className={DB_TH}>Role</th>
                         <th className={DB_TH}>Role location</th>
@@ -3081,14 +3081,14 @@ export function DatabaseSections({
                 <p className={FORM_SECTION_LABEL}>Roles & fees</p>
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[640px] border-collapse text-sm">
-                    <thead>
-                      <tr className="border-b border-[#1e1e1e] text-[10px] font-semibold uppercase text-gray-500">
-                        <th className="h-11 px-2 text-left">Role</th>
-                        <th className="h-11 px-2 text-left">Location</th>
-                        <th className="h-11 px-2 text-left">Fee (€)</th>
-                        <th className="h-11 px-2 text-left">Extra fee (€)</th>
-                        <th className="h-11 px-2 text-center">Primary</th>
-                        <th className="h-11 px-2 text-right">Actions</th>
+                    <thead className="sticky top-0 z-10">
+                      <tr className="border-b border-[#1e1e1e] bg-[#0d0d0d] text-[10px] font-semibold uppercase text-gray-500">
+                        <th className="h-11 bg-[#0d0d0d] px-2 text-left">Role</th>
+                        <th className="h-11 bg-[#0d0d0d] px-2 text-left">Location</th>
+                        <th className="h-11 bg-[#0d0d0d] px-2 text-left">Fee (€)</th>
+                        <th className="h-11 bg-[#0d0d0d] px-2 text-left">Extra fee (€)</th>
+                        <th className="h-11 bg-[#0d0d0d] px-2 text-center">Primary</th>
+                        <th className="h-11 bg-[#0d0d0d] px-2 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody>

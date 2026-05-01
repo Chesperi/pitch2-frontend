@@ -391,14 +391,14 @@ export default function AccreditiPage() {
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full border-collapse text-sm">
-            <thead>
+            <thead className="sticky top-0 z-10">
               <tr className="border-b border-pitch-gray-dark text-left text-pitch-gray">
-                <th className="px-3 py-2">Match</th>
-                <th className="px-3 py-2">Competition</th>
-                <th className="px-3 py-2">MD</th>
-                <th className="px-3 py-2">Date &amp; KO</th>
-                <th className="px-3 py-2">Assignments</th>
-                <th className="px-3 py-2">Actions</th>
+                <th className="bg-[#0d0d0d] px-3 py-2">Match</th>
+                <th className="bg-[#0d0d0d] px-3 py-2">Competition</th>
+                <th className="bg-[#0d0d0d] px-3 py-2">MD</th>
+                <th className="bg-[#0d0d0d] px-3 py-2">Date &amp; KO</th>
+                <th className="bg-[#0d0d0d] px-3 py-2">Assignments</th>
+                <th className="bg-[#0d0d0d] px-3 py-2">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -587,19 +587,19 @@ export default function AccreditiPage() {
 
           <div className="mt-4 overflow-x-auto">
             <table className="min-w-full border-collapse text-sm">
-              <thead>
+              <thead className="sticky top-0 z-10">
                 <tr className="border-b border-pitch-gray-dark text-left text-pitch-gray">
-                  <th className="px-3 py-2">Type</th>
-                  <th className="px-3 py-2">Company</th>
-                  <th className="px-3 py-2">Last name</th>
-                  <th className="px-3 py-2">First name</th>
-                  <th className="px-3 py-2">Place of birth</th>
-                  <th className="px-3 py-2">Date of birth</th>
-                  <th className="px-3 py-2">Areas</th>
-                  <th className="px-3 py-2">Role</th>
-                  <th className="px-3 py-2">Plate</th>
-                  <th className="px-3 py-2">Notes</th>
-                  <th className="px-3 py-2">Actions</th>
+                  <th className="bg-[#0d0d0d] px-3 py-2">Type</th>
+                  <th className="bg-[#0d0d0d] px-3 py-2">Company</th>
+                  <th className="bg-[#0d0d0d] px-3 py-2">Last name</th>
+                  <th className="bg-[#0d0d0d] px-3 py-2">First name</th>
+                  <th className="bg-[#0d0d0d] px-3 py-2">Place of birth</th>
+                  <th className="bg-[#0d0d0d] px-3 py-2">Date of birth</th>
+                  <th className="bg-[#0d0d0d] px-3 py-2">Areas</th>
+                  <th className="bg-[#0d0d0d] px-3 py-2">Role</th>
+                  <th className="bg-[#0d0d0d] px-3 py-2">Plate</th>
+                  <th className="bg-[#0d0d0d] px-3 py-2">Notes</th>
+                  <th className="bg-[#0d0d0d] px-3 py-2">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -689,10 +689,10 @@ export default function AccreditiPage() {
                 <>
                   <div className="overflow-x-auto">
                     <table className="min-w-full border-collapse text-sm">
-                      <thead>
+                      <thead className="sticky top-0 z-10">
                         <tr className="border-b border-pitch-gray-dark text-left text-pitch-gray">
-                          <th className="px-3 py-2">Role</th>
-                          <th className="px-3 py-2">Assigned areas</th>
+                          <th className="bg-[#0d0d0d] px-3 py-2">Role</th>
+                          <th className="bg-[#0d0d0d] px-3 py-2">Assigned areas</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -716,10 +716,10 @@ export default function AccreditiPage() {
 
                   <div className="overflow-x-auto">
                     <table className="min-w-full border-collapse text-sm">
-                      <thead>
+                      <thead className="sticky top-0 z-10">
                         <tr className="border-b border-pitch-gray-dark text-left text-pitch-gray">
-                          <th className="px-3 py-2">Area code</th>
-                          <th className="px-3 py-2">Description</th>
+                          <th className="bg-[#0d0d0d] px-3 py-2">Area code</th>
+                          <th className="bg-[#0d0d0d] px-3 py-2">Description</th>
                         </tr>
                       </thead>
                       <tbody>

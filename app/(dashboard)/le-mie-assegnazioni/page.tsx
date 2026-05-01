@@ -1464,10 +1464,10 @@ export default function LeMieAssegnazioniPage() {
               >
                 <div className="overflow-x-auto">
                   <table className="min-w-max border-collapse">
-                    <thead>
+                    <thead className="sticky top-0 z-10">
                       <tr>
                         <th
-                          className="sticky left-0 z-20 min-w-[140px] bg-[#111] px-2 py-2 text-left text-xs font-medium uppercase tracking-wide text-gray-400"
+                          className="sticky left-0 z-20 min-w-[140px] bg-[#0d0d0d] px-2 py-2 text-left text-xs font-medium uppercase tracking-wide text-gray-400"
                         >
                           Name
                         </th>
@@ -1481,7 +1481,7 @@ export default function LeMieAssegnazioniPage() {
                           return (
                             <th
                               key={cell.isoDate}
-                              className={`w-9 shrink-0 px-0 py-2 text-center ${
+                              className={`w-9 shrink-0 bg-[#0d0d0d] px-0 py-2 text-center ${
                                 weekStart ? "border-l-2 border-[#FFFA00]" : ""
                               } ${outMonth ? "opacity-30" : ""}`}
                             >

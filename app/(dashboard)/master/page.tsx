@@ -405,21 +405,21 @@ export default function MasterPage() {
             minWidth="900px"
           >
           <table className="w-full border-collapse text-xs">
-            <thead>
-              <tr className="border-b border-pitch-gray-dark bg-pitch-gray-dark/30">
-                <th className="sticky left-0 z-10 min-w-[160px] whitespace-nowrap bg-pitch-gray-dark/40 px-3 py-2 text-left font-medium text-pitch-gray">
+            <thead className="sticky top-0 z-10">
+              <tr className="border-b border-pitch-gray-dark bg-[#0d0d0d]">
+                <th className="sticky left-0 z-10 min-w-[160px] whitespace-nowrap bg-[#0d0d0d] px-3 py-2 text-left font-medium text-pitch-gray">
                   Nome
                 </th>
-                <th className="min-w-[120px] whitespace-nowrap px-3 py-2 text-left font-medium text-pitch-gray">
+                <th className="min-w-[120px] whitespace-nowrap bg-[#0d0d0d] px-3 py-2 text-left font-medium text-pitch-gray">
                   User level
                 </th>
-                <th className="min-w-[160px] whitespace-nowrap px-3 py-2 text-left font-medium text-pitch-gray">
+                <th className="min-w-[160px] whitespace-nowrap bg-[#0d0d0d] px-3 py-2 text-left font-medium text-pitch-gray">
                   Visib. finanziaria
                 </th>
-                <th className="min-w-[200px] whitespace-nowrap px-3 py-2 text-left font-medium text-pitch-gray">
+                <th className="min-w-[200px] whitespace-nowrap bg-[#0d0d0d] px-3 py-2 text-left font-medium text-pitch-gray">
                   Turni
                 </th>
-                <th className="min-w-[120px] whitespace-nowrap px-3 py-2 text-left font-medium text-pitch-gray">
+                <th className="min-w-[120px] whitespace-nowrap bg-[#0d0d0d] px-3 py-2 text-left font-medium text-pitch-gray">
                   Sergio
                 </th>
                 {pageKeysOrdered.map((pk) => (

@@ -327,8 +327,8 @@ export function EventRulesSection({
       ) : (
         <div className="overflow-x-auto rounded-lg border border-pitch-gray-dark">
           <table className="w-full min-w-[1100px] border-collapse text-[12px]">
-            <thead>
-              <tr className="border-b border-pitch-gray-dark bg-pitch-gray-dark/30">
+            <thead className="sticky top-0 z-10">
+              <tr className="border-b border-pitch-gray-dark bg-[#0d0d0d]">
                 <th className={DB_TH_FIRST}>Competition</th>
                 <th className={DB_TH_CELL}>Day</th>
                 <th className={DB_TH_CELL}>Time</th>

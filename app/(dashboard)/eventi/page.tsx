@@ -1725,7 +1725,7 @@ export default function EventiPage() {
           <>
             <div className="overflow-x-auto">
           <table className="w-full border-collapse">
-            <thead>
+            <thead className="sticky top-0 z-10">
               <tr className="border-b border-[#2a2a2a]">
                 <th className={DB_TH_FIRST}>
                   <input

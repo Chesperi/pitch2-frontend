@@ -427,26 +427,26 @@ export default function ConsuntivoPage() {
           minWidth="1000px"
         >
           <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr className="border-b border-pitch-gray-dark bg-pitch-gray-dark/30">
-                <th className="px-4 py-3 text-left font-medium text-pitch-gray">
+            <thead className="sticky top-0 z-10">
+              <tr className="border-b border-pitch-gray-dark bg-[#0d0d0d]">
+                <th className="bg-[#0d0d0d] px-4 py-3 text-left font-medium text-pitch-gray">
                   Event date
                 </th>
-                <th className="px-4 py-3 text-left font-medium text-pitch-gray">MD</th>
-                <th className="px-4 py-3 text-left font-medium text-pitch-gray">
+                <th className="bg-[#0d0d0d] px-4 py-3 text-left font-medium text-pitch-gray">MD</th>
+                <th className="bg-[#0d0d0d] px-4 py-3 text-left font-medium text-pitch-gray">
                   Competition
                 </th>
-                <th className="px-4 py-3 text-left font-medium text-pitch-gray">Staff</th>
-                <th className="px-4 py-3 text-left font-medium text-pitch-gray">
+                <th className="bg-[#0d0d0d] px-4 py-3 text-left font-medium text-pitch-gray">Staff</th>
+                <th className="bg-[#0d0d0d] px-4 py-3 text-left font-medium text-pitch-gray">
                   Provider
                 </th>
-                <th className="px-4 py-3 text-left font-medium text-pitch-gray">Role</th>
-                <th className="px-4 py-3 text-left font-medium text-pitch-gray">
+                <th className="bg-[#0d0d0d] px-4 py-3 text-left font-medium text-pitch-gray">Role</th>
+                <th className="bg-[#0d0d0d] px-4 py-3 text-left font-medium text-pitch-gray">
                   Location
                 </th>
-                <th className="px-4 py-3 text-left font-medium text-pitch-gray">Status</th>
+                <th className="bg-[#0d0d0d] px-4 py-3 text-left font-medium text-pitch-gray">Status</th>
                 {showFinance ? (
-                  <th className="px-4 py-3 text-right font-medium text-pitch-gray">Fee</th>
+                  <th className="bg-[#0d0d0d] px-4 py-3 text-right font-medium text-pitch-gray">Fee</th>
                 ) : null}
               </tr>
             </thead>

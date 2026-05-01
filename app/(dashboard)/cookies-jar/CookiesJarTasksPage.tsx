@@ -586,30 +586,30 @@ export function CookiesJarTasksPage({
       >
         <div className="overflow-x-auto">
         <table className="w-full border-collapse">
-          <thead>
-            <tr className="h-9 border-b border-[#2a2a2a] bg-pitch-gray-dark/30">
-              <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
+          <thead className="sticky top-0 z-10">
+            <tr className="h-9 border-b border-[#2a2a2a] bg-[#0d0d0d]">
+              <th className="h-9 whitespace-nowrap bg-[#0d0d0d] px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                 Description
               </th>
-              <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
+              <th className="h-9 whitespace-nowrap bg-[#0d0d0d] px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                 Assigned to
               </th>
-              <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
+              <th className="h-9 whitespace-nowrap bg-[#0d0d0d] px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                 Team
               </th>
-              <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
+              <th className="h-9 whitespace-nowrap bg-[#0d0d0d] px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                 Project
               </th>
-              <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
+              <th className="h-9 whitespace-nowrap bg-[#0d0d0d] px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                 Status
               </th>
-              <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
+              <th className="h-9 whitespace-nowrap bg-[#0d0d0d] px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                 Start date
               </th>
-              <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
+              <th className="h-9 whitespace-nowrap bg-[#0d0d0d] px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                 End date
               </th>
-              <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
+              <th className="h-9 whitespace-nowrap bg-[#0d0d0d] px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                 Actions
               </th>
             </tr>
@@ -1030,30 +1030,30 @@ export function CookiesJarTasksPage({
       >
         <div className="overflow-x-auto">
         <table className="w-full border-collapse">
-          <thead>
-            <tr className="h-9 border-b border-[#2a2a2a] bg-pitch-gray-dark/30">
-              <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
+          <thead className="sticky top-0 z-10">
+            <tr className="h-9 border-b border-[#2a2a2a] bg-[#0d0d0d]">
+              <th className="h-9 whitespace-nowrap bg-[#0d0d0d] px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                 Title
               </th>
-              <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
+              <th className="h-9 whitespace-nowrap bg-[#0d0d0d] px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                 Category
               </th>
-              <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
+              <th className="h-9 whitespace-nowrap bg-[#0d0d0d] px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                 Competition
               </th>
-              <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
+              <th className="h-9 whitespace-nowrap bg-[#0d0d0d] px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                 Validity
               </th>
-              <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
+              <th className="h-9 whitespace-nowrap bg-[#0d0d0d] px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                 Tag
               </th>
-              <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
+              <th className="h-9 whitespace-nowrap bg-[#0d0d0d] px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                 File
               </th>
-              <th className="h-9 whitespace-nowrap px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
+              <th className="h-9 whitespace-nowrap bg-[#0d0d0d] px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                 Created on
               </th>
-              <th className="h-9 whitespace-nowrap px-2 text-right align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
+              <th className="h-9 whitespace-nowrap bg-[#0d0d0d] px-2 text-right align-middle text-[11px] font-medium uppercase tracking-wide text-[#666]">
                 Actions
               </th>
             </tr>

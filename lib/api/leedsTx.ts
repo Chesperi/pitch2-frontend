@@ -92,10 +92,12 @@ export async function patchLeedsTx(
   eventId: string,
   payload: LeedsTxBluePayload | LeedsTxGreenOverridePayload
 ): Promise<void> {
+  console.log("patchLeedsTx called:", eventId, JSON.stringify(payload));
   const res = await apiFetch(`/api/leeds-tx/${eventId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
+  console.log("patchLeedsTx response status:", res.status);
   if (!res.ok) throw new Error(`Leeds TX patch error: ${res.status}`);
 }

@@ -43,6 +43,7 @@ export default function LeedsTX() {
       setLeedsAccess(!!(me as { leeds_access?: boolean }).leeds_access);
       setUserLevel((me.user_level ?? "").toUpperCase());
       setRows(data);
+      console.log("Leeds TX rows loaded:", data.length, data[0]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Errore caricamento");
     } finally {

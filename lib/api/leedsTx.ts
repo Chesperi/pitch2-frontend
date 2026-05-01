@@ -40,6 +40,8 @@ export interface LeedsTxGreenOverridePayload {
   override_live_prod_contact?: string | null;
   override_party_line?: string | null;
   override_facilities?: string | null;
+  override_mcr_lineup_gmt?: string | null;
+  override_pod_lineup_gmt?: string | null;
 }
 
 function normalizeLeedsTxRow(raw: Record<string, unknown>): LeedsTxRow {

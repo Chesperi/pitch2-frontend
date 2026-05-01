@@ -25,6 +25,7 @@ import ResponsiveTable from "@/components/ui/ResponsiveTable";
 import PageLoading from "@/components/ui/PageLoading";
 import EmptyState from "@/components/ui/EmptyState";
 import MonthCalendar from "@/components/ui/MonthCalendar";
+import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import ComposableFilters, {
   type ActiveFilter,
   type FilterOption,
@@ -248,7 +249,11 @@ function EventModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const buildInitialForm = (source: EventItem | null): CreateEventPayload =>
+  type EventFormPayload = CreateEventPayload & {
+    includeInLeedsTx?: boolean;
+  };
+
+  const buildInitialForm = (source: EventItem | null): EventFormPayload =>
     source
       ? {
           category: normalizeCategoryValue(
@@ -274,6 +279,10 @@ function EventModal({
           studio: source.studio ?? "",
           notes: source.notes ?? "",
           isTopMatch: Boolean(source.isTopMatch),
+          includeInLeedsTx: Boolean(
+            (source as EventItem & { include_in_leeds_tx?: boolean })
+              .include_in_leeds_tx
+          ),
         }
       : {
           category: "MATCH",
@@ -297,8 +306,11 @@ function EventModal({
           studio: "",
           notes: "",
           isTopMatch: false,
+          includeInLeedsTx: false,
         };
-  const [form, setForm] = useState<CreateEventPayload>(() => buildInitialForm(event));
+  const [form, setForm] = useState<EventFormPayload>(() =>
+    buildInitialForm(event)
+  );
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [lookupOnsite, setLookupOnsite] = useState<LookupValue[]>([]);
@@ -382,10 +394,17 @@ function EventModal({
         notes: form.notes?.trim() || null,
         isTopMatch: form.isTopMatch ?? false,
       };
-      if (event) {
-        await updateEvent(event.id, payload);
-      } else {
-        await createEvent(payload);
+      const savedEvent = event
+        ? await updateEvent(event.id, payload)
+        : await createEvent(payload);
+      if (isMediaContent) {
+        await apiFetch(`/api/events/${encodeURIComponent(savedEvent.id)}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            include_in_leeds_tx: Boolean(form.includeInLeedsTx),
+          }),
+        });
       }
       onSaved();
       onClose();
@@ -774,6 +793,17 @@ function EventModal({
               className={inputClass}
             />
           </div>
+          {isMediaContent ? (
+            <div className="pt-1">
+              <ToggleSwitch
+                checked={Boolean(form.includeInLeedsTx)}
+                onChange={(checked) =>
+                  setForm((f) => ({ ...f, includeInLeedsTx: checked }))
+                }
+                label="Include in Leeds TX"
+              />
+            </div>
+          ) : null}
           <div className="flex items-center justify-between gap-2 pt-4">
             <div>
               {event ? (

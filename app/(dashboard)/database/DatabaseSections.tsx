@@ -239,6 +239,7 @@ type StaffFormValues = {
   teamDazn: string;
   staffNotes: string;
   financeVisibility: boolean;
+  leedsAccess: boolean;
 };
 
 const PRIMARY_BTN_SM =
@@ -391,6 +392,7 @@ export function DatabaseSections({
   roleMap,
 }: DatabaseSectionsProps) {
   const [showFinance, setShowFinance] = useState(false);
+  const [currentUserLevel, setCurrentUserLevel] = useState("");
   const [staffOpen, setStaffOpen] = useState(false);
   const [rolesOpen, setRolesOpen] = useState(false);
   const [standardOpen, setStandardOpen] = useState(false);
@@ -420,9 +422,15 @@ export function DatabaseSections({
     (async () => {
       try {
         const me = await fetchAuthMe();
-        if (!cancelled) setShowFinance(canSeeFinance(me));
+        if (!cancelled) {
+          setShowFinance(canSeeFinance(me));
+          setCurrentUserLevel((me.user_level ?? "").toUpperCase().trim());
+        }
       } catch {
-        if (!cancelled) setShowFinance(false);
+        if (!cancelled) {
+          setShowFinance(false);
+          setCurrentUserLevel("");
+        }
       }
     })();
     return () => {
@@ -452,6 +460,7 @@ export function DatabaseSections({
     teamDazn: "",
     staffNotes: "",
     financeVisibility: false,
+    leedsAccess: false,
   });
   const [staffRolesDraft, setStaffRolesDraft] = useState<StaffRoleFee[]>([]);
   const [staffRolesBaseline, setStaffRolesBaseline] = useState<StaffRoleFee[]>(
@@ -904,6 +913,10 @@ export function DatabaseSections({
         ? ("VISIBLE" as const)
         : ("HIDDEN" as const),
     };
+    const leedsAccessPatch =
+      currentUserLevel === "MASTER"
+        ? { leedsAccess: staffFormValues.leedsAccess }
+        : {};
 
     const platesJoined = joinPlatesFromThree(
       staffFormValues.plate1,
@@ -975,7 +988,8 @@ export function DatabaseSections({
           company: staffFormValues.company.trim() || undefined,
           plates: platesJoined ?? null,
           ...extraStaffFields,
-        });
+          ...leedsAccessPatch,
+        } as Parameters<typeof updateStaff>[1]);
         await syncRoles(editingStaff.id);
       } else {
         const created = await createStaff({
@@ -1295,6 +1309,7 @@ export function DatabaseSections({
                 teamDazn: "",
                 staffNotes: "",
                 financeVisibility: false,
+                leedsAccess: false,
               });
               setIsStaffModalOpen(true);
             }}
@@ -1489,6 +1504,13 @@ export function DatabaseSections({
                                 teamDazn: s.team_dazn ?? "",
                                 staffNotes: s.notes ?? "",
                                 financeVisibility: s.finance_visibility === "VISIBLE",
+                                leedsAccess: Boolean(
+                                  (
+                                    s as StaffItem & {
+                                      leeds_access?: boolean;
+                                    }
+                                  ).leeds_access
+                                ),
                               });
                               setIsStaffModalOpen(true);
                             }}
@@ -3040,6 +3062,18 @@ export function DatabaseSections({
                     }
                     label="Financial visibility"
                   />
+                  {currentUserLevel === "MASTER" ? (
+                    <ToggleSwitch
+                      checked={staffFormValues.leedsAccess}
+                      onChange={(checked) =>
+                        setStaffFormValues((v) => ({
+                          ...v,
+                          leedsAccess: checked,
+                        }))
+                      }
+                      label="Leeds access"
+                    />
+                  ) : null}
                 </div>
               </div>
 

@@ -113,6 +113,15 @@ export default function LeedsTX() {
   const mdOptions = [...new Set(rows.map((r) => r.matchday).filter((v) => v != null))]
     .sort((a, b) => Number(a) - Number(b))
     .map(String);
+  const koOptions = [
+    ...new Set(rows.map((r) => r.ko_italy_time?.slice(0, 5)).filter(Boolean)),
+  ].sort() as string[];
+  const facilitiesOptions = [
+    ...new Set(rows.map((r) => r.facilities).filter(Boolean)),
+  ] as string[];
+  const partyLineOptions = [
+    ...new Set(rows.map((r) => r.party_line).filter(Boolean)),
+  ] as string[];
   const filterOptions: FilterOption[] = [
     {
       key: "competition",
@@ -123,6 +132,21 @@ export default function LeedsTX() {
       key: "md",
       label: "MD",
       values: mdOptions.map((m) => ({ value: m, label: `MD ${m}` })),
+    },
+    {
+      key: "ko",
+      label: "KO Italy",
+      values: koOptions.map((k) => ({ value: k, label: k })),
+    },
+    {
+      key: "facilities",
+      label: "Facilities",
+      values: facilitiesOptions.map((f) => ({ value: f, label: f })),
+    },
+    {
+      key: "party_line",
+      label: "Party Line",
+      values: partyLineOptions.map((p) => ({ value: p, label: p })),
     },
   ];
   const filteredRows = rows.filter((row) => {
@@ -138,6 +162,9 @@ export default function LeedsTX() {
     for (const af of activeFilters) {
       if (af.key === "competition" && row.competition_name !== af.value) return false;
       if (af.key === "md" && String(row.matchday ?? "") !== af.value) return false;
+      if (af.key === "ko" && row.ko_italy_time?.slice(0, 5) !== af.value) return false;
+      if (af.key === "facilities" && row.facilities !== af.value) return false;
+      if (af.key === "party_line" && row.party_line !== af.value) return false;
     }
     return true;
   });
@@ -414,26 +441,25 @@ export default function LeedsTX() {
           </div>
         ) : (
           <table className="w-full border-collapse">
-            <thead>
+            <thead className="sticky top-0 z-10">
               <tr className="border-b border-pitch-gray-dark">
-                <th className="w-[120px] whitespace-nowrap overflow-hidden text-ellipsis bg-emerald-950/30 px-4 py-3 text-left text-xs font-medium text-emerald-400">Competition</th>
-                <th className="w-[48px] whitespace-nowrap overflow-hidden text-ellipsis bg-emerald-950/30 px-4 py-3 text-left text-xs font-medium text-emerald-400">MD</th>
-                <th className="w-[100px] whitespace-nowrap overflow-hidden text-ellipsis bg-emerald-950/30 px-4 py-3 text-left text-xs font-medium text-emerald-400">Date</th>
-                <th className="w-[110px] whitespace-nowrap overflow-hidden text-ellipsis bg-emerald-950/30 px-4 py-3 text-left text-xs font-medium text-emerald-400">Home</th>
-                <th className="w-[110px] whitespace-nowrap overflow-hidden text-ellipsis bg-emerald-950/30 px-4 py-3 text-left text-xs font-medium text-emerald-400">Away</th>
-                <th className="w-[72px] whitespace-nowrap overflow-hidden text-ellipsis bg-emerald-950/30 px-4 py-3 text-left text-xs font-medium text-emerald-400">KO Italy</th>
-                <th className="w-[72px] whitespace-nowrap overflow-hidden text-ellipsis bg-emerald-950/30 px-4 py-3 text-left text-xs font-medium text-emerald-400">KO GMT</th>
-                <th className="w-[100px] whitespace-nowrap overflow-hidden text-ellipsis bg-emerald-950/30 px-4 py-3 text-left text-xs font-medium text-emerald-400">MCR Lineup GMT</th>
-                <th className="w-[100px] whitespace-nowrap overflow-hidden text-ellipsis bg-emerald-950/30 px-4 py-3 text-left text-xs font-medium text-emerald-400">POD Lineup GMT</th>
-                <th className="w-[100px] whitespace-nowrap overflow-hidden text-ellipsis bg-emerald-950/30 px-4 py-3 text-left text-xs font-medium text-emerald-400">Facilities</th>
-                <th className="w-[80px] whitespace-nowrap overflow-hidden text-ellipsis bg-emerald-950/30 px-4 py-3 text-left text-xs font-medium text-emerald-400">Party Line</th>
-                <th className="w-[160px] whitespace-nowrap overflow-hidden text-ellipsis bg-emerald-950/30 px-4 py-3 text-left text-xs font-medium text-emerald-400">Live Prod. Coordinator</th>
-                <th className="w-[140px] whitespace-nowrap overflow-hidden text-ellipsis bg-emerald-950/30 px-4 py-3 text-left text-xs font-medium text-emerald-400">Coordinator Contact</th>
-                <th className="w-[180px] whitespace-nowrap overflow-hidden text-ellipsis bg-blue-950/30 px-4 py-3 text-left text-xs font-medium text-blue-400">POD TX</th>
-                <th className="w-[110px] whitespace-nowrap overflow-hidden text-ellipsis bg-blue-950/30 px-4 py-3 text-left text-xs font-medium text-blue-400">POD Phone</th>
-                <th className="w-[180px] whitespace-nowrap overflow-hidden text-ellipsis bg-blue-950/30 px-4 py-3 text-left text-xs font-medium text-blue-400">MCR Phone</th>
-                <th className="w-[80px] whitespace-nowrap overflow-hidden text-ellipsis bg-blue-950/30 px-4 py-3 text-left text-xs font-medium text-blue-400">LD Initials</th>
-                <th className="w-[130px] whitespace-nowrap overflow-hidden text-ellipsis bg-blue-950/30 px-4 py-3 text-left text-xs font-medium text-blue-400">LD Name</th>
+                <th className="w-[120px] whitespace-nowrap overflow-hidden text-ellipsis bg-[#0a1a0a] px-4 py-3 text-left text-xs font-medium text-emerald-400">Competition</th>
+                <th className="w-[48px] whitespace-nowrap overflow-hidden text-ellipsis bg-[#0a1a0a] px-4 py-3 text-left text-xs font-medium text-emerald-400">MD</th>
+                <th className="w-[100px] whitespace-nowrap overflow-hidden text-ellipsis bg-[#0a1a0a] px-4 py-3 text-left text-xs font-medium text-emerald-400">Date</th>
+                <th className="w-[200px] whitespace-nowrap overflow-hidden text-ellipsis bg-[#0a1a0a] px-4 py-3 text-left text-xs font-medium text-emerald-400">Match</th>
+                <th className="w-[72px] whitespace-nowrap overflow-hidden text-ellipsis bg-[#0a1a0a] px-4 py-3 text-left text-xs font-medium text-emerald-400">KO Italy</th>
+                <th className="w-[72px] whitespace-nowrap overflow-hidden text-ellipsis bg-[#0a1a0a] px-4 py-3 text-left text-xs font-medium text-emerald-400">KO GMT</th>
+                <th className="w-[100px] whitespace-nowrap overflow-hidden text-ellipsis bg-[#0a1a0a] px-4 py-3 text-left text-xs font-medium text-emerald-400">MCR Lineup GMT</th>
+                <th className="w-[100px] whitespace-nowrap overflow-hidden text-ellipsis bg-[#0a1a0a] px-4 py-3 text-left text-xs font-medium text-emerald-400">POD Lineup GMT</th>
+                <th className="w-[100px] whitespace-nowrap overflow-hidden text-ellipsis bg-[#0a1a0a] px-4 py-3 text-left text-xs font-medium text-emerald-400">Facilities</th>
+                <th className="w-[80px] whitespace-nowrap overflow-hidden text-ellipsis bg-[#0a1a0a] px-4 py-3 text-left text-xs font-medium text-emerald-400">Party Line</th>
+                <th className="w-[160px] whitespace-nowrap overflow-hidden text-ellipsis bg-[#0a1a0a] px-4 py-3 text-left text-xs font-medium text-emerald-400">Live Prod. Coordinator</th>
+                <th className="w-[140px] whitespace-nowrap overflow-hidden text-ellipsis bg-[#0a1a0a] px-4 py-3 text-left text-xs font-medium text-emerald-400">Coordinator Contact</th>
+                <th className="w-[180px] whitespace-nowrap overflow-hidden text-ellipsis bg-[#0a0a1a] px-4 py-3 text-left text-xs font-medium text-blue-400">POD TX</th>
+                <th className="w-[110px] whitespace-nowrap overflow-hidden text-ellipsis bg-[#0a0a1a] px-4 py-3 text-left text-xs font-medium text-blue-400">POD Phone</th>
+                <th className="w-[180px] whitespace-nowrap overflow-hidden text-ellipsis bg-[#0a0a1a] px-4 py-3 text-left text-xs font-medium text-blue-400">MCR Phone</th>
+                <th className="w-[80px] whitespace-nowrap overflow-hidden text-ellipsis bg-[#0a0a1a] px-4 py-3 text-left text-xs font-medium text-blue-400">LD Initials</th>
+                <th className="w-[130px] whitespace-nowrap overflow-hidden text-ellipsis bg-[#0a0a1a] px-4 py-3 text-left text-xs font-medium text-blue-400">LD Name</th>
               </tr>
             </thead>
             <tbody>
@@ -448,8 +474,11 @@ export default function LeedsTX() {
                   </td>
                   <td className="w-[48px] whitespace-nowrap bg-emerald-950/10 px-4 py-3 text-xs text-pitch-gray-light">{displayCell(row.matchday)}</td>
                   <td className="w-[100px] whitespace-nowrap bg-emerald-950/10 px-4 py-3 text-xs text-pitch-gray-light">{formatDate(row.date)}</td>
-                  <td className="w-[110px] whitespace-nowrap bg-emerald-950/10 px-4 py-3 text-xs text-pitch-gray-light">{displayCell(row.home_team)}</td>
-                  <td className="w-[110px] whitespace-nowrap bg-emerald-950/10 px-4 py-3 text-xs text-pitch-gray-light">{displayCell(row.away_team)}</td>
+                  <td className="px-4 py-3 text-xs text-pitch-white whitespace-nowrap bg-emerald-950/10 w-[200px]">
+                    {row.home_team && row.away_team
+                      ? `${row.home_team} vs ${row.away_team}`
+                      : row.show_name ?? "—"}
+                  </td>
                   <td className="w-[72px] whitespace-nowrap bg-emerald-950/10 px-4 py-3 text-xs text-pitch-gray-light">{formatTime(row.ko_italy_time)}</td>
                   <td className="w-[72px] whitespace-nowrap bg-emerald-950/10 px-4 py-3 text-xs font-medium text-pitch-white">{displayCell(row.ko_gmt_time)}</td>
                   <td className="w-[100px] whitespace-nowrap bg-emerald-950/10 px-4 py-3 text-xs font-medium text-pitch-white">{displayCell(row.mcr_lineup_gmt)}</td>

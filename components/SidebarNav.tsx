@@ -131,19 +131,19 @@ type AuthMeSidebar = {
 function FootballFieldSvg() {
   return (
     <svg
-      className="h-8 w-8 shrink-0"
+      className="h-8 w-8 shrink-0 text-[color:var(--pitch-text)]"
       viewBox="0 0 32 32"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden
     >
-      <rect x="1" y="1" width="30" height="30" rx="2" stroke="white" strokeWidth="1.5" />
-      <line x1="16" y1="1" x2="16" y2="31" stroke="white" strokeWidth="1" />
-      <circle cx="16" cy="16" r="5" stroke="white" strokeWidth="1" />
-      <path d="M1 10 Q8 16 1 22" stroke="white" strokeWidth="1" fill="none" />
-      <path d="M31 10 Q24 16 31 22" stroke="white" strokeWidth="1" fill="none" />
-      <rect x="1" y="12" width="4" height="8" stroke="white" strokeWidth="1" fill="none" />
-      <rect x="27" y="12" width="4" height="8" stroke="white" strokeWidth="1" fill="none" />
+      <rect x="1" y="1" width="30" height="30" rx="2" stroke="currentColor" strokeWidth="1.5" />
+      <line x1="16" y1="1" x2="16" y2="31" stroke="currentColor" strokeWidth="1" />
+      <circle cx="16" cy="16" r="5" stroke="currentColor" strokeWidth="1" />
+      <path d="M1 10 Q8 16 1 22" stroke="currentColor" strokeWidth="1" fill="none" />
+      <path d="M31 10 Q24 16 31 22" stroke="currentColor" strokeWidth="1" fill="none" />
+      <rect x="1" y="12" width="4" height="8" stroke="currentColor" strokeWidth="1" fill="none" />
+      <rect x="27" y="12" width="4" height="8" stroke="currentColor" strokeWidth="1" fill="none" />
     </svg>
   );
 }
@@ -198,15 +198,24 @@ export default function SidebarNav({
   }, [loading, levelByPageKey, meLevelUpper, meReady, sergioAccess]);
 
   return (
-    <nav className="flex flex-col" style={{ background: "#000000" }}>
-      <div className="relative flex h-14 shrink-0 items-center border-b border-[#2a2a2a]">
+    <nav
+      className="flex min-h-screen flex-col"
+      style={{ background: "var(--pitch-sidebar-bg)" }}
+    >
+      <div
+        className="relative flex h-14 shrink-0 items-center"
+        style={{
+          background: "var(--pitch-sidebar-bg)",
+          borderBottom: "1px solid var(--pitch-sidebar-border)",
+        }}
+      >
         <div className="flex h-14 w-16 shrink-0 items-center justify-center">
           <FootballFieldSvg />
         </div>
         {onMobileClose ? (
           <button
             type="button"
-            className={`absolute right-3 top-1/2 flex min-h-[44px] min-w-[44px] -translate-y-1/2 items-center justify-center rounded-lg text-[#868A8C] transition-opacity duration-300 hover:bg-[#1a1a1a] hover:text-white md:hidden ${
+            className={`absolute right-3 top-1/2 flex min-h-[44px] min-w-[44px] -translate-y-1/2 items-center justify-center rounded-lg text-[color:var(--pitch-sidebar-text)] transition-opacity duration-300 hover:bg-[var(--pitch-border-subtle)] hover:text-[color:var(--pitch-text)] md:hidden ${
               collapsed ? "pointer-events-none opacity-0" : "opacity-100"
             }`}
             aria-label="Chiudi menu"
@@ -241,14 +250,14 @@ export default function SidebarNav({
               href={item.href}
               title={item.label}
               onClick={() => onNavigate?.()}
-              className={`flex h-10 shrink-0 items-center rounded-lg transition-colors hover:text-white ${
+              className={`flex h-10 shrink-0 items-center rounded-lg transition-colors ${
                 collapsed
                   ? "justify-center px-2"
                   : "justify-start gap-3 px-3 text-sm font-medium"
               } ${
                 isActive
-                  ? "bg-[#1a1a1a] text-[#FFFA00]"
-                  : "bg-transparent text-[#868A8C] hover:bg-[#1a1a1a]"
+                  ? "bg-[var(--pitch-border-subtle)] text-[color:var(--pitch-sidebar-active)]"
+                  : "bg-transparent text-[color:var(--pitch-sidebar-text)] hover:bg-[var(--pitch-border-subtle)] hover:text-[color:var(--pitch-text)]"
               }`}
             >
               <Icon size={20} stroke="currentColor" className="shrink-0" />

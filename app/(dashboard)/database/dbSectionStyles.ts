@@ -1,3 +1,7 @@
+/** Titolo header sezioni collassabili (DatabaseSections — label principale; conteggio e freccia hanno colori separati). */
+export const DB_COLLAPSIBLE_SECTION_TITLE =
+  "text-[13px] font-semibold uppercase tracking-widest text-white";
+
 /** Stile unificato tabelle sezioni Database (stesso testo di DatabaseSections). */
 export const DB_TH =
   "px-3 py-3 text-left text-[11px] font-medium uppercase tracking-[1px] text-[#868A8C]";

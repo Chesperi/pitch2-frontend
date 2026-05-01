@@ -56,6 +56,7 @@ import { canSeeFinance } from "@/lib/auth/financeAccess";
 import { fetchLookupValues } from "@/lib/api/lookupValues";
 import type { LookupValue } from "@/lib/types";
 import {
+  DB_COLLAPSIBLE_SECTION_TITLE,
   DB_TH,
   DB_TH_CELL,
   DB_TH_FIRST,
@@ -357,7 +358,7 @@ function CollapsibleSection({
         onClick={onToggle}
         className="flex w-full items-center justify-between border-b border-[#1e1e1e] px-4 pb-2 pt-3 text-left hover:bg-pitch-gray-dark/50"
       >
-        <span className="text-[10px] font-medium uppercase tracking-widest text-[#e5e5e5]">
+        <span className={DB_COLLAPSIBLE_SECTION_TITLE}>
           {label}
           {suffix ? (
             <span className="text-[#888] normal-case tracking-normal">

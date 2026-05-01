@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { Moon, Sun } from "lucide-react";
 import { logoutPitch2 } from "@/lib/auth/pitch2Session";
+import { useTheme } from "@/lib/hooks/useTheme";
 
 type AppNavbarProps = {
   userName: string;
@@ -22,6 +24,7 @@ export default function AppNavbar({
   onBellClick,
 }: AppNavbarProps) {
   const router = useRouter();
+  const { theme, toggleTheme } = useTheme();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement | null>(null);
 
@@ -52,15 +55,15 @@ export default function AppNavbar({
   return (
     <header
       className="relative z-30 sticky top-0"
-      style={{ background: "#111" }}
+      style={{ background: "var(--pitch-navbar-bg)" }}
     >
       <div
         className="flex items-center justify-between gap-2 px-3 sm:px-6"
         style={{
           height: 56,
           boxSizing: "border-box",
-          borderBottom: "1px solid #2a2a2a",
-          background: "#111",
+          borderBottom: "1px solid var(--pitch-navbar-border)",
+          background: "var(--pitch-navbar-bg)",
         }}
       >
         <div
@@ -99,6 +102,28 @@ export default function AppNavbar({
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="rounded p-2 transition-colors hover:bg-white/10"
+            title={
+              theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+            }
+          >
+            {theme === "dark" ? (
+              <Sun
+                size={16}
+                strokeWidth={1.5}
+                style={{ color: "var(--pitch-text-secondary)" }}
+              />
+            ) : (
+              <Moon
+                size={16}
+                strokeWidth={1.5}
+                style={{ color: "var(--pitch-text-secondary)" }}
+              />
+            )}
+          </button>
           <div className="relative">
             <button
               type="button"

@@ -101,11 +101,13 @@ export default function DashboardLayout({
           />
           <aside
             ref={sidebarRef}
-            className={`fixed inset-y-0 left-0 z-20 h-screen w-64 overflow-y-auto border-r border-[#2a2a2a] bg-black text-white transition-[width,transform] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] md:translate-x-0 ${
+            className={`fixed inset-y-0 left-0 z-20 h-screen w-64 overflow-y-auto transition-[width,transform] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] md:translate-x-0 ${
               mobileOpen ? "translate-x-0" : "-translate-x-full"
             } ${collapsed ? "md:w-16" : "md:w-64 md:shadow-xl"}`}
             style={{
-              color: "#FFFFFF",
+              background: "var(--pitch-sidebar-bg)",
+              borderRight: "1px solid var(--pitch-sidebar-border)",
+              color: "var(--pitch-text)",
             }}
           >
             <SidebarNav
@@ -151,6 +153,7 @@ function DashboardMainSection({
   return (
     <div
       className={`flex min-h-screen min-w-0 flex-col ${isFreelance ? "ml-0 w-full" : "ml-0 w-full md:ml-16 md:w-[calc(100%-4rem)]"}`}
+      style={{ background: "var(--pitch-bg)" }}
     >
       <AppNavbar
         userName={userName}
@@ -161,8 +164,11 @@ function DashboardMainSection({
       />
       {!isFreelance ? (
         <div
-          className="flex items-center border-b border-[#2a2a2a] px-4 py-2 md:hidden"
-          style={{ background: "#111" }}
+          className="flex items-center px-4 py-2 md:hidden"
+          style={{
+            background: "var(--pitch-navbar-bg)",
+            borderBottom: "1px solid var(--pitch-navbar-border)",
+          }}
         >
           <button
             type="button"

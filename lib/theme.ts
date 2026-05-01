@@ -8,3 +8,41 @@ export const DAZN_COLORS = {
   red: "#E24B4A",
   green: "#639922",
 } as const;
+
+export const lightTheme = {
+  background: "#F4F4F6",
+  backgroundSecondary: "#ffffff",
+  backgroundCard: "#ffffff",
+  border: "#e0e0e0",
+  borderSubtle: "#eeeeee",
+  textPrimary: "#111111",
+  textSecondary: "#555555",
+  textMuted: "#888888",
+  accent: "#111111",
+  accentText: "#ffffff",
+  sidebarBg: "#ffffff",
+  sidebarBorder: "#e0e0e0",
+  sidebarText: "#555555",
+  sidebarTextActive: "#111111",
+  navbarBg: "#ffffff",
+  navbarBorder: "#e0e0e0",
+};
+
+export const darkTheme = {
+  background: "#000000",
+  backgroundSecondary: "#111111",
+  backgroundCard: "#141414",
+  border: "#222222",
+  borderSubtle: "#1a1a1a",
+  textPrimary: "#ffffff",
+  textSecondary: "#aaaaaa",
+  textMuted: "#666666",
+  accent: "#FFFA00",
+  accentText: "#000000",
+  sidebarBg: "#000000",
+  sidebarBorder: "#1a1a1a",
+  sidebarText: "#888888",
+  sidebarTextActive: "#FFFA00",
+  navbarBg: "#000000",
+  navbarBorder: "#1a1a1a",
+};

@@ -129,3 +129,48 @@ body {
   opacity: 0.55;
   cursor: not-allowed;
 }
+
+/* PITCH theme variables */
+:root,
+html.dark {
+  --pitch-bg: #000000;
+  --pitch-bg-secondary: #111111;
+  --pitch-bg-card: #141414;
+  --pitch-border: #222222;
+  --pitch-border-subtle: #1a1a1a;
+  --pitch-text: #ffffff;
+  --pitch-text-secondary: #aaaaaa;
+  --pitch-text-muted: #666666;
+  --pitch-accent: #FFFA00;
+  --pitch-accent-text: #000000;
+  --pitch-sidebar-bg: #000000;
+  --pitch-sidebar-border: #1a1a1a;
+  --pitch-sidebar-text: #888888;
+  --pitch-sidebar-active: #FFFA00;
+  --pitch-navbar-bg: #000000;
+  --pitch-navbar-border: #1a1a1a;
+}
+
+html.light {
+  --pitch-bg: #F4F4F6;
+  --pitch-bg-secondary: #ffffff;
+  --pitch-bg-card: #ffffff;
+  --pitch-border: #e0e0e0;
+  --pitch-border-subtle: #eeeeee;
+  --pitch-text: #111111;
+  --pitch-text-secondary: #555555;
+  --pitch-text-muted: #888888;
+  --pitch-accent: #111111;
+  --pitch-accent-text: #ffffff;
+  --pitch-sidebar-bg: #ffffff;
+  --pitch-sidebar-border: #e0e0e0;
+  --pitch-sidebar-text: #555555;
+  --pitch-sidebar-active: #111111;
+  --pitch-navbar-bg: #ffffff;
+  --pitch-navbar-border: #e0e0e0;
+}
+
+html body {
+  background-color: var(--pitch-bg) !important;
+  color: var(--pitch-text) !important;
+}

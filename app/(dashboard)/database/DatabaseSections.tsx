@@ -3079,7 +3079,7 @@ export function DatabaseSections({
 
               <div className="rounded-[10px] border border-[#1e1e1e] bg-[#0d0d0d] p-4">
                 <p className={FORM_SECTION_LABEL}>Roles & fees</p>
-                <div className="overflow-x-auto">
+                <div style={{ overflowX: "auto", overflowY: "visible" }}>
                   <table className="w-full min-w-[640px] border-collapse text-sm">
                     <thead className="sticky top-0 z-10">
                       <tr className="border-b border-[#1e1e1e] bg-[#0d0d0d] text-[10px] font-semibold uppercase text-gray-500">

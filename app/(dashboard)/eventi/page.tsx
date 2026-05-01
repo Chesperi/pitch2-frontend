@@ -1723,7 +1723,7 @@ export default function EventiPage() {
           </div>
         ) : eventsView === "list" ? (
           <>
-            <div className="overflow-x-auto">
+            <div style={{ overflowX: "auto", overflowY: "visible" }}>
           <table className="w-full border-collapse">
             <thead className="sticky top-0 z-10">
               <tr className="border-b border-[#2a2a2a]">

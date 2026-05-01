@@ -172,11 +172,11 @@ export default function LeedsTX() {
       <div className="mb-4 flex items-center gap-4 text-xs text-pitch-gray">
         <span className="flex items-center gap-1">
           <span className="inline-block h-3 w-3 rounded-sm border border-emerald-800 bg-emerald-950"></span>
-          Cologno (auto)
+          Cologno
         </span>
         <span className="flex items-center gap-1">
           <span className="inline-block h-3 w-3 rounded-sm border border-blue-800 bg-blue-950"></span>
-          Leeds (editabile)
+          Leeds
         </span>
         {canEditGreen && (
           <span className="flex items-center gap-1">

@@ -12,7 +12,7 @@ export default function ResponsiveTable({
   className = "",
 }: ResponsiveTableProps): ReactNode {
   return (
-    <div className={`relative overflow-x-auto ${className}`.trim()}>
+    <div className={`relative ${className}`.trim()} style={{ overflowX: "auto", overflowY: "visible" }}>
       <div
         className="pointer-events-none absolute inset-y-0 right-0 z-10 w-12 bg-gradient-to-l from-pitch-bg via-pitch-bg/90 to-transparent md:hidden"
         aria-hidden

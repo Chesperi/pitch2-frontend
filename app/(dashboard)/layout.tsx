@@ -153,7 +153,7 @@ function DashboardMainSection({
   return (
     <div
       className={`flex min-h-screen min-w-0 flex-col ${isFreelance ? "ml-0 w-full" : "ml-0 w-full md:ml-16 md:w-[calc(100%-4rem)]"}`}
-      style={{ background: "var(--pitch-bg)" }}
+      style={{ background: "var(--pitch-content-bg, var(--pitch-bg))" }}
     >
       <AppNavbar
         userName={userName}

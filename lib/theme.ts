@@ -11,6 +11,7 @@ export const DAZN_COLORS = {
 
 export const lightTheme = {
   background: "#F4F4F6",
+  contentBg: "#141414",
   backgroundSecondary: "#ffffff",
   backgroundCard: "#ffffff",
   border: "#e0e0e0",
@@ -29,8 +30,8 @@ export const lightTheme = {
 };
 
 export const darkTheme = {
-  background: "#000000",
-  backgroundSecondary: "#111111",
+  background: "#0d0d0d",
+  backgroundSecondary: "#141414",
   backgroundCard: "#141414",
   border: "#222222",
   borderSubtle: "#1a1a1a",
@@ -39,10 +40,10 @@ export const darkTheme = {
   textMuted: "#666666",
   accent: "#FFFA00",
   accentText: "#000000",
-  sidebarBg: "#000000",
-  sidebarBorder: "#1a1a1a",
+  sidebarBg: "#0d0d0d",
+  sidebarBorder: "#1c1c1c",
   sidebarText: "#888888",
   sidebarTextActive: "#FFFA00",
-  navbarBg: "#000000",
-  navbarBorder: "#1a1a1a",
+  navbarBg: "#0d0d0d",
+  navbarBorder: "#1c1c1c",
 };

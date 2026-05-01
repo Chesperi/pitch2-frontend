@@ -133,8 +133,8 @@ body {
 /* PITCH theme variables */
 :root,
 html.dark {
-  --pitch-bg: #000000;
-  --pitch-bg-secondary: #111111;
+  --pitch-bg: #0d0d0d;
+  --pitch-bg-secondary: #141414;
   --pitch-bg-card: #141414;
   --pitch-border: #222222;
   --pitch-border-subtle: #1a1a1a;
@@ -143,16 +143,18 @@ html.dark {
   --pitch-text-muted: #666666;
   --pitch-accent: #FFFA00;
   --pitch-accent-text: #000000;
-  --pitch-sidebar-bg: #000000;
-  --pitch-sidebar-border: #1a1a1a;
+  --pitch-sidebar-bg: #0d0d0d;
+  --pitch-sidebar-border: #1c1c1c;
   --pitch-sidebar-text: #888888;
   --pitch-sidebar-active: #FFFA00;
-  --pitch-navbar-bg: #000000;
-  --pitch-navbar-border: #1a1a1a;
+  --pitch-navbar-bg: #0d0d0d;
+  --pitch-navbar-border: #1c1c1c;
+  --pitch-content-bg: #0d0d0d;
 }
 
 html.light {
   --pitch-bg: #F4F4F6;
+  --pitch-content-bg: #141414;
   --pitch-bg-secondary: #ffffff;
   --pitch-bg-card: #ffffff;
   --pitch-border: #e0e0e0;

@@ -23,6 +23,7 @@ export interface LeedsTxRow {
   // colonne blu (Leeds)
   pod_tx: string | null;
   pod_phone_number: string | null;
+  mcr_phone_number: string | null;
   ld_initials: string | null;
   ld_name: string | null;
   has_override: boolean;
@@ -31,6 +32,7 @@ export interface LeedsTxRow {
 export interface LeedsTxBluePayload {
   pod_tx?: string | null;
   pod_phone_number?: string | null;
+  mcr_phone_number?: string | null;
   ld_initials?: string | null;
   ld_name?: string | null;
 }
@@ -73,6 +75,8 @@ function normalizeLeedsTxRow(raw: Record<string, unknown>): LeedsTxRow {
     pod_tx: raw.pod_tx == null ? null : String(raw.pod_tx),
     pod_phone_number:
       raw.pod_phone_number == null ? null : String(raw.pod_phone_number),
+    mcr_phone_number:
+      raw.mcr_phone_number == null ? null : String(raw.mcr_phone_number),
     ld_initials: raw.ld_initials == null ? null : String(raw.ld_initials),
     ld_name: raw.ld_name == null ? null : String(raw.ld_name),
     has_override: Boolean(raw.has_override),

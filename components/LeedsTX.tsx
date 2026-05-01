@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { fetchAuthMe } from "@/lib/api/freelanceAssignments";
+import { fetchLookupValues } from "@/lib/api/lookupValues";
 import ResponsiveTable from "@/components/ui/ResponsiveTable";
 import PageLoading from "@/components/ui/PageLoading";
 import DesktopRecommended from "@/components/ui/DesktopRecommended";
@@ -16,6 +17,7 @@ import {
 const BLUE_COLS: { key: keyof LeedsTxRow; label: string }[] = [
   { key: "pod_tx", label: "POD TX" },
   { key: "pod_phone_number", label: "POD Phone" },
+  { key: "mcr_phone_number", label: "MCR Phone" },
   { key: "ld_initials", label: "LD Initials" },
   { key: "ld_name", label: "LD Name" },
 ];
@@ -51,6 +53,8 @@ export default function LeedsTX() {
     value: string;
   } | null>(null);
   const [saving, setSaving] = useState(false);
+  const [podTxOptions, setPodTxOptions] = useState<string[]>([]);
+  const [mcrPhoneOptions, setMcrPhoneOptions] = useState<string[]>([]);
 
   const [editModal, setEditModal] = useState<LeedsTxRow | null>(null);
   const [editForm, setEditForm] = useState({
@@ -67,7 +71,20 @@ export default function LeedsTX() {
     setLoading(true);
     setError(null);
     try {
-      const [me, data] = await Promise.all([fetchAuthMe(), fetchLeedsTx()]);
+      const [me, data, lookups] = await Promise.all([
+        fetchAuthMe(),
+        fetchLeedsTx(),
+        fetchLookupValues(),
+      ]);
+      const allLookups = lookups as { category: string; value: string }[];
+      setPodTxOptions(
+        allLookups.filter((l) => l.category === "pod_tx").map((l) => l.value)
+      );
+      setMcrPhoneOptions(
+        allLookups
+          .filter((l) => l.category === "mcr_phone_number")
+          .map((l) => l.value)
+      );
       setLeedsAccess(!!(me as { leeds_access?: boolean }).leeds_access);
       setUserLevel((me.user_level ?? "").toUpperCase());
       setRows(data);
@@ -176,16 +193,72 @@ export default function LeedsTX() {
     field,
     canEdit,
     colorClass,
+    options,
   }: {
     row: LeedsTxRow;
     field: keyof LeedsTxRow;
     canEdit: boolean;
     colorClass: string;
+    options?: string[];
   }) => {
     const isEditing = editing?.eventId === row.event_id && editing?.field === field;
     const value = row[field] as string | null;
 
     if (isEditing) {
+      if (options && options.length > 0) {
+        return (
+          <td
+            className="whitespace-nowrap px-2 py-1"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-1">
+              <select
+                autoFocus
+                className="rounded border border-pitch-accent bg-pitch-gray-dark px-2 py-1 text-xs text-pitch-white focus:outline-none"
+                value={editing.value}
+                onChange={(e) =>
+                  setEditing((prev) =>
+                    prev ? { ...prev, value: e.target.value } : null
+                  )
+                }
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") cancelEdit();
+                }}
+                disabled={saving}
+              >
+                <option value="">—</option>
+                {options.map((o) => (
+                  <option key={o} value={o}>
+                    {o}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void commitEdit();
+                }}
+                disabled={saving}
+                className="text-xs text-pitch-accent hover:underline"
+              >
+                ✓
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  cancelEdit();
+                }}
+                disabled={saving}
+                className="text-xs text-pitch-gray hover:underline"
+              >
+                ✕
+              </button>
+            </div>
+          </td>
+        );
+      }
       return (
         <td
           className="whitespace-nowrap px-2 py-1"
@@ -209,7 +282,10 @@ export default function LeedsTX() {
             />
             <button
               type="button"
-              onClick={() => void commitEdit()}
+              onClick={(e) => {
+                e.stopPropagation();
+                void commitEdit();
+              }}
               disabled={saving}
               className="text-xs text-pitch-accent hover:underline"
             >
@@ -217,7 +293,10 @@ export default function LeedsTX() {
             </button>
             <button
               type="button"
-              onClick={cancelEdit}
+              onClick={(e) => {
+                e.stopPropagation();
+                cancelEdit();
+              }}
               disabled={saving}
               className="text-xs text-pitch-gray hover:underline"
             >
@@ -233,10 +312,7 @@ export default function LeedsTX() {
         className={`whitespace-nowrap px-4 py-3 text-xs ${colorClass} ${
           canEdit ? "cursor-pointer hover:bg-white/5" : ""
         }`}
-        onClick={(e) => {
-          e.stopPropagation();
-          if (canEdit) startEdit(row.event_id, field, value);
-        }}
+        onClick={() => (canEdit ? startEdit(row.event_id, field, value) : undefined)}
         title={canEdit ? "Click per modificare" : undefined}
       >
         {displayCell(value)}
@@ -300,6 +376,7 @@ export default function LeedsTX() {
                 <th className="whitespace-nowrap bg-emerald-950/30 px-4 py-3 text-left text-xs font-medium text-emerald-400">Coordinator Contact</th>
                 <th className="whitespace-nowrap bg-blue-950/30 px-4 py-3 text-left text-xs font-medium text-blue-400">POD TX</th>
                 <th className="whitespace-nowrap bg-blue-950/30 px-4 py-3 text-left text-xs font-medium text-blue-400">POD Phone</th>
+                <th className="whitespace-nowrap bg-blue-950/30 px-4 py-3 text-left text-xs font-medium text-blue-400">MCR Phone</th>
                 <th className="whitespace-nowrap bg-blue-950/30 px-4 py-3 text-left text-xs font-medium text-blue-400">LD Initials</th>
                 <th className="whitespace-nowrap bg-blue-950/30 px-4 py-3 text-left text-xs font-medium text-blue-400">LD Name</th>
               </tr>
@@ -334,8 +411,9 @@ export default function LeedsTX() {
                   <td className="px-4 py-3 text-xs text-pitch-gray-light whitespace-nowrap bg-emerald-950/10">
                     {displayCell(row.live_prod_coordinator_contact)}
                   </td>
-                  <EditableCell row={row} field="pod_tx" canEdit={canEditBlue} colorClass="bg-blue-950/10 text-blue-300" />
+                  <EditableCell row={row} field="pod_tx" canEdit={canEditBlue} colorClass="text-blue-300 bg-blue-950/10" options={podTxOptions} />
                   <EditableCell row={row} field="pod_phone_number" canEdit={canEditBlue} colorClass="bg-blue-950/10 text-blue-300" />
+                  <EditableCell row={row} field="mcr_phone_number" canEdit={canEditBlue} colorClass="text-blue-300 bg-blue-950/10" options={mcrPhoneOptions} />
                   <EditableCell row={row} field="ld_initials" canEdit={canEditBlue} colorClass="bg-blue-950/10 text-blue-300" />
                   <EditableCell row={row} field="ld_name" canEdit={canEditBlue} colorClass="bg-blue-950/10 text-blue-300" />
                 </tr>

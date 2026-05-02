@@ -454,14 +454,14 @@ export default function VisionPage() {
                     border: "0.5px solid var(--color-border-tertiary)",
                     borderRadius: 4,
                     color: zoom === z ? "var(--color-text-primary)" : "var(--color-text-secondary)",
-                    width: 28,
-                    height: 28,
+                    width: "auto",
+                    padding: "3px 10px",
                     cursor: "pointer",
                     fontSize: 12,
                     fontWeight: 500,
                   }}
                 >
-                  {z}
+                  {z === "W" ? "Week" : z === "M" ? "Month" : "Quarter"}
                 </button>
               ))}
             </div>
@@ -535,7 +535,7 @@ export default function VisionPage() {
                   style={{
                     minWidth: 200,
                     padding: "6px 12px",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 500,
                     color: "var(--color-text-secondary)",
                     borderRight: "1px solid var(--color-border-tertiary)",
@@ -549,7 +549,7 @@ export default function VisionPage() {
                   style={{
                     minWidth: 110,
                     padding: "6px 8px",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 500,
                     color: "var(--color-text-secondary)",
                     borderRight: "1px solid var(--color-border-tertiary)",
@@ -584,7 +584,7 @@ export default function VisionPage() {
                           position: "absolute",
                           left: `${ml.startPct}%`,
                           width: `${ml.widthPct}%`,
-                          fontSize: 11,
+                          fontSize: 12,
                           color: "var(--color-text-secondary)",
                           padding: "4px 4px",
                           borderRight: "0.5px solid var(--color-border-tertiary)",
@@ -615,7 +615,7 @@ export default function VisionPage() {
                           style={{
                             position: "absolute",
                             left: `${pct}%`,
-                            fontSize: 10,
+                            fontSize: 11,
                             color: isToday ? "#FFFA00" : "var(--color-text-secondary)",
                             fontWeight: isToday ? 700 : 400,
                             padding: "3px 2px",
@@ -670,7 +670,7 @@ export default function VisionPage() {
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                             <span
                               style={{
-                                fontSize: 10,
+                                fontSize: 11,
                                 padding: "1px 6px",
                                 borderRadius: 3,
                                 background: PROJECT_TYPE_COLORS[project.project_type] ?? "#888",
@@ -684,7 +684,7 @@ export default function VisionPage() {
                               role="button"
                               tabIndex={0}
                               style={{
-                                fontSize: 13,
+                                fontSize: 14,
                                 fontWeight: 500,
                                 cursor: "pointer",
                                 color: "var(--color-text-primary)",
@@ -698,12 +698,12 @@ export default function VisionPage() {
                             </span>
                           </div>
                           {project.client ? (
-                            <span style={{ fontSize: 10, color: "var(--color-text-secondary)", display: "block", marginTop: 4 }}>
+                            <span style={{ fontSize: 12, color: "var(--color-text-secondary)", display: "block", marginTop: 4 }}>
                               {project.client}
                             </span>
                           ) : null}
                           <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
-                            <span style={{ fontSize: 11, color: "var(--color-text-info)" }}>
+                            <span style={{ fontSize: 12, color: "#4ade80" }}>
                               {onAirCount}/{total} on air
                             </span>
                             <div
@@ -718,12 +718,12 @@ export default function VisionPage() {
                                 style={{
                                   height: 3,
                                   width: `${pct}%`,
-                                  background: "#639922",
+                                  background: "#4ade80",
                                   borderRadius: 2,
                                 }}
                               />
                             </div>
-                            <span style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>{pct}%</span>
+                            <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{pct}%</span>
                           </div>
                         </div>
                         <div
@@ -781,7 +781,7 @@ export default function VisionPage() {
                             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                               <span
                                 style={{
-                                  fontSize: 10,
+                                  fontSize: 11,
                                   padding: "1px 6px",
                                   borderRadius: 3,
                                   background: PROJECT_TYPE_COLORS[project.project_type] ?? "#888",
@@ -795,7 +795,7 @@ export default function VisionPage() {
                                 role="button"
                                 tabIndex={0}
                                 style={{
-                                  fontSize: 13,
+                                  fontSize: 14,
                                   fontWeight: 500,
                                   cursor: "pointer",
                                   color: "var(--color-text-primary)",
@@ -809,12 +809,12 @@ export default function VisionPage() {
                               </span>
                             </div>
                             {project.client ? (
-                              <span style={{ fontSize: 10, color: "var(--color-text-secondary)", display: "block", marginTop: 4 }}>
+                              <span style={{ fontSize: 12, color: "var(--color-text-secondary)", display: "block", marginTop: 4 }}>
                                 {project.client}
                               </span>
                             ) : null}
                             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
-                              <span style={{ fontSize: 11, color: "var(--color-text-info)" }}>
+                              <span style={{ fontSize: 12, color: "#4ade80" }}>
                                 {onAirCount}/{total} on air
                               </span>
                               <div
@@ -829,12 +829,12 @@ export default function VisionPage() {
                                   style={{
                                     height: 3,
                                     width: `${pct}%`,
-                                    background: "#639922",
+                                    background: "#4ade80",
                                     borderRadius: 2,
                                   }}
                                 />
                               </div>
-                              <span style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>
+                              <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
                                 {pct}%
                               </span>
                             </div>
@@ -859,7 +859,7 @@ export default function VisionPage() {
                             alignItems: "center",
                           }}
                         >
-                          <span style={{ fontSize: 10, color: "var(--color-text-secondary)" }}>
+                          <span style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>
                             {PHASE_LABELS[phase.phase_name as PhaseName]}
                           </span>
                         </div>
@@ -1052,7 +1052,7 @@ export default function VisionPage() {
               >
                 {selectedProject.name}
               </h3>
-              <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--color-text-secondary)" }}>
+              <span style={{ marginLeft: "auto", fontSize: 12, color: "#4ade80" }}>
                 {getProgress(selectedProject).onAirCount}/{selectedProject.total_episodes} on air
               </span>
             </div>

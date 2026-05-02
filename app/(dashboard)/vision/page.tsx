@@ -8,8 +8,12 @@ import MonthCalendar from "@/components/ui/MonthCalendar";
 import PageLoading from "@/components/ui/PageLoading";
 import {
   fetchProjects,
+  fetchProject,
   createProject,
+  updatePhase,
+  createSession,
   type Project,
+  type ProjectPhase,
   type ProjectPayload,
   type PhaseName,
   type PhaseStatus,
@@ -66,6 +70,18 @@ export default function VisionPage() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [expandedPhases, setExpandedPhases] = useState<Set<number>>(new Set());
+  const [editingPhase, setEditingPhase] = useState<{
+    id: number;
+    date_from: string;
+    date_to: string;
+    status: PhaseStatus;
+    episodes_completed: number;
+    notes: string;
+  } | null>(null);
+  const [addingSessionToPhase, setAddingSessionToPhase] = useState<number | null>(null);
+  const [newSession, setNewSession] = useState({ session_date: "", label: "" });
+  const [modalSaving, setModalSaving] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
   // Calendar
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const d = new Date();
@@ -160,6 +176,64 @@ export default function VisionPage() {
     const pct = total > 0 ? Math.round((onAirCount / total) * 100) : 0;
     return { onAirCount, total, pct };
   }
+
+  const handleEditPhase = (phase: ProjectPhase) => {
+    setAddingSessionToPhase(null);
+    setModalError(null);
+    setEditingPhase({
+      id: phase.id,
+      date_from: phase.date_from ?? "",
+      date_to: phase.date_to ?? "",
+      status: phase.status,
+      episodes_completed: phase.episodes_completed,
+      notes: phase.notes ?? "",
+    });
+  };
+
+  const handleSavePhase = async () => {
+    if (!editingPhase || !selectedProject) return;
+    setModalSaving(true);
+    setModalError(null);
+    try {
+      await updatePhase(editingPhase.id, {
+        date_from: editingPhase.date_from || null,
+        date_to: editingPhase.date_to || null,
+        status: editingPhase.status,
+        episodes_completed: editingPhase.episodes_completed,
+        notes: editingPhase.notes || null,
+      });
+      const updated = await fetchProject(selectedProject.id);
+      setSelectedProject(updated);
+      setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+      setEditingPhase(null);
+    } catch (e) {
+      setModalError(e instanceof Error ? e.message : "Error saving phase");
+    } finally {
+      setModalSaving(false);
+    }
+  };
+
+  const handleAddSession = async () => {
+    if (!addingSessionToPhase || !newSession.session_date || !selectedProject) return;
+    setModalSaving(true);
+    setModalError(null);
+    try {
+      await createSession(addingSessionToPhase, {
+        session_date: newSession.session_date,
+        label: newSession.label || null,
+        status: "PLANNED",
+      });
+      const updated = await fetchProject(selectedProject.id);
+      setSelectedProject(updated);
+      setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+      setAddingSessionToPhase(null);
+      setNewSession({ session_date: "", label: "" });
+    } catch (e) {
+      setModalError(e instanceof Error ? e.message : "Error adding session");
+    } finally {
+      setModalSaving(false);
+    }
+  };
 
   async function handleSaveProject() {
     if (!form.name.trim()) {
@@ -637,8 +711,11 @@ export default function VisionPage() {
                     const widthPct = Math.max(0.5, rightPct - leftPct);
                     const colors = PHASE_COLORS[phase.phase_name as PhaseName];
                     const opacity =
-                      phase.status === "COMPLETED" ? 1 : phase.status === "IN_PROGRESS" ? 0.85 : 0.4;
-                    const isOnAir = phase.phase_name === "ON_AIR";
+                      phase.status === "COMPLETED"
+                        ? 1
+                        : phase.status === "IN_PROGRESS"
+                          ? 0.85
+                          : 0.4;
 
                     return (
                       <div
@@ -775,11 +852,9 @@ export default function VisionPage() {
                               width: `${widthPct}%`,
                               height: 14,
                               borderRadius: 3,
-                              background: isOnAir
-                                ? `${colors?.bg ?? "#888"}60`
-                                : colors?.bg ?? "#888",
+                              background: colors?.bg ?? "#888",
                               opacity,
-                              border: isOnAir ? `1.5px solid ${colors?.bg ?? "#888"}` : "none",
+                              border: "none",
                               display: "flex",
                               alignItems: "center",
                               justifyContent: "center",
@@ -790,7 +865,6 @@ export default function VisionPage() {
                               whiteSpace: "nowrap",
                               padding: "0 6px",
                               zIndex: 1,
-                              boxSizing: "border-box",
                             }}
                           >
                             {phase.status === "COMPLETED" ? "✓" : phase.status === "IN_PROGRESS" ? "●" : ""}
@@ -892,6 +966,21 @@ export default function VisionPage() {
             role="dialog"
             aria-modal="true"
           >
+            {modalError ? (
+              <p
+                style={{
+                  marginBottom: 12,
+                  padding: "8px 12px",
+                  borderRadius: 6,
+                  background: "#2e0a0a",
+                  border: "0.5px solid #f87171",
+                  color: "#f87171",
+                  fontSize: 12,
+                }}
+              >
+                {modalError}
+              </p>
+            ) : null}
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
               <span
                 style={{
@@ -1016,42 +1105,193 @@ export default function VisionPage() {
                       </div>
                     ) : null}
                     {phase ? (
-                      <div style={{ marginTop: 6, marginLeft: 10, marginBottom: 8, display: "flex", gap: 6 }}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            console.log("Edit phase", phase.id);
-                          }}
-                          style={{
-                            fontSize: 11,
-                            color: "var(--color-text-secondary)",
-                            background: "none",
-                            border: "0.5px solid var(--color-border-tertiary)",
-                            borderRadius: 4,
-                            padding: "2px 8px",
-                            cursor: "pointer",
-                          }}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            console.log("Add session to phase", phase.id);
-                          }}
-                          style={{
-                            fontSize: 11,
-                            color: "#FFFA00",
-                            background: "none",
-                            border: "0.5px solid #FFFA00",
-                            borderRadius: 4,
-                            padding: "2px 8px",
-                            cursor: "pointer",
-                          }}
-                        >
-                          + Session
-                        </button>
-                      </div>
+                      editingPhase?.id === phase.id ? (
+                        <div style={{ marginTop: 8, marginLeft: 10, marginBottom: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                            <div>
+                              <label
+                                style={{
+                                  fontSize: 10,
+                                  color: "var(--color-text-secondary)",
+                                  display: "block",
+                                  marginBottom: 2,
+                                }}
+                              >
+                                From
+                              </label>
+                              <input
+                                type="date"
+                                className="w-full rounded border border-[#222] bg-[#141414] px-2 py-1 text-xs text-white focus:border-[#FFFA00] focus:outline-none"
+                                value={editingPhase.date_from}
+                                onChange={(e) =>
+                                  setEditingPhase((ep) => (ep ? { ...ep, date_from: e.target.value } : null))
+                                }
+                              />
+                            </div>
+                            <div>
+                              <label
+                                style={{
+                                  fontSize: 10,
+                                  color: "var(--color-text-secondary)",
+                                  display: "block",
+                                  marginBottom: 2,
+                                }}
+                              >
+                                To
+                              </label>
+                              <input
+                                type="date"
+                                className="w-full rounded border border-[#222] bg-[#141414] px-2 py-1 text-xs text-white focus:border-[#FFFA00] focus:outline-none"
+                                value={editingPhase.date_to}
+                                onChange={(e) =>
+                                  setEditingPhase((ep) => (ep ? { ...ep, date_to: e.target.value } : null))
+                                }
+                              />
+                            </div>
+                          </div>
+                          <select
+                            className="rounded border border-[#222] bg-[#141414] px-2 py-1 text-xs text-white focus:outline-none"
+                            value={editingPhase.status}
+                            onChange={(e) =>
+                              setEditingPhase((ep) =>
+                                ep ? { ...ep, status: e.target.value as PhaseStatus } : null
+                              )
+                            }
+                          >
+                            <option value="PLANNED">Planned</option>
+                            <option value="IN_PROGRESS">In progress</option>
+                            <option value="COMPLETED">Completed</option>
+                          </select>
+                          <div style={{ display: "flex", gap: 6 }}>
+                            <button
+                              type="button"
+                              onClick={() => setEditingPhase(null)}
+                              style={{
+                                fontSize: 11,
+                                color: "var(--color-text-secondary)",
+                                background: "none",
+                                border: "0.5px solid var(--color-border-tertiary)",
+                                borderRadius: 4,
+                                padding: "3px 10px",
+                                cursor: "pointer",
+                              }}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleSavePhase()}
+                              disabled={modalSaving}
+                              style={{
+                                fontSize: 11,
+                                color: "#000",
+                                background: "#FFFA00",
+                                border: "none",
+                                borderRadius: 4,
+                                padding: "3px 10px",
+                                cursor: "pointer",
+                                opacity: modalSaving ? 0.5 : 1,
+                              }}
+                            >
+                              {modalSaving ? "Saving..." : "Save"}
+                            </button>
+                          </div>
+                        </div>
+                      ) : addingSessionToPhase === phase.id ? (
+                        <div style={{ marginTop: 8, marginLeft: 10, marginBottom: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+                          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                            <input
+                              type="date"
+                              className="rounded border border-[#222] bg-[#141414] px-2 py-1 text-xs text-white focus:border-[#FFFA00] focus:outline-none"
+                              value={newSession.session_date}
+                              onChange={(e) =>
+                                setNewSession((s) => ({ ...s, session_date: e.target.value }))
+                              }
+                            />
+                            <input
+                              className="flex-1 rounded border border-[#222] bg-[#141414] px-2 py-1 text-xs text-white focus:border-[#FFFA00] focus:outline-none"
+                              placeholder="Label (e.g. Ep. 1)"
+                              value={newSession.label}
+                              onChange={(e) => setNewSession((s) => ({ ...s, label: e.target.value }))}
+                            />
+                          </div>
+                          <div style={{ display: "flex", gap: 6 }}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAddingSessionToPhase(null);
+                                setNewSession({ session_date: "", label: "" });
+                              }}
+                              style={{
+                                fontSize: 11,
+                                color: "var(--color-text-secondary)",
+                                background: "none",
+                                border: "0.5px solid var(--color-border-tertiary)",
+                                borderRadius: 4,
+                                padding: "3px 10px",
+                                cursor: "pointer",
+                              }}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleAddSession()}
+                              disabled={modalSaving || !newSession.session_date}
+                              style={{
+                                fontSize: 11,
+                                color: "#000",
+                                background: "#FFFA00",
+                                border: "none",
+                                borderRadius: 4,
+                                padding: "3px 10px",
+                                cursor: "pointer",
+                                opacity: modalSaving || !newSession.session_date ? 0.5 : 1,
+                              }}
+                            >
+                              {modalSaving ? "Saving..." : "Add"}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ marginTop: 6, marginLeft: 10, marginBottom: 8, display: "flex", gap: 6 }}>
+                          <button
+                            type="button"
+                            onClick={() => handleEditPhase(phase)}
+                            style={{
+                              fontSize: 11,
+                              color: "var(--color-text-secondary)",
+                              background: "none",
+                              border: "0.5px solid var(--color-border-tertiary)",
+                              borderRadius: 4,
+                              padding: "2px 8px",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingPhase(null);
+                              setAddingSessionToPhase(phase.id);
+                              setNewSession({ session_date: phase.date_from ?? "", label: "" });
+                              setModalError(null);
+                            }}
+                            style={{
+                              fontSize: 11,
+                              color: "#FFFA00",
+                              background: "none",
+                              border: "0.5px solid #FFFA00",
+                              borderRadius: 4,
+                              padding: "2px 8px",
+                              cursor: "pointer",
+                            }}
+                          >
+                            + Session
+                          </button>
+                        </div>
+                      )
                     ) : null}
                   </div>
                 );

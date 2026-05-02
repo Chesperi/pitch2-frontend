@@ -132,6 +132,55 @@ export async function updatePhase(phaseId: number, payload: {
   return res.json();
 }
 
+export async function createSession(
+  phaseId: number,
+  payload: {
+    session_date: string;
+    date_to?: string | null;
+    label?: string | null;
+    notes?: string | null;
+    status?: string;
+  }
+): Promise<ProjectPhaseSession> {
+  const res = await fetch(`/api/projects/phases/${phaseId}/sessions`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`createSession error: ${res.status}`);
+  return res.json();
+}
+
+export async function updateSession(
+  phaseId: number,
+  sessionId: number,
+  payload: {
+    session_date?: string;
+    date_to?: string | null;
+    label?: string | null;
+    notes?: string | null;
+    status?: string;
+  }
+): Promise<ProjectPhaseSession> {
+  const res = await fetch(`/api/projects/phases/${phaseId}/sessions/${sessionId}`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`updateSession error: ${res.status}`);
+  return res.json();
+}
+
+export async function deleteSession(phaseId: number, sessionId: number): Promise<void> {
+  const res = await fetch(`/api/projects/phases/${phaseId}/sessions/${sessionId}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error(`deleteSession error: ${res.status}`);
+}
+
 export const PHASE_COLORS: Record<PhaseName, { bg: string; text: string }> = {
   CONCEPT:        { bg: "#CECBF6", text: "#26215C" },
   BRAND_IDENTITY: { bg: "#9FE1CB", text: "#04342C" },

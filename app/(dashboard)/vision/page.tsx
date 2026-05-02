@@ -30,6 +30,13 @@ import {
 function toIsoDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
+
+function formatDisplayDate(d: string | null): string {
+  if (!d) return "—";
+  const parts = d.split("-");
+  if (parts.length !== 3) return d;
+  return `${parts[2]}/${parts[1]}/${parts[0]}`;
+}
 function getDaysToShow(z: "W" | "M" | "Q"): number {
   return z === "W" ? 42 : z === "M" ? 84 : 168;
 }
@@ -213,6 +220,11 @@ export default function VisionPage() {
     return { onAirCount, total, pct };
   }
 
+  const detailProgress = useMemo(
+    () => (selectedProject ? getProgress(selectedProject) : null),
+    [selectedProject]
+  );
+
   const handleEditPhase = (phase: ProjectPhase) => {
     setAddingSessionToPhase(null);
     setEditingSession(null);
@@ -376,10 +388,11 @@ export default function VisionPage() {
   const todayPct = dateToPct(toIsoDate(today));
 
   const inputClass =
-    "w-full rounded border border-[#222] bg-[#141414] px-3 py-2 text-sm text-white focus:border-[#FFFA00] focus:outline-none";
+    "w-full rounded border border-[#222] bg-[#141414] px-3 py-2.5 text-sm text-white focus:border-[#FFFA00] focus:outline-none";
   const btnPrimary =
-    "rounded bg-[#FFFA00] px-4 py-2 text-sm font-medium text-black hover:bg-yellow-200 disabled:opacity-50";
-  const btnSecondary = "rounded border border-[#333] px-4 py-2 text-sm text-[#aaa] hover:bg-[#1a1a1a]";
+    "rounded bg-[#FFFA00] px-5 py-2.5 text-sm font-medium text-black hover:bg-yellow-200 disabled:opacity-50";
+  const btnSecondary =
+    "rounded border border-[#333] px-5 py-2.5 text-sm text-[#aaa] hover:bg-[#1a1a1a]";
 
   return (
     <div style={{ padding: "16px 24px", minHeight: "100vh" }}>
@@ -692,7 +705,6 @@ export default function VisionPage() {
                 </div>
               ) : (
                 filteredProjects.flatMap((project) => {
-                  const { onAirCount, total, pct } = getProgress(project);
                   const visiblePhases = project.project_phases
                     .filter((ph) => phaseInRange(ph.date_from, ph.date_to))
                     .sort((a, b) => a.sort_order - b.sort_order);
@@ -709,71 +721,51 @@ export default function VisionPage() {
                       >
                         <div
                           style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
                             minWidth: 200,
                             minHeight: 40,
-                            padding: "8px 12px",
+                            padding: "0 12px",
                             borderRight: "1px solid var(--color-border-tertiary)",
                             boxSizing: "border-box",
                           }}
                         >
-                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <span
-                              style={{
-                                fontSize: 11,
-                                padding: "1px 6px",
-                                borderRadius: 3,
-                                background: PROJECT_TYPE_COLORS[project.project_type] ?? "#888",
-                                color: "#fff",
-                                fontWeight: 500,
-                              }}
-                            >
-                              {project.project_type}
-                            </span>
-                            <span
-                              role="button"
-                              tabIndex={0}
-                              style={{
-                                fontSize: 14,
-                                fontWeight: 500,
-                                cursor: "pointer",
-                                color: "var(--color-text-primary)",
-                              }}
-                              onClick={() => setSelectedProject(project)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter" || e.key === " ") setSelectedProject(project);
-                              }}
-                            >
-                              {project.name}
-                            </span>
-                          </div>
-                          {project.client ? (
-                            <span style={{ fontSize: 12, color: "var(--color-text-secondary)", display: "block", marginTop: 4 }}>
-                              {project.client}
-                            </span>
-                          ) : null}
-                          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
-                            <span style={{ fontSize: 12, color: "#4ade80" }}>
-                              {onAirCount}/{total} on air
-                            </span>
-                            <div
-                              style={{
-                                height: 3,
-                                width: 60,
-                                background: "var(--color-border-tertiary)",
-                                borderRadius: 2,
-                              }}
-                            >
-                              <div
-                                style={{
-                                  height: 3,
-                                  width: `${pct}%`,
-                                  background: "#4ade80",
-                                  borderRadius: 2,
-                                }}
-                              />
-                            </div>
-                            <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{pct}%</span>
-                          </div>
+                          <span
+                            style={{
+                              fontSize: 11,
+                              padding: "1px 6px",
+                              borderRadius: 3,
+                              background: PROJECT_TYPE_COLORS[project.project_type] ?? "#888",
+                              color: "#fff",
+                              fontWeight: 500,
+                              flexShrink: 0,
+                            }}
+                          >
+                            {project.project_type}
+                          </span>
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 500,
+                              cursor: "pointer",
+                              color: "var(--color-text-primary)",
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}
+                            onClick={() => setSelectedProject(project)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") setSelectedProject(project);
+                            }}
+                          >
+                            {project.name}
+                          </span>
+                          <span style={{ fontSize: 11, color: "var(--color-text-secondary)", flexShrink: 0, marginLeft: "auto" }}>
+                            {getProgress(project).onAirCount}/{project.total_episodes}
+                          </span>
                         </div>
                         <div
                           style={{
@@ -832,73 +824,51 @@ export default function VisionPage() {
                         {phaseIdx === 0 ? (
                           <div
                             style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 8,
                               minWidth: 200,
                               minHeight: 40,
-                              padding: "8px 12px",
+                              padding: "0 12px",
                               borderRight: "1px solid var(--color-border-tertiary)",
                               boxSizing: "border-box",
                             }}
                           >
-                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                              <span
-                                style={{
-                                  fontSize: 11,
-                                  padding: "1px 6px",
-                                  borderRadius: 3,
-                                  background: PROJECT_TYPE_COLORS[project.project_type] ?? "#888",
-                                  color: "#fff",
-                                  fontWeight: 500,
-                                }}
-                              >
-                                {project.project_type}
-                              </span>
-                              <span
-                                role="button"
-                                tabIndex={0}
-                                style={{
-                                  fontSize: 14,
-                                  fontWeight: 500,
-                                  cursor: "pointer",
-                                  color: "var(--color-text-primary)",
-                                }}
-                                onClick={() => setSelectedProject(project)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter" || e.key === " ") setSelectedProject(project);
-                                }}
-                              >
-                                {project.name}
-                              </span>
-                            </div>
-                            {project.client ? (
-                              <span style={{ fontSize: 12, color: "var(--color-text-secondary)", display: "block", marginTop: 4 }}>
-                                {project.client}
-                              </span>
-                            ) : null}
-                            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
-                              <span style={{ fontSize: 12, color: "#4ade80" }}>
-                                {onAirCount}/{total} on air
-                              </span>
-                              <div
-                                style={{
-                                  height: 3,
-                                  width: 60,
-                                  background: "var(--color-border-tertiary)",
-                                  borderRadius: 2,
-                                }}
-                              >
-                                <div
-                                  style={{
-                                    height: 3,
-                                    width: `${pct}%`,
-                                    background: "#4ade80",
-                                    borderRadius: 2,
-                                  }}
-                                />
-                              </div>
-                              <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
-                                {pct}%
-                              </span>
-                            </div>
+                            <span
+                              style={{
+                                fontSize: 11,
+                                padding: "1px 6px",
+                                borderRadius: 3,
+                                background: PROJECT_TYPE_COLORS[project.project_type] ?? "#888",
+                                color: "#fff",
+                                fontWeight: 500,
+                                flexShrink: 0,
+                              }}
+                            >
+                              {project.project_type}
+                            </span>
+                            <span
+                              role="button"
+                              tabIndex={0}
+                              style={{
+                                fontSize: 13,
+                                fontWeight: 500,
+                                cursor: "pointer",
+                                color: "var(--color-text-primary)",
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                              }}
+                              onClick={() => setSelectedProject(project)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") setSelectedProject(project);
+                              }}
+                            >
+                              {project.name}
+                            </span>
+                            <span style={{ fontSize: 11, color: "var(--color-text-secondary)", flexShrink: 0, marginLeft: "auto" }}>
+                              {getProgress(project).onAirCount}/{project.total_episodes}
+                            </span>
                           </div>
                         ) : (
                           <div
@@ -1199,32 +1169,68 @@ export default function VisionPage() {
                 {modalError}
               </p>
             ) : null}
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-              <span
-                style={{
-                  fontSize: 11,
-                  padding: "2px 8px",
-                  borderRadius: 4,
-                  background: PROJECT_TYPE_COLORS[selectedProject.project_type] ?? "#888",
-                  color: "#fff",
-                  fontWeight: 500,
-                }}
-              >
-                {selectedProject.project_type}
-              </span>
-              <h3
-                style={{
-                  fontSize: 16,
-                  fontWeight: 600,
-                  color: "var(--color-text-primary)",
-                  margin: 0,
-                }}
-              >
-                {selectedProject.name}
-              </h3>
-              <span style={{ marginLeft: "auto", fontSize: 12, color: "#4ade80" }}>
-                {getProgress(selectedProject).onAirCount}/{selectedProject.total_episodes} on air
-              </span>
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span
+                  style={{
+                    fontSize: 11,
+                    padding: "2px 8px",
+                    borderRadius: 4,
+                    background: PROJECT_TYPE_COLORS[selectedProject.project_type] ?? "#888",
+                    color: "#fff",
+                    fontWeight: 500,
+                  }}
+                >
+                  {selectedProject.project_type}
+                </span>
+                <h3
+                  style={{
+                    fontSize: 16,
+                    fontWeight: 600,
+                    color: "var(--color-text-primary)",
+                    margin: 0,
+                  }}
+                >
+                  {selectedProject.name}
+                </h3>
+              </div>
+              {selectedProject.client ? (
+                <span
+                  style={{
+                    fontSize: 12,
+                    color: "var(--color-text-secondary)",
+                    display: "block",
+                    marginTop: 8,
+                  }}
+                >
+                  {selectedProject.client}
+                </span>
+              ) : null}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+                <span style={{ fontSize: 12, color: "#4ade80" }}>
+                  {detailProgress!.onAirCount}/{selectedProject.total_episodes} on air
+                </span>
+                <div
+                  style={{
+                    height: 3,
+                    width: 60,
+                    background: "var(--color-border-tertiary)",
+                    borderRadius: 2,
+                  }}
+                >
+                  <div
+                    style={{
+                      height: 3,
+                      width: `${detailProgress!.pct}%`,
+                      background: "#4ade80",
+                      borderRadius: 2,
+                    }}
+                  />
+                </div>
+                <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
+                  {detailProgress!.pct}%
+                </span>
+              </div>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               {ALL_PHASES.map((phaseName) => {
@@ -1255,7 +1261,7 @@ export default function VisionPage() {
                       {phase ? (
                         <>
                           <span style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>
-                            {phase.date_from ?? "—"} → {phase.date_to ?? "—"}
+                            {formatDisplayDate(phase.date_from)} → {formatDisplayDate(phase.date_to)}
                           </span>
                           <span
                             style={{
@@ -1406,7 +1412,7 @@ export default function VisionPage() {
                                   }}
                                   title="Click to edit"
                                 >
-                                  {s.label ?? s.session_date}
+                                  {s.label ?? formatDisplayDate(s.session_date)}
                                 </span>
                               )}
                             </div>
@@ -1662,7 +1668,7 @@ export default function VisionPage() {
           >
             <h3
               style={{
-                fontSize: 16,
+                fontSize: 18,
                 fontWeight: 600,
                 color: "var(--color-text-primary)",
                 marginBottom: 20,
@@ -1698,7 +1704,7 @@ export default function VisionPage() {
               <div style={{ gridColumn: "1 / -1" }}>
                 <label
                   style={{
-                    fontSize: 11,
+                    fontSize: 13,
                     color: "var(--color-text-secondary)",
                     display: "block",
                     marginBottom: 4,
@@ -1716,7 +1722,7 @@ export default function VisionPage() {
               <div style={{ gridColumn: "1 / -1" }}>
                 <label
                   style={{
-                    fontSize: 11,
+                    fontSize: 13,
                     color: "var(--color-text-secondary)",
                     display: "block",
                     marginBottom: 4,
@@ -1734,7 +1740,7 @@ export default function VisionPage() {
               <div>
                 <label
                   style={{
-                    fontSize: 11,
+                    fontSize: 13,
                     color: "var(--color-text-secondary)",
                     display: "block",
                     marginBottom: 4,
@@ -1757,7 +1763,7 @@ export default function VisionPage() {
               <div>
                 <label
                   style={{
-                    fontSize: 11,
+                    fontSize: 13,
                     color: "var(--color-text-secondary)",
                     display: "block",
                     marginBottom: 4,
@@ -1778,7 +1784,7 @@ export default function VisionPage() {
               <div>
                 <label
                   style={{
-                    fontSize: 11,
+                    fontSize: 13,
                     color: "var(--color-text-secondary)",
                     display: "block",
                     marginBottom: 4,
@@ -1799,7 +1805,7 @@ export default function VisionPage() {
             <div style={{ marginBottom: 16 }}>
               <p
                 style={{
-                  fontSize: 12,
+                  fontSize: 13,
                   fontWeight: 500,
                   color: "var(--color-text-secondary)",
                   marginBottom: 8,
@@ -1837,12 +1843,12 @@ export default function VisionPage() {
                           flexShrink: 0,
                         }}
                       />
-                      <span style={{ fontSize: 12, color: "var(--color-text-primary)", minWidth: 130 }}>
+                      <span style={{ fontSize: 13, color: "var(--color-text-primary)", minWidth: 130 }}>
                         {PHASE_LABELS[ph.phase_name]}
                       </span>
                       <input
                         type="date"
-                        className="rounded border border-[#222] bg-[#141414] px-2 py-1 text-xs text-white focus:border-[#FFFA00] focus:outline-none"
+                        className="rounded border border-[#222] bg-[#141414] px-3 py-2.5 text-sm text-white focus:border-[#FFFA00] focus:outline-none"
                         value={ph.date_from ?? ""}
                         onChange={(e) =>
                           setForm((f) => ({
@@ -1856,7 +1862,7 @@ export default function VisionPage() {
                       <span style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>→</span>
                       <input
                         type="date"
-                        className="rounded border border-[#222] bg-[#141414] px-2 py-1 text-xs text-white focus:border-[#FFFA00] focus:outline-none"
+                        className="rounded border border-[#222] bg-[#141414] px-3 py-2.5 text-sm text-white focus:border-[#FFFA00] focus:outline-none"
                         value={ph.date_to ?? ""}
                         onChange={(e) =>
                           setForm((f) => ({
@@ -1868,7 +1874,7 @@ export default function VisionPage() {
                         }
                       />
                       <select
-                        className="rounded border border-[#222] bg-[#141414] px-2 py-1 text-xs text-white focus:outline-none"
+                        className="rounded border border-[#222] bg-[#141414] px-3 py-2.5 text-sm text-white focus:outline-none"
                         value={ph.status}
                         onChange={(e) =>
                           setForm((f) => ({
@@ -1913,7 +1919,7 @@ export default function VisionPage() {
                               <div key={si} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                                 <input
                                   type="date"
-                                  className="rounded border border-[#222] bg-[#141414] px-2 py-1 text-xs text-white focus:border-[#FFFA00] focus:outline-none"
+                                  className="rounded border border-[#222] bg-[#141414] px-3 py-2.5 text-sm text-white focus:border-[#FFFA00] focus:outline-none"
                                   value={s.session_date}
                                   onChange={(e) =>
                                     setForm((f) => ({
@@ -1932,7 +1938,7 @@ export default function VisionPage() {
                                   }
                                 />
                                 <input
-                                  className="w-32 rounded border border-[#222] bg-[#141414] px-2 py-1 text-xs text-white focus:border-[#FFFA00] focus:outline-none"
+                                  className="w-32 rounded border border-[#222] bg-[#141414] px-3 py-2.5 text-sm text-white focus:border-[#FFFA00] focus:outline-none"
                                   placeholder="Label (e.g. Ep. 1)"
                                   value={s.label ?? ""}
                                   onChange={(e) =>

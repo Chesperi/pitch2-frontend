@@ -193,7 +193,7 @@ export const PHASE_COLORS: Record<PhaseName, { bg: string; text: string }> = {
   EDIT:           { bg: "#378ADD", text: "#ffffff" },
   PROMOZIONE:     { bg: "#D4537E", text: "#ffffff" },
   DISTRIBUZIONE:  { bg: "#888780", text: "#ffffff" },
-  ON_AIR:         { bg: "#639922", text: "#ffffff" },
+  ON_AIR:         { bg: "#4ade80", text: "#000000" },
 };
 
 export const PHASE_LABELS: Record<PhaseName, string> = {

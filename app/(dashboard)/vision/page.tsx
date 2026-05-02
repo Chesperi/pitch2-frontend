@@ -355,29 +355,24 @@ export default function VisionPage() {
         >
           Vision
         </h1>
-        <div
-          style={{
-            display: "flex",
-            gap: 4,
-            background: "var(--color-background-secondary)",
-            borderRadius: 8,
-            padding: 3,
-          }}
-        >
+        <div style={{ display: "flex", gap: 24, marginLeft: 8 }}>
           {(["gantt", "calendar"] as const).map((v) => (
             <button
               key={v}
               type="button"
               onClick={() => setView(v)}
               style={{
-                padding: "4px 14px",
-                borderRadius: 6,
-                fontSize: 13,
-                fontWeight: 500,
-                cursor: "pointer",
+                background: "none",
                 border: "none",
-                background: view === v ? "var(--color-background-primary)" : "transparent",
-                color: view === v ? "var(--color-text-primary)" : "var(--color-text-secondary)",
+                cursor: "pointer",
+                fontSize: 13,
+                fontWeight: 600,
+                letterSpacing: "0.05em",
+                textTransform: "uppercase",
+                color: view === v ? "#FFFA00" : "var(--color-text-secondary)",
+                borderBottom: view === v ? "2px solid #FFFA00" : "2px solid transparent",
+                paddingBottom: 2,
+                transition: "color 0.15s, border-color 0.15s",
               }}
             >
               {v === "gantt" ? "Gantt" : "Calendar"}
@@ -929,7 +924,15 @@ export default function VisionPage() {
                               return (
                                 <div
                                   key={session.id}
-                                  title={`${session.label ?? ""} — ${session.session_date}${session.date_to ? " → " + session.date_to : ""} [${session.status}]`}
+                                  onClick={() => setSelectedProject(project)}
+                                  title={[
+                                    session.label,
+                                    session.session_date,
+                                    session.date_to ? "→ " + session.date_to : null,
+                                    session.status,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(" · ")}
                                   style={{
                                     position: "absolute",
                                     left: `${sessionPct}%`,

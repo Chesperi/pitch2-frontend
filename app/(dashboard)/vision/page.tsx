@@ -12,6 +12,8 @@ import {
   createProject,
   updatePhase,
   createSession,
+  updateSession,
+  deleteSession,
   type Project,
   type ProjectPhase,
   type ProjectPayload,
@@ -82,6 +84,12 @@ export default function VisionPage() {
   const [newSession, setNewSession] = useState({ session_date: "", label: "" });
   const [modalSaving, setModalSaving] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
+  const [editingSession, setEditingSession] = useState<{
+    id: number;
+    phaseId: number;
+    session_date: string;
+    label: string;
+  } | null>(null);
   // Calendar
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const d = new Date();
@@ -179,6 +187,7 @@ export default function VisionPage() {
 
   const handleEditPhase = (phase: ProjectPhase) => {
     setAddingSessionToPhase(null);
+    setEditingSession(null);
     setModalError(null);
     setEditingPhase({
       id: phase.id,
@@ -230,6 +239,44 @@ export default function VisionPage() {
       setNewSession({ session_date: "", label: "" });
     } catch (e) {
       setModalError(e instanceof Error ? e.message : "Error adding session");
+    } finally {
+      setModalSaving(false);
+    }
+  };
+
+  const handleSaveSession = async () => {
+    if (!editingSession || !selectedProject) return;
+    setModalSaving(true);
+    setModalError(null);
+    try {
+      await updateSession(editingSession.phaseId, editingSession.id, {
+        session_date: editingSession.session_date,
+        label: editingSession.label || null,
+      });
+      const updated = await fetchProject(selectedProject.id);
+      setSelectedProject(updated);
+      setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+      setEditingSession(null);
+    } catch (e) {
+      setModalError(e instanceof Error ? e.message : "Error saving session");
+    } finally {
+      setModalSaving(false);
+    }
+  };
+
+  const handleDeleteSession = async (phaseId: number, sessionId: number) => {
+    if (!selectedProject) return;
+    if (!window.confirm("Delete this session?")) return;
+    setModalSaving(true);
+    setModalError(null);
+    try {
+      await deleteSession(phaseId, sessionId);
+      const updated = await fetchProject(selectedProject.id);
+      setSelectedProject(updated);
+      setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+      setEditingSession(null);
+    } catch (e) {
+      setModalError(e instanceof Error ? e.message : "Error deleting session");
     } finally {
       setModalSaving(false);
     }
@@ -709,13 +756,14 @@ export default function VisionPage() {
                     const leftPct = dateToPct(phase.date_from);
                     const rightPct = dateToPct(phase.date_to);
                     const widthPct = Math.max(0.5, rightPct - leftPct);
-                    const colors = PHASE_COLORS[phase.phase_name as PhaseName];
                     const opacity =
                       phase.status === "COMPLETED"
                         ? 1
                         : phase.status === "IN_PROGRESS"
                           ? 0.85
-                          : 0.4;
+                          : 0.35;
+                    const colors = PHASE_COLORS[phase.phase_name as PhaseName];
+                    const barBg = colors?.bg ?? "#888";
 
                     return (
                       <div
@@ -850,21 +898,22 @@ export default function VisionPage() {
                               position: "absolute",
                               left: `${leftPct}%`,
                               width: `${widthPct}%`,
-                              height: 14,
-                              borderRadius: 3,
-                              background: colors?.bg ?? "#888",
+                              height: 20,
+                              borderRadius: 999,
+                              background: "transparent",
+                              border: `1.5px solid ${barBg}`,
                               opacity,
-                              border: "none",
                               display: "flex",
                               alignItems: "center",
                               justifyContent: "center",
                               fontSize: 10,
                               fontWeight: 500,
-                              color: colors?.text ?? "#fff",
+                              color: barBg,
                               overflow: "hidden",
                               whiteSpace: "nowrap",
-                              padding: "0 6px",
+                              padding: "0 8px",
                               zIndex: 1,
+                              boxSizing: "border-box",
                             }}
                           >
                             {phase.status === "COMPLETED" ? "✓" : phase.status === "IN_PROGRESS" ? "●" : ""}
@@ -875,26 +924,24 @@ export default function VisionPage() {
                             .map((session) => {
                               const sessionPct = dateToPct(session.session_date);
                               if (sessionPct < 0 || sessionPct > 100) return null;
-                              const sessionColors = PHASE_COLORS[phase.phase_name as PhaseName];
+                              const sColors = PHASE_COLORS[phase.phase_name as PhaseName];
+                              const isCompleted = session.status === "COMPLETED";
                               return (
                                 <div
                                   key={session.id}
-                                  title={session.label ?? session.session_date}
+                                  title={`${session.label ?? ""} — ${session.session_date}${session.date_to ? " → " + session.date_to : ""} [${session.status}]`}
                                   style={{
                                     position: "absolute",
                                     left: `${sessionPct}%`,
                                     top: "50%",
                                     transform: "translate(-50%, -50%)",
-                                    width: 6,
-                                    height: 6,
+                                    width: 12,
+                                    height: 12,
                                     borderRadius: "50%",
-                                    background:
-                                      session.status === "COMPLETED"
-                                        ? sessionColors?.bg ?? "#888"
-                                        : "transparent",
-                                    border: `2px solid ${sessionColors?.bg ?? "#888"}`,
+                                    background: isCompleted ? sColors?.bg ?? "#888" : "transparent",
+                                    border: `2px solid ${sColors?.bg ?? "#888"}`,
                                     zIndex: 3,
-                                    cursor: "default",
+                                    cursor: "pointer",
                                   }}
                                 />
                               );
@@ -1087,20 +1134,111 @@ export default function VisionPage() {
                           .slice()
                           .sort((a, b) => a.session_date.localeCompare(b.session_date))
                           .map((s) => (
-                            <span
-                              key={s.id}
-                              style={{
-                                fontSize: 10,
-                                padding: "1px 6px",
-                                borderRadius: 3,
-                                background: s.status === "COMPLETED" ? "#1a2e1a" : "#1e1e1e",
-                                color: s.status === "COMPLETED" ? "#4ade80" : "#888",
-                                border: "0.5px solid",
-                                borderColor: s.status === "COMPLETED" ? "#4ade80" : "#333",
-                              }}
-                            >
-                              {s.label ?? s.session_date}
-                            </span>
+                            <div key={s.id}>
+                              {editingSession?.id === s.id ? (
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    gap: 4,
+                                    alignItems: "center",
+                                    flexWrap: "wrap",
+                                  }}
+                                >
+                                  <input
+                                    type="date"
+                                    className="rounded border border-[#222] bg-[#141414] px-2 py-1 text-xs text-white focus:border-[#FFFA00] focus:outline-none"
+                                    value={editingSession.session_date}
+                                    onChange={(e) =>
+                                      setEditingSession((es) =>
+                                        es ? { ...es, session_date: e.target.value } : null
+                                      )
+                                    }
+                                  />
+                                  <input
+                                    className="rounded border border-[#222] bg-[#141414] px-2 py-1 text-xs text-white focus:border-[#FFFA00] focus:outline-none"
+                                    style={{ width: 100 }}
+                                    value={editingSession.label}
+                                    onChange={(e) =>
+                                      setEditingSession((es) =>
+                                        es ? { ...es, label: e.target.value } : null
+                                      )
+                                    }
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleSaveSession()}
+                                    disabled={modalSaving}
+                                    style={{
+                                      fontSize: 11,
+                                      color: "#000",
+                                      background: "#FFFA00",
+                                      border: "none",
+                                      borderRadius: 4,
+                                      padding: "2px 8px",
+                                      cursor: "pointer",
+                                    }}
+                                  >
+                                    {modalSaving ? "..." : "✓"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingSession(null)}
+                                    style={{
+                                      fontSize: 11,
+                                      color: "#aaa",
+                                      background: "none",
+                                      border: "0.5px solid #444",
+                                      borderRadius: 4,
+                                      padding: "2px 8px",
+                                      cursor: "pointer",
+                                    }}
+                                  >
+                                    ✕
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleDeleteSession(s.phase_id, s.id)}
+                                    disabled={modalSaving}
+                                    style={{
+                                      fontSize: 11,
+                                      color: "#f87171",
+                                      background: "none",
+                                      border: "0.5px solid #f87171",
+                                      borderRadius: 4,
+                                      padding: "2px 8px",
+                                      cursor: "pointer",
+                                    }}
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              ) : (
+                                <span
+                                  onClick={() =>
+                                    setEditingSession({
+                                      id: s.id,
+                                      phaseId: s.phase_id,
+                                      session_date: s.session_date,
+                                      label: s.label ?? "",
+                                    })
+                                  }
+                                  style={{
+                                    fontSize: 10,
+                                    padding: "1px 6px",
+                                    borderRadius: 3,
+                                    background: s.status === "COMPLETED" ? "#1a2e1a" : "#1e1e1e",
+                                    color: s.status === "COMPLETED" ? "#4ade80" : "#888",
+                                    border: "0.5px solid",
+                                    borderColor: s.status === "COMPLETED" ? "#4ade80" : "#333",
+                                    cursor: "pointer",
+                                    userSelect: "none",
+                                  }}
+                                  title="Click to edit"
+                                >
+                                  {s.label ?? s.session_date}
+                                </span>
+                              )}
+                            </div>
                           ))}
                       </div>
                     ) : null}
@@ -1274,6 +1412,7 @@ export default function VisionPage() {
                             type="button"
                             onClick={() => {
                               setEditingPhase(null);
+                              setEditingSession(null);
                               setAddingSessionToPhase(phase.id);
                               setNewSession({ session_date: phase.date_from ?? "", label: "" });
                               setModalError(null);

@@ -1,120 +1,86 @@
 "use client";
-
-import NextLink from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useMemo, useState } from "react";
 import ComposableFilters, {
   type ActiveFilter,
   type FilterOption,
 } from "@/components/ui/ComposableFilters";
 import MonthCalendar from "@/components/ui/MonthCalendar";
+import PageLoading from "@/components/ui/PageLoading";
 import {
-  fetchVisionProjects,
-  type VisionEpisode,
-  type VisionProject,
-} from "@/lib/api/vision";
+  fetchProjects,
+  createProject,
+  type Project,
+  type ProjectPayload,
+  type PhaseName,
+  type PhaseStatus,
+  PHASE_COLORS,
+  PHASE_LABELS,
+  ALL_PHASES,
+  PROJECT_TYPE_COLORS,
+} from "@/lib/api/projects";
 
-const ROW_HEIGHT = 72;
-
-type TooltipState = {
-  project: VisionProject;
-  episode: VisionEpisode;
-  x: number;
-  y: number;
-} | null;
-
+// Helper date
 function toIsoDate(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function getDaysToShow(z: "W" | "M" | "Q"): number {
+  return z === "W" ? 42 : z === "M" ? 84 : 168;
 }
 
-function toDateOnly(dateStr: string): string {
-  return dateStr.substring(0, 10);
-}
+const PROJECT_TYPES = ["BRANDED", "EDITORIAL", "TECH", "PLATFORM"];
 
-function formatDate(value: string): string {
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).format(d);
-}
-
-function isSameDay(epDateStr: string, year: number, month: number, day: number): boolean {
-  const d = new Date(epDateStr);
-  if (Number.isNaN(d.getTime())) return false;
-  return d.getFullYear() === year && d.getMonth() === month && d.getDate() === day;
-}
-
-function getDaysToShow(z: "week" | "month" | "quarter"): number {
-  return z === "week" ? 42 : z === "month" ? 84 : 168;
-}
-
-function getCenterOffset(z: "week" | "month" | "quarter"): number {
-  return 30 - Math.floor(getDaysToShow(z) / 2);
-}
-
-
-function statusOpacity(ep: VisionEpisode): number {
-  const s = ep.assignmentsStatus.toUpperCase();
-  const st = ep.status.toUpperCase();
-  if (s === "SENT" || s === "CONFIRMED" || st === "OK") return 0.45;
-  if (s === "READY_TO_SEND") return 1;
-  if (st === "CONFIRMED") return 0.8;
-  return 0.3;
-}
-
-function withAlpha(color: string, alphaHex = "1a"): string {
-  const c = color.trim();
-  if (/^#[0-9a-fA-F]{6}$/.test(c)) return `${c}${alphaHex}`;
-  return "rgba(136,136,136,0.1)";
-}
-
-function normalizeStatus(status: string): string {
-  return status.trim().toUpperCase();
+// Form stato iniziale
+function emptyForm(): ProjectPayload & { phases: NonNullable<ProjectPayload["phases"]> } {
+  return {
+    name: "",
+    project_type: "BRANDED",
+    total_episodes: 1,
+    notes: null,
+    phases: ALL_PHASES.map((ph) => ({
+      phase_name: ph,
+      date_from: null,
+      date_to: null,
+      status: "PLANNED" as PhaseStatus,
+      episodes_completed: 0,
+      notes: null,
+      work_blocks: [],
+    })),
+  };
 }
 
 export default function VisionPage() {
-  const [projects, setProjects] = useState<VisionProject[]>([]);
-  const [view, setView] = useState<"gantt" | "calendar">("gantt");
-  const [zoom, setZoom] = useState<"week" | "month" | "quarter">("month");
-  const [offset, setOffset] = useState(0);
-  const [dateFrom, setDateFrom] = useState<string>("");
-  const [dateTo, setDateTo] = useState<string>("");
-  const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tooltip, setTooltip] = useState<TooltipState>(null);
+  const [view, setView] = useState<"gantt" | "calendar">("gantt");
+  const [zoom, setZoom] = useState<"W" | "M" | "Q">("M");
+  const [offset, setOffset] = useState(0);
+  const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
+  const [searchValue, setSearchValue] = useState("");
+  // Modal dettaglio
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  // Form nuovo progetto
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState(emptyForm());
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  // Calendar
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
 
-  const leftScrollRef = useRef<HTMLDivElement | null>(null);
   const today = useMemo(() => new Date(), []);
 
-  useEffect(() => {
-    setOffset(getCenterOffset(zoom));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
+  // Carica progetti
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
       try {
-        const data = await fetchVisionProjects();
-        console.log("[Vision] projects loaded:", data.length, data);
+        const data = await fetchProjects();
         if (!cancelled) setProjects(data);
-      } catch (error) {
-        console.error(error);
-        if (!cancelled) setProjects([]);
+      } catch (e) {
+        console.error(e);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -124,512 +90,1070 @@ export default function VisionPage() {
     };
   }, []);
 
-  const distinctTypes = useMemo(() => {
-    return [...new Set(projects.map((p) => p.type.trim()).filter((type) => type.length > 0))].sort(
-      (a, b) => a.localeCompare(b)
-    );
-  }, [projects]);
-  const distinctClients = useMemo(() => {
-    return [...new Set(projects.map((p) => p.client.trim()).filter((client) => client.length > 0))].sort(
-      (a, b) => a.localeCompare(b)
-    );
-  }, [projects]);
+  // Offset iniziale centrato su oggi
+  useEffect(() => {
+    const days = getDaysToShow(zoom);
+    setOffset(30 - Math.floor(days / 2));
+  }, [zoom]);
 
-  const typeColorFromProjects = (type: string): string => {
-    const row = projects.find((p) => p.type === type && p.color);
-    return row?.color ?? "#888888";
-  };
+  // Timeline date
+  const totalDays = getDaysToShow(zoom);
+  const timelineDates = useMemo(() => {
+    return Array.from({ length: totalDays }, (_, i) => {
+      const d = new Date(today);
+      d.setDate(d.getDate() + offset + i);
+      return d;
+    });
+  }, [today, offset, totalDays]);
 
-  const visionFilterOptions = useMemo<FilterOption[]>(
-    () => [
-      {
-        key: "type",
-        label: "Type",
-        allowMultiple: true,
-        values: distinctTypes.map((t) => ({ value: t, color: typeColorFromProjects(t) })),
-      },
-      {
-        key: "status",
-        label: "Status",
-        allowMultiple: true,
-        values: [
-          { value: "TBD", color: "#FFFA00" },
-          { value: "TBC", color: "#FFFA00" },
-          { value: "OK", color: "#4ade80" },
-          { value: "CONFIRMED", color: "#34d399" },
-        ],
-      },
-      {
-        key: "client",
-        label: "Client",
-        allowMultiple: true,
-        values: distinctClients.map((c) => ({ value: c })),
-      },
-    ],
-    [distinctTypes, distinctClients]
-  );
+  const timelineStart = timelineDates[0];
+  const timelineEnd = timelineDates[totalDays - 1];
+
+  function dateToPct(dateStr: string | null): number {
+    if (!dateStr) return 0;
+    const d = new Date(dateStr);
+    const total = timelineEnd.getTime() - timelineStart.getTime();
+    const pos = d.getTime() - timelineStart.getTime();
+    return Math.max(0, Math.min(100, (pos / total) * 100));
+  }
+
+  function phaseInRange(dateFrom: string | null, dateTo: string | null): boolean {
+    if (!dateFrom && !dateTo) return false;
+    const from = dateFrom ? new Date(dateFrom) : null;
+    const to = dateTo ? new Date(dateTo) : null;
+    if (from && from > timelineEnd) return false;
+    if (to && to < timelineStart) return false;
+    return true;
+  }
+
+  // Filtri
+  const filterOptions: FilterOption[] = [
+    { key: "type", label: "Type", values: PROJECT_TYPES.map((t) => ({ value: t })) },
+  ];
 
   const filteredProjects = useMemo(() => {
-    const splitMultiValues = (raw: string | null | undefined): string[] =>
-      String(raw ?? "")
-        .split("||")
-        .map((v) => v.trim())
-        .filter((v) => v.length > 0);
-
     return projects.filter((p) => {
+      if (searchValue) {
+        const s = searchValue.toLowerCase();
+        if (!p.name.toLowerCase().includes(s)) return false;
+      }
       const typeF = activeFilters.find((f) => f.key === "type");
       if (typeF?.value) {
-        const selectedTypes = splitMultiValues(typeF.value);
-        if (selectedTypes.length > 0 && !selectedTypes.includes(p.type)) return false;
-      }
-
-      const clientF = activeFilters.find((f) => f.key === "client");
-      if (clientF?.value) {
-        const selectedClients = splitMultiValues(clientF.value);
-        if (selectedClients.length > 0 && !selectedClients.includes(p.client)) return false;
-      }
-
-      const statusF = activeFilters.find((f) => f.key === "status");
-      if (statusF?.value) {
-        const selectedStatuses = splitMultiValues(statusF.value).map((v) => normalizeStatus(v));
-        if (
-          selectedStatuses.length > 0 &&
-          !p.episodes.some((e) => selectedStatuses.includes(normalizeStatus(e.status)))
-        ) {
-          return false;
-        }
-      }
-
-      if (dateFrom && dateTo) {
-        const from = new Date(dateFrom);
-        const to = new Date(dateTo);
-        const hasEpInRange = p.episodes.some((e) => {
-          const d = new Date(e.date.split("T")[0]);
-          return d >= from && d <= to;
-        });
-        if (!hasEpInRange) return false;
+        const selected = typeF.value
+          .split("||")
+          .map((v) => v.trim())
+          .filter((v) => v.length > 0);
+        if (selected.length > 0 && !selected.includes(p.project_type)) return false;
       }
       return true;
     });
-  }, [projects, activeFilters, dateFrom, dateTo]);
+  }, [projects, searchValue, activeFilters]);
 
-  const DAY_W = zoom === "week" ? 36 : zoom === "month" ? 28 : 14;
-  const daysToShow = getDaysToShow(zoom);
-  const windowStart = useMemo(() => {
-    return new Date(
-      today.getFullYear(),
-      today.getMonth(),
-      today.getDate() - 30 + offset,
-      12,
-      0,
-      0
-    );
-  }, [today, offset]);
-  const totalWidth = daysToShow * DAY_W;
-  const totalHeight = filteredProjects.length * ROW_HEIGHT + 48;
-  const navLabel = `${windowStart.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  })} - ${new Date(windowStart.getTime() + (daysToShow - 1) * 86400000).toLocaleDateString(
-    "en-US",
-    { month: "short", day: "numeric" }
-  )}`;
+  // Calcolo progress
+  function getProgress(p: Project) {
+    const onAirPhase = p.project_phases.find((ph) => ph.phase_name === "ON_AIR");
+    const onAirCount = onAirPhase?.episodes_completed ?? 0;
+    const total = p.total_episodes;
+    const pct = total > 0 ? Math.round((onAirCount / total) * 100) : 0;
+    return { onAirCount, total, pct };
+  }
 
-  const xForDate = (dateStr: string): number => {
-    const [year, month, day] = toDateOnly(dateStr).split("-").map(Number);
-    const d = new Date(year, month - 1, day, 12, 0, 0);
-    const wsNoon = new Date(
-      windowStart.getFullYear(),
-      windowStart.getMonth(),
-      windowStart.getDate(),
-      12,
-      0,
-      0
-    );
-    return Math.round((d.getTime() - wsNoon.getTime()) / (1000 * 60 * 60 * 24)) * DAY_W;
-  };
-
-  const handleZoomChange = (newZoom: "week" | "month" | "quarter") => {
-    setZoom(newZoom);
-    setOffset(getCenterOffset(newZoom));
-  };
-
-  const onTimelineScroll = (event: React.UIEvent<HTMLDivElement>) => {
-    if (!leftScrollRef.current) return;
-    leftScrollRef.current.scrollTop = event.currentTarget.scrollTop;
-  };
-
-  const allEpisodes = useMemo(() => {
-    const rows: Array<{ project: VisionProject; ep: VisionEpisode }> = [];
-    for (const project of filteredProjects) {
-      for (const ep of project.episodes) {
-        rows.push({ project, ep });
-      }
+  // Salva nuovo progetto
+  async function handleSaveProject() {
+    if (!form.name.trim()) {
+      setFormError("Nome obbligatorio");
+      return;
     }
-    return rows;
-  }, [filteredProjects]);
+    setSaving(true);
+    setFormError(null);
+    try {
+      // Filtra fasi senza date (non pianificate)
+      const phases = form.phases.filter((ph) => ph.date_from || ph.date_to);
+      const created = await createProject({ ...form, phases });
+      setProjects((prev) => [...prev, created]);
+      setShowForm(false);
+      setForm(emptyForm());
+    } catch (e) {
+      setFormError(e instanceof Error ? e.message : "Errore salvataggio");
+    } finally {
+      setSaving(false);
+    }
+  }
 
-  console.log("[Vision] filteredProjects:", filteredProjects.length, "typeFilter:", activeFilters);
+  // Months label per header timeline
+  const monthLabels = useMemo(() => {
+    const labels: { label: string; startPct: number; widthPct: number }[] = [];
+    let currentMonth = -1;
+    let monthStart = 0;
+    timelineDates.forEach((d, i) => {
+      if (d.getMonth() !== currentMonth) {
+        if (currentMonth !== -1) {
+          labels.push({
+            label: d.toLocaleDateString("it-IT", { month: "short", year: "2-digit" }),
+            startPct: (monthStart / totalDays) * 100,
+            widthPct: ((i - monthStart) / totalDays) * 100,
+          });
+        }
+        currentMonth = d.getMonth();
+        monthStart = i;
+      }
+    });
+    labels.push({
+      label: timelineDates[totalDays - 1].toLocaleDateString("it-IT", { month: "short", year: "2-digit" }),
+      startPct: (monthStart / totalDays) * 100,
+      widthPct: ((totalDays - monthStart) / totalDays) * 100,
+    });
+    return labels;
+  }, [timelineDates, totalDays]);
+
+  const todayPct = dateToPct(toIsoDate(today));
+
+  const inputClass =
+    "w-full rounded border border-[#222] bg-[#141414] px-3 py-2 text-sm text-white focus:border-[#FFFA00] focus:outline-none";
+  const btnPrimary =
+    "rounded bg-[#FFFA00] px-4 py-2 text-sm font-medium text-black hover:bg-yellow-200 disabled:opacity-50";
+  const btnSecondary = "rounded border border-[#333] px-4 py-2 text-sm text-[#aaa] hover:bg-[#1a1a1a]";
 
   return (
-    <div className="flex h-[calc(100vh-56px)] flex-col overflow-hidden rounded-xl border border-[#1e1e1e] bg-[#0a0a0a]">
-      <div className="flex items-center gap-3 border-b border-[#1e1e1e] bg-[#0a0a0a] px-4 py-2.5">
-        <h1 className="text-[15px] font-medium text-[#e5e5e5]">Vision</h1>
-        <div className="flex gap-0.5 rounded-lg border border-[#2a2a2a] bg-[#141414] p-0.5">
-          <button
-            onClick={() => setView("calendar")}
-            className={`rounded-md px-3 py-1 text-[11px] ${
-              view === "calendar" ? "bg-[#1a1a1a] text-[#e5e5e5]" : "text-[#555]"
-            }`}
-          >
-            Calendar
-          </button>
-          <button
-            onClick={() => setView("gantt")}
-            className={`rounded-md px-3 py-1 text-[11px] ${
-              view === "gantt" ? "bg-[#1a1a1a] text-[#e5e5e5]" : "text-[#555]"
-            }`}
-          >
-            Gantt
-          </button>
+    <div style={{ padding: "16px 24px", minHeight: "100vh" }}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+        <h1
+          style={{
+            fontSize: 20,
+            fontWeight: 600,
+            color: "var(--color-text-primary)",
+            margin: 0,
+          }}
+        >
+          Vision
+        </h1>
+        <div
+          style={{
+            display: "flex",
+            gap: 4,
+            background: "var(--color-background-secondary)",
+            borderRadius: 8,
+            padding: 3,
+          }}
+        >
+          {(["gantt", "calendar"] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setView(v)}
+              style={{
+                padding: "4px 14px",
+                borderRadius: 6,
+                fontSize: 13,
+                fontWeight: 500,
+                cursor: "pointer",
+                border: "none",
+                background: view === v ? "var(--color-background-primary)" : "transparent",
+                color: view === v ? "var(--color-text-primary)" : "var(--color-text-secondary)",
+              }}
+            >
+              {v === "gantt" ? "Gantt" : "Calendar"}
+            </button>
+          ))}
         </div>
-        <div className="flex-1" />
-        {view === "gantt" ? (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setOffset((o) => o - Math.round(daysToShow / 2))}
-              className="rounded-md border border-[#2a2a2a] px-2 py-0.5 text-[#999] hover:text-white"
-            >
-              ‹
-            </button>
-            <span className="min-w-[120px] text-center text-[12px] text-[#888]">{navLabel}</span>
-            <button
-              onClick={() => setOffset((o) => o + Math.round(daysToShow / 2))}
-              className="rounded-md border border-[#2a2a2a] px-2 py-0.5 text-[#999] hover:text-white"
-            >
-              ›
-            </button>
-            <button
-              onClick={() => setOffset(getCenterOffset(zoom))}
-              className="rounded-md border border-[#FFFA00]/30 px-2 py-0.5 text-[10px] text-[#FFFA00] hover:bg-[#FFFA00]/10"
-            >
-              Today
-            </button>
-          </div>
-        ) : null}
-        {view === "gantt" ? (
-          <div className="flex rounded-md border border-[#2a2a2a] bg-[#141414] p-0.5">
-            {(["week", "month", "quarter"] as const).map((z) => (
+        {view === "gantt" && (
+          <>
+            <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
               <button
-                key={z}
-                onClick={() => handleZoomChange(z)}
-                className={`rounded px-2.5 py-1 text-[10px] ${
-                  zoom === z ? "bg-[#1a1a1a] text-[#ccc]" : "text-[#555]"
-                }`}
+                type="button"
+                onClick={() => setOffset((o) => o - Math.floor(totalDays / 2))}
+                style={{
+                  background: "none",
+                  border: "0.5px solid var(--color-border-tertiary)",
+                  borderRadius: 4,
+                  color: "var(--color-text-secondary)",
+                  width: 28,
+                  height: 28,
+                  cursor: "pointer",
+                  fontSize: 14,
+                }}
               >
-                {z[0].toUpperCase()}
+                ‹
               </button>
-            ))}
-          </div>
-        ) : null}
-      </div>
-      <ComposableFilters
-        filters={visionFilterOptions}
-        activeFilters={activeFilters}
-        onChange={setActiveFilters}
-        dateRange={{
-          from: dateFrom,
-          to: dateTo,
-          onFromChange: setDateFrom,
-          onToChange: setDateTo,
-        }}
-        className="mx-4 my-2"
-      />
-
-      {loading ? (
-        <div className="flex flex-1 items-center justify-center overflow-hidden text-sm text-[#777]">
-          Loading vision projects...
-        </div>
-      ) : view === "gantt" ? (
-        <div className="flex flex-1 overflow-hidden">
-          <div
-            ref={leftScrollRef}
-            className="relative z-10 w-[220px] flex-shrink-0 overflow-y-hidden border-r border-[#1e1e1e] bg-[#0a0a0a]"
-          >
-            <div className="flex h-[48px] items-end border-b border-[#1e1e1e] px-3 pb-2">
-              <span className="text-[10px] uppercase tracking-wider text-[#444]">Project</span>
-            </div>
-            {filteredProjects.map((p) => (
-              <div
-                key={p.id}
-                className="border-b border-[#151515] px-3 py-2"
-                style={{ height: ROW_HEIGHT }}
+              <span
+                style={{
+                  fontSize: 12,
+                  color: "var(--color-text-secondary)",
+                  minWidth: 140,
+                  textAlign: "center",
+                }}
               >
-                <div className="flex h-[44px] items-center gap-2">
-                  <span
-                    className="rounded-md px-2 py-0.5 text-[9px]"
-                    style={{
-                      border: `1px solid ${p.color}`,
-                      color: p.color,
-                      background: withAlpha(p.color),
-                    }}
-                  >
-                    {p.type}
-                  </span>
-                  <div className="truncate text-[12px] text-[#ddd]">{p.showName}</div>
-                </div>
-                <div className="flex h-[28px] items-center justify-between text-[10px] text-[#666]">
-                  <span>
-                    {p.doneCount}/{p.totalEpisodes} on air
-                  </span>
-                  <span style={{ color: p.color }}>
-                    {p.totalEpisodes > 0 ? Math.round((p.doneCount / p.totalEpisodes) * 100) : 0}%
-                  </span>
-                </div>
+                {timelineDates[0].toLocaleDateString("it-IT", { day: "2-digit", month: "short" })} –{" "}
+                {timelineDates[totalDays - 1].toLocaleDateString("it-IT", {
+                  day: "2-digit",
+                  month: "short",
+                })}
+              </span>
+              <button
+                type="button"
+                onClick={() => setOffset((o) => o + Math.floor(totalDays / 2))}
+                style={{
+                  background: "none",
+                  border: "0.5px solid var(--color-border-tertiary)",
+                  borderRadius: 4,
+                  color: "var(--color-text-secondary)",
+                  width: 28,
+                  height: 28,
+                  cursor: "pointer",
+                  fontSize: 14,
+                }}
+              >
+                ›
+              </button>
+              <button
+                type="button"
+                onClick={() => setOffset(30 - Math.floor(totalDays / 2))}
+                style={{
+                  background: "#FFFA00",
+                  border: "none",
+                  borderRadius: 4,
+                  color: "#000",
+                  padding: "3px 10px",
+                  fontSize: 12,
+                  fontWeight: 500,
+                  cursor: "pointer",
+                }}
+              >
+                Today
+              </button>
+              {(["W", "M", "Q"] as const).map((z) => (
+                <button
+                  key={z}
+                  type="button"
+                  onClick={() => setZoom(z)}
+                  style={{
+                    background: zoom === z ? "var(--color-background-primary)" : "none",
+                    border: "0.5px solid var(--color-border-tertiary)",
+                    borderRadius: 4,
+                    color: zoom === z ? "var(--color-text-primary)" : "var(--color-text-secondary)",
+                    width: 28,
+                    height: 28,
+                    cursor: "pointer",
+                    fontSize: 12,
+                    fontWeight: 500,
+                  }}
+                >
+                  {z}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+        <button
+          type="button"
+          onClick={() => {
+            setShowForm(true);
+            setForm(emptyForm());
+          }}
+          className={btnPrimary}
+          style={{ marginLeft: view === "gantt" ? 8 : "auto" }}
+        >
+          + Nuovo progetto
+        </button>
+      </div>
+
+      {view === "gantt" && (
+        <>
+          {/* Filtri */}
+          <ComposableFilters
+            className="mb-4"
+            filters={filterOptions}
+            activeFilters={activeFilters}
+            onChange={setActiveFilters}
+            searchValue={searchValue}
+            onSearchChange={setSearchValue}
+            searchPlaceholder="Cerca progetto..."
+          />
+
+          {/* Legenda fasi */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+            {ALL_PHASES.map((ph) => (
+              <div
+                key={ph}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  fontSize: 11,
+                  color: "var(--color-text-secondary)",
+                }}
+              >
+                <div style={{ width: 10, height: 10, borderRadius: 2, background: PHASE_COLORS[ph].bg }} />
+                {PHASE_LABELS[ph]}
               </div>
             ))}
           </div>
-          <div className="z-0 flex-1 overflow-x-auto overflow-y-auto" onScroll={onTimelineScroll}>
-            <div className="relative" style={{ width: totalWidth, minWidth: "100%" }}>
-              <div className="sticky top-0 z-10 bg-[#0a0a0a]">
-                <div className="flex h-6 border-b border-[#1e1e1e]">
-                  {Array.from({ length: daysToShow }).map((_, i) => {
-                    const d = new Date(windowStart);
-                    d.setDate(windowStart.getDate() + i);
-                    return (
-                      <div
-                        key={`m-${i}`}
-                        style={{ width: DAY_W }}
-                        className="border-r border-[#111] px-1 text-[9px] text-[#666]"
-                      >
-                        {d.getDate() === 1 ? d.toLocaleDateString("en-US", { month: "short" }) : ""}
-                      </div>
-                    );
-                  })}
+
+          {loading ? (
+            <PageLoading />
+          ) : (
+            <div
+              style={{
+                border: "0.5px solid var(--color-border-tertiary)",
+                borderRadius: 8,
+                overflow: "hidden",
+              }}
+            >
+              {/* Header timeline */}
+              <div
+                style={{
+                  display: "flex",
+                  borderBottom: "1px solid var(--color-border-tertiary)",
+                  background: "var(--color-background-secondary)",
+                }}
+              >
+                <div
+                  style={{
+                    minWidth: 200,
+                    padding: "6px 12px",
+                    fontSize: 11,
+                    fontWeight: 500,
+                    color: "var(--color-text-secondary)",
+                    borderRight: "1px solid var(--color-border-tertiary)",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                  }}
+                >
+                  Progetto
                 </div>
-                <div className="flex h-6 border-b border-[#1e1e1e]">
-                  {Array.from({ length: daysToShow }).map((_, i) => {
-                    const d = new Date(windowStart);
-                    d.setDate(windowStart.getDate() + i);
-                    const isToday = toIsoDate(d) === toIsoDate(today);
-                    return (
-                      <div
-                        key={`d-${i}`}
-                        style={{ width: DAY_W }}
-                        className={`border-r border-[#111] text-center text-[10px] ${
-                          isToday ? "text-[#FFFA00]" : "text-[#555]"
-                        }`}
-                      >
-                        {d.getDate()}
-                      </div>
-                    );
-                  })}
+                <div
+                  style={{
+                    minWidth: 110,
+                    padding: "6px 8px",
+                    fontSize: 11,
+                    fontWeight: 500,
+                    color: "var(--color-text-secondary)",
+                    borderRight: "1px solid var(--color-border-tertiary)",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                  }}
+                >
+                  Fase
+                </div>
+                <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+                  {monthLabels.map((ml, i) => (
+                    <span
+                      key={i}
+                      style={{
+                        position: "absolute",
+                        left: `${ml.startPct}%`,
+                        width: `${ml.widthPct}%`,
+                        fontSize: 11,
+                        color: "var(--color-text-secondary)",
+                        padding: "6px 4px",
+                        borderRight: "0.5px solid var(--color-border-tertiary)",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {ml.label}
+                    </span>
+                  ))}
+                  <div style={{ height: 28 }} />
                 </div>
               </div>
 
-              <div
-                className="pointer-events-none absolute top-0 z-[1] w-px bg-[#FFFA00]"
-                style={{ left: xForDate(toIsoDate(today)), height: totalHeight }}
-              />
+              {/* Righe progetti */}
+              {filteredProjects.length === 0 ? (
+                <div
+                  style={{
+                    padding: 32,
+                    textAlign: "center",
+                    color: "var(--color-text-secondary)",
+                    fontSize: 13,
+                  }}
+                >
+                  Nessun progetto. Clicca &quot;+ Nuovo progetto&quot; per iniziare.
+                </div>
+              ) : (
+                filteredProjects.flatMap((project) => {
+                  const { onAirCount, total, pct } = getProgress(project);
+                  const visiblePhases = project.project_phases
+                    .filter((ph) => phaseInRange(ph.date_from, ph.date_to))
+                    .sort((a, b) => a.sort_order - b.sort_order);
 
-              {filteredProjects.map((p) => {
-                const sortedEpisodes = [...p.episodes].sort((a, b) =>
-                  a.date.split("T")[0].localeCompare(b.date.split("T")[0])
-                );
-                const sortedFirstEpDate = sortedEpisodes[0]?.date;
-                const sortedLastEpDate = sortedEpisodes[sortedEpisodes.length - 1]?.date;
-                const trackLeft = sortedFirstEpDate ? xForDate(sortedFirstEpDate) + 2 : 0;
-                const trackRight = sortedLastEpDate ? xForDate(sortedLastEpDate) + DAY_W - 2 : 0;
-                const trackWidth = Math.max(DAY_W, trackRight - trackLeft);
-                const progress =
-                  p.totalEpisodes > 0
-                    ? Math.max(DAY_W, Math.round((trackWidth * p.doneCount) / p.totalEpisodes))
-                    : 0;
-                const PILL_W = DAY_W - 4;
-                return (
-                  <div
-                    key={p.id}
-                    className="relative border-b border-[#151515]"
-                    style={{ height: ROW_HEIGHT }}
-                  >
-                    <div className="relative h-[44px]">
+                  if (visiblePhases.length === 0) {
+                    // Progetto senza fasi nel range: mostra solo la riga nome
+                    return [
                       <div
-                        className="absolute top-1/2 h-[6px] -translate-y-1/2 rounded-full"
+                        key={project.id}
                         style={{
-                          left: trackLeft,
-                          width: trackWidth,
-                          backgroundColor: p.color,
-                          opacity: 0.15,
+                          display: "flex",
+                          borderBottom: "0.5px solid var(--color-border-tertiary)",
                         }}
-                      />
-                      <div
-                        className="absolute top-1/2 h-[6px] -translate-y-1/2 rounded-full"
-                        style={{
-                          left: trackLeft,
-                          width: progress,
-                          backgroundColor: p.color,
-                          opacity: 0.6,
-                        }}
-                      />
-                    </div>
-                    <div className="relative h-[28px]">
-                      {sortedEpisodes.map((ep) => {
-                        const pillLeft = xForDate(ep.date) + 2;
-                        return (
-                          <button
-                            key={ep.id}
-                            type="button"
-                            onMouseEnter={(event) =>
-                              setTooltip({
-                                project: p,
-                                episode: ep,
-                                x: event.clientX + 10,
-                                y: event.clientY + 10,
-                              })
-                            }
-                            onMouseMove={(event) =>
-                              setTooltip((prev) =>
-                                prev && prev.episode.id === ep.id
-                                  ? { ...prev, x: event.clientX + 10, y: event.clientY + 10 }
-                                  : prev
-                              )
-                            }
-                            onMouseLeave={() => setTooltip(null)}
-                            className={`absolute flex items-center justify-center rounded-md text-[10px] ${
-                              ep.assignmentsStatus === "READY_TO_SEND" ? "shadow-[0_0_0_1.5px_#FFFA00]" : ""
-                            }`}
+                      >
+                        <div
+                          style={{
+                            minWidth: 200,
+                            padding: "8px 12px",
+                            borderRight: "1px solid var(--color-border-tertiary)",
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <span
+                              style={{
+                                fontSize: 10,
+                                padding: "1px 6px",
+                                borderRadius: 3,
+                                background: PROJECT_TYPE_COLORS[project.project_type] ?? "#888",
+                                color: "#fff",
+                                fontWeight: 500,
+                              }}
+                            >
+                              {project.project_type}
+                            </span>
+                            <span
+                              role="button"
+                              tabIndex={0}
+                              style={{
+                                fontSize: 13,
+                                fontWeight: 500,
+                                cursor: "pointer",
+                                color: "var(--color-text-primary)",
+                              }}
+                              onClick={() => setSelectedProject(project)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") setSelectedProject(project);
+                              }}
+                            >
+                              {project.name}
+                            </span>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+                            <span style={{ fontSize: 11, color: "var(--color-text-info)" }}>
+                              {onAirCount}/{total} on air
+                            </span>
+                            <div
+                              style={{
+                                height: 3,
+                                width: 60,
+                                background: "var(--color-border-tertiary)",
+                                borderRadius: 2,
+                              }}
+                            >
+                              <div
+                                style={{
+                                  height: 3,
+                                  width: `${pct}%`,
+                                  background: "#639922",
+                                  borderRadius: 2,
+                                }}
+                              />
+                            </div>
+                            <span style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>{pct}%</span>
+                          </div>
+                        </div>
+                        <div
+                          style={{
+                            minWidth: 110,
+                            borderRight: "1px solid var(--color-border-tertiary)",
+                          }}
+                        />
+                        <div style={{ flex: 1, padding: "8px 12px" }}>
+                          <span
                             style={{
-                              position: "absolute",
-                              left: pillLeft,
-                              width: PILL_W,
-                              top: 4,
-                              height: 20,
-                              opacity: statusOpacity(ep),
-                              border: `1px solid ${p.color}`,
-                              background: withAlpha(p.color),
-                              color: p.color,
+                              fontSize: 11,
+                              color: "var(--color-text-secondary)",
+                              fontStyle: "italic",
                             }}
                           >
-                            {ep.episodeNumber || "•"}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
+                            Nessuna fase nel periodo visualizzato
+                          </span>
+                        </div>
+                      </div>,
+                    ];
+                  }
+
+                  return visiblePhases.map((phase, phaseIdx) => {
+                    const leftPct = dateToPct(phase.date_from);
+                    const rightPct = dateToPct(phase.date_to);
+                    const widthPct = Math.max(0.5, rightPct - leftPct);
+                    const colors = PHASE_COLORS[phase.phase_name as PhaseName];
+                    const opacity =
+                      phase.status === "COMPLETED" ? 1 : phase.status === "IN_PROGRESS" ? 0.85 : 0.4;
+
+                    return (
+                      <div
+                        key={phase.id}
+                        style={{
+                          display: "flex",
+                          borderBottom: "0.5px solid var(--color-border-tertiary)",
+                        }}
+                      >
+                        {/* Colonna progetto — solo sulla prima fase */}
+                        {phaseIdx === 0 ? (
+                          <div
+                            style={{
+                              minWidth: 200,
+                              padding: "8px 12px",
+                              borderRight: "1px solid var(--color-border-tertiary)",
+                            }}
+                          >
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <span
+                                style={{
+                                  fontSize: 10,
+                                  padding: "1px 6px",
+                                  borderRadius: 3,
+                                  background: PROJECT_TYPE_COLORS[project.project_type] ?? "#888",
+                                  color: "#fff",
+                                  fontWeight: 500,
+                                }}
+                              >
+                                {project.project_type}
+                              </span>
+                              <span
+                                role="button"
+                                tabIndex={0}
+                                style={{
+                                  fontSize: 13,
+                                  fontWeight: 500,
+                                  cursor: "pointer",
+                                  color: "var(--color-text-primary)",
+                                }}
+                                onClick={() => setSelectedProject(project)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") setSelectedProject(project);
+                                }}
+                              >
+                                {project.name}
+                              </span>
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+                              <span style={{ fontSize: 11, color: "var(--color-text-info)" }}>
+                                {onAirCount}/{total} on air
+                              </span>
+                              <div
+                                style={{
+                                  height: 3,
+                                  width: 60,
+                                  background: "var(--color-border-tertiary)",
+                                  borderRadius: 2,
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    height: 3,
+                                    width: `${pct}%`,
+                                    background: "#639922",
+                                    borderRadius: 2,
+                                  }}
+                                />
+                              </div>
+                              <span style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>
+                                {pct}%
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div
+                            style={{
+                              minWidth: 200,
+                              borderRight: "1px solid var(--color-border-tertiary)",
+                            }}
+                          />
+                        )}
+
+                        {/* Colonna fase */}
+                        <div
+                          style={{
+                            minWidth: 110,
+                            padding: "4px 8px",
+                            borderRight: "1px solid var(--color-border-tertiary)",
+                            display: "flex",
+                            alignItems: "center",
+                          }}
+                        >
+                          <span style={{ fontSize: 10, color: "var(--color-text-secondary)" }}>
+                            {PHASE_LABELS[phase.phase_name as PhaseName]}
+                          </span>
+                        </div>
+
+                        {/* Timeline */}
+                        <div
+                          style={{
+                            flex: 1,
+                            position: "relative",
+                            height: 36,
+                            display: "flex",
+                            alignItems: "center",
+                          }}
+                        >
+                          {/* Linea oggi */}
+                          {todayPct >= 0 && todayPct <= 100 && (
+                            <div
+                              style={{
+                                position: "absolute",
+                                left: `${todayPct}%`,
+                                top: 0,
+                                bottom: 0,
+                                width: 1,
+                                background: "#FFFA00",
+                                opacity: 0.6,
+                                zIndex: 2,
+                              }}
+                            />
+                          )}
+                          {/* Barra fase */}
+                          <div
+                            style={{
+                              position: "absolute",
+                              left: `${leftPct}%`,
+                              width: `${widthPct}%`,
+                              height: 20,
+                              borderRadius: 4,
+                              background: colors?.bg ?? "#888",
+                              opacity,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: 10,
+                              fontWeight: 500,
+                              color: colors?.text ?? "#fff",
+                              overflow: "hidden",
+                              whiteSpace: "nowrap",
+                              padding: "0 6px",
+                              zIndex: 1,
+                            }}
+                          >
+                            {phase.status === "COMPLETED" ? "✓" : phase.status === "IN_PROGRESS" ? "●" : ""}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  });
+                })
+              )}
+
+              {/* Separatore tra progetti */}
             </div>
-          </div>
-        </div>
-      ) : (
-        <div className="flex-1 overflow-y-auto p-4">
+          )}
+        </>
+      )}
+
+      {view === "calendar" && (
+        <div style={{ marginTop: 8 }}>
+          <p style={{ marginBottom: 12, fontSize: 13, color: "var(--color-text-secondary)" }}>
+            Integrazione eventi in arrivo
+          </p>
           <MonthCalendar
             year={calendarMonth.getFullYear()}
             month={calendarMonth.getMonth()}
             onPrevMonth={() =>
-              setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1))
+              setCalendarMonth(
+                new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1)
+              )
             }
             onNextMonth={() =>
-              setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1))
+              setCalendarMonth(
+                new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1)
+              )
             }
-            renderDayContent={(y, m, d) => {
-              const dayEpisodes = allEpisodes.filter(({ ep }) => isSameDay(ep.date, y, m, d));
-              return (
-                <div className="mt-1 space-y-1">
-                  {dayEpisodes.slice(0, 2).map(({ project, ep }) => (
-                    <NextLink
-                      key={ep.id}
-                      href={`/eventi?edit=${encodeURIComponent(ep.id)}`}
-                      className="block truncate rounded px-1.5 py-0.5 text-[10px]"
-                      style={{
-                        border: `1px solid ${project.color}`,
-                        background: withAlpha(project.color),
-                        color: project.color,
-                      }}
-                      title={`${project.showName} - Ep. ${ep.episodeNumber}`}
-                    >
-                      {project.showName} #{ep.episodeNumber}
-                    </NextLink>
-                  ))}
-                  {dayEpisodes.length > 2 ? (
-                    <div className="text-[10px] text-[#777]">+{dayEpisodes.length - 2} more</div>
-                  ) : null}
-                </div>
-              );
-            }}
           />
         </div>
       )}
 
-      <div className="flex h-8 flex-shrink-0 items-center gap-4 border-t border-[#1e1e1e] bg-[#0a0a0a] px-4 text-[10px] text-[#555]">
-        {distinctTypes.map((type) => (
-          <span key={type} className="flex items-center gap-1.5">
-            <span
-              className="h-2.5 w-2.5 rounded-sm"
-              style={{
-                border: `1px solid ${typeColorFromProjects(type)}`,
-                background: withAlpha(typeColorFromProjects(type)),
-              }}
-            />
-            {type}
-          </span>
-        ))}
-        <span className="mx-2 h-4 w-px bg-[#2a2a2a]" />
-        <span className="flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-full bg-[#4ade80]" />
-          On air
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-full bg-[#FFFA00]" />
-          Active / Next
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-full bg-[#555]" />
-          TBC
-        </span>
-        <span className="ml-auto flex items-center gap-1.5">
-          <span className="h-px w-3 bg-[#FFFA00]" />
-          Today
-        </span>
-      </div>
+      {/* Modal dettaglio progetto */}
+      {selectedProject && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.7)",
+            zIndex: 50,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 16,
+          }}
+          onClick={() => setSelectedProject(null)}
+          role="presentation"
+        >
+          <div
+            style={{
+              background: "#0d0d0d",
+              border: "0.5px solid var(--color-border-tertiary)",
+              borderRadius: 8,
+              width: "100%",
+              maxWidth: 560,
+              maxHeight: "85vh",
+              overflowY: "auto",
+              padding: 24,
+            }}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+              <span
+                style={{
+                  fontSize: 11,
+                  padding: "2px 8px",
+                  borderRadius: 4,
+                  background: PROJECT_TYPE_COLORS[selectedProject.project_type] ?? "#888",
+                  color: "#fff",
+                  fontWeight: 500,
+                }}
+              >
+                {selectedProject.project_type}
+              </span>
+              <h3
+                style={{
+                  fontSize: 16,
+                  fontWeight: 600,
+                  color: "var(--color-text-primary)",
+                  margin: 0,
+                }}
+              >
+                {selectedProject.name}
+              </h3>
+              <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--color-text-secondary)" }}>
+                {getProgress(selectedProject).onAirCount}/{selectedProject.total_episodes} on air
+              </span>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {ALL_PHASES.map((phaseName) => {
+                const phase = selectedProject.project_phases.find((p) => p.phase_name === phaseName);
+                const colors = PHASE_COLORS[phaseName];
+                return (
+                  <div
+                    key={phaseName}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      padding: "8px 10px",
+                      borderRadius: 6,
+                      border: "0.5px solid var(--color-border-tertiary)",
+                      opacity: phase ? 1 : 0.35,
+                    }}
+                  >
+                    <div style={{ width: 10, height: 10, borderRadius: 2, background: colors.bg, flexShrink: 0 }} />
+                    <span style={{ fontSize: 12, color: "var(--color-text-primary)", minWidth: 130 }}>
+                      {PHASE_LABELS[phaseName]}
+                    </span>
+                    {phase ? (
+                      <>
+                        <span style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>
+                          {phase.date_from ?? "—"} → {phase.date_to ?? "—"}
+                        </span>
+                        <span
+                          style={{
+                            marginLeft: "auto",
+                            fontSize: 10,
+                            padding: "1px 6px",
+                            borderRadius: 3,
+                            background:
+                              phase.status === "COMPLETED"
+                                ? "#1a2e1a"
+                                : phase.status === "IN_PROGRESS"
+                                  ? "#1a1a2e"
+                                  : "#1e1e1e",
+                            color:
+                              phase.status === "COMPLETED"
+                                ? "#4ade80"
+                                : phase.status === "IN_PROGRESS"
+                                  ? "#60a5fa"
+                                  : "#888",
+                          }}
+                        >
+                          {phase.status === "COMPLETED"
+                            ? "✓ Completato"
+                            : phase.status === "IN_PROGRESS"
+                              ? "● In corso"
+                              : "○ Pianificato"}
+                        </span>
+                      </>
+                    ) : (
+                      <span style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>
+                        Non pianificata
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            {selectedProject.notes ? (
+              <p
+                style={{
+                  marginTop: 12,
+                  fontSize: 12,
+                  color: "var(--color-text-secondary)",
+                  fontStyle: "italic",
+                }}
+              >
+                {selectedProject.notes}
+              </p>
+            ) : null}
+            <div style={{ marginTop: 16, display: "flex", justifyContent: "flex-end" }}>
+              <button type="button" onClick={() => setSelectedProject(null)} className={btnSecondary}>
+                Chiudi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-      {tooltip && typeof document !== "undefined"
-        ? createPortal(
-            <div
-              className="fixed z-50 min-w-[180px] rounded-xl border border-[#333] bg-[#111] px-3 py-2.5 text-[11px]"
-              style={{ left: tooltip.x, top: tooltip.y }}
+      {/* Form nuovo progetto */}
+      {showForm && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.7)",
+            zIndex: 50,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 16,
+          }}
+          onClick={() => setShowForm(false)}
+          role="presentation"
+        >
+          <div
+            style={{
+              background: "#0d0d0d",
+              border: "0.5px solid var(--color-border-tertiary)",
+              borderRadius: 8,
+              width: "100%",
+              maxWidth: 700,
+              maxHeight: "90vh",
+              overflowY: "auto",
+              padding: 24,
+            }}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+          >
+            <h3
+              style={{
+                fontSize: 16,
+                fontWeight: 600,
+                color: "var(--color-text-primary)",
+                marginBottom: 20,
+              }}
             >
-              <div className="mb-2 font-medium text-[#e5e5e5]">
-                {tooltip.project.showName} - Ep. {tooltip.episode.episodeNumber}
+              Nuovo progetto
+            </h3>
+            {formError ? (
+              <p
+                style={{
+                  marginBottom: 12,
+                  padding: "8px 12px",
+                  borderRadius: 6,
+                  background: "#2e0a0a",
+                  border: "0.5px solid #f87171",
+                  color: "#f87171",
+                  fontSize: 12,
+                }}
+              >
+                {formError}
+              </p>
+            ) : null}
+
+            {/* Info base */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr 1fr",
+                gap: 12,
+                marginBottom: 20,
+              }}
+            >
+              <div style={{ gridColumn: "1 / -1" }}>
+                <label
+                  style={{
+                    fontSize: 11,
+                    color: "var(--color-text-secondary)",
+                    display: "block",
+                    marginBottom: 4,
+                  }}
+                >
+                  Nome progetto *
+                </label>
+                <input
+                  className={inputClass}
+                  value={form.name}
+                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                  placeholder="es. CULT"
+                />
               </div>
-              <div className="mt-1 flex justify-between text-[10px] text-[#888]">
-                <span>Title</span>
-                <span className="text-[#ccc]">{tooltip.episode.title || "—"}</span>
+              <div>
+                <label
+                  style={{
+                    fontSize: 11,
+                    color: "var(--color-text-secondary)",
+                    display: "block",
+                    marginBottom: 4,
+                  }}
+                >
+                  Tipo
+                </label>
+                <select
+                  className={inputClass}
+                  value={form.project_type}
+                  onChange={(e) => setForm((f) => ({ ...f, project_type: e.target.value }))}
+                >
+                  {PROJECT_TYPES.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
               </div>
-              <div className="mt-1 flex justify-between text-[10px] text-[#888]">
-                <span>Date</span>
-                <span className="text-[#ccc]">{formatDate(tooltip.episode.date)}</span>
+              <div>
+                <label
+                  style={{
+                    fontSize: 11,
+                    color: "var(--color-text-secondary)",
+                    display: "block",
+                    marginBottom: 4,
+                  }}
+                >
+                  Episodi totali
+                </label>
+                <input
+                  className={inputClass}
+                  type="number"
+                  min={1}
+                  value={form.total_episodes}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, total_episodes: Number(e.target.value) }))
+                  }
+                />
               </div>
-              <div className="mt-1 flex justify-between text-[10px] text-[#888]">
-                <span>Status</span>
-                <span>{tooltip.episode.status || "—"}</span>
+              <div>
+                <label
+                  style={{
+                    fontSize: 11,
+                    color: "var(--color-text-secondary)",
+                    display: "block",
+                    marginBottom: 4,
+                  }}
+                >
+                  Note
+                </label>
+                <input
+                  className={inputClass}
+                  value={form.notes ?? ""}
+                  onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value || null }))}
+                  placeholder="opzionale"
+                />
               </div>
-              {tooltip.episode.studio ? (
-                <div className="mt-1 flex justify-between text-[10px] text-[#888]">
-                  <span>Studio</span>
-                  <span className="text-[#ccc]">{tooltip.episode.studio}</span>
-                </div>
-              ) : null}
-              {tooltip.episode.facilities ? (
-                <div className="mt-1 flex justify-between text-[10px] text-[#888]">
-                  <span>Facilities</span>
-                  <span className="text-[#ccc]">{tooltip.episode.facilities}</span>
-                </div>
-              ) : null}
-            </div>,
-            document.body
-          )
-        : null}
+            </div>
+
+            {/* Fasi */}
+            <div style={{ marginBottom: 16 }}>
+              <p
+                style={{
+                  fontSize: 12,
+                  fontWeight: 500,
+                  color: "var(--color-text-secondary)",
+                  marginBottom: 8,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                Fasi — inserisci le date (lascia vuote le fasi non applicable)
+              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {form.phases.map((ph, i) => (
+                  <div
+                    key={ph.phase_name}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      padding: "6px 10px",
+                      borderRadius: 6,
+                      border: "0.5px solid var(--color-border-tertiary)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 10,
+                        height: 10,
+                        borderRadius: 2,
+                        background: PHASE_COLORS[ph.phase_name].bg,
+                        flexShrink: 0,
+                      }}
+                    />
+                    <span style={{ fontSize: 12, color: "var(--color-text-primary)", minWidth: 130 }}>
+                      {PHASE_LABELS[ph.phase_name]}
+                    </span>
+                    <input
+                      type="date"
+                      className="rounded border border-[#222] bg-[#141414] px-2 py-1 text-xs text-white focus:border-[#FFFA00] focus:outline-none"
+                      value={ph.date_from ?? ""}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          phases: f.phases.map((p, j) =>
+                            j === i ? { ...p, date_from: e.target.value || null } : p
+                          ),
+                        }))
+                      }
+                    />
+                    <span style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>→</span>
+                    <input
+                      type="date"
+                      className="rounded border border-[#222] bg-[#141414] px-2 py-1 text-xs text-white focus:border-[#FFFA00] focus:outline-none"
+                      value={ph.date_to ?? ""}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          phases: f.phases.map((p, j) =>
+                            j === i ? { ...p, date_to: e.target.value || null } : p
+                          ),
+                        }))
+                      }
+                    />
+                    <select
+                      className="rounded border border-[#222] bg-[#141414] px-2 py-1 text-xs text-white focus:outline-none"
+                      value={ph.status}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          phases: f.phases.map((p, j) =>
+                            j === i ? { ...p, status: e.target.value as PhaseStatus } : p
+                          ),
+                        }))
+                      }
+                    >
+                      <option value="PLANNED">Pianificato</option>
+                      <option value="IN_PROGRESS">In corso</option>
+                      <option value="COMPLETED">Completato</option>
+                    </select>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <button type="button" onClick={() => setShowForm(false)} disabled={saving} className={btnSecondary}>
+                Annulla
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleSaveProject()}
+                disabled={saving}
+                className={btnPrimary}
+              >
+                {saving ? "Salvataggio..." : "Salva progetto"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

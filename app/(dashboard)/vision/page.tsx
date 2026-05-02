@@ -621,9 +621,11 @@ export default function VisionPage() {
                       const pct = (i / totalDays) * 100;
                       const isToday = toIsoDate(d) === toIsoDate(today);
                       const showLabel =
-                        zoom === "W" ||
-                        (zoom === "M" && (d.getDate() === 1 || d.getDate() % 7 === 0)) ||
-                        (zoom === "Q" && (d.getDate() === 1 || d.getDate() % 14 === 0));
+                        zoom === "W"
+                          ? true
+                          : zoom === "M"
+                            ? d.getDate() === 1 || d.getDate() % 7 === 0
+                            : d.getDate() === 1;
                       if (!showLabel) return null;
                       return (
                         <span
@@ -679,8 +681,10 @@ export default function VisionPage() {
                         <div
                           style={{
                             minWidth: 200,
+                            height: 40,
                             padding: "8px 12px",
                             borderRight: "1px solid var(--color-border-tertiary)",
+                            boxSizing: "border-box",
                           }}
                         >
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -745,10 +749,21 @@ export default function VisionPage() {
                         <div
                           style={{
                             minWidth: 110,
+                            height: 40,
                             borderRight: "1px solid var(--color-border-tertiary)",
+                            boxSizing: "border-box",
                           }}
                         />
-                        <div style={{ flex: 1, padding: "8px 12px" }}>
+                        <div
+                          style={{
+                            flex: 1,
+                            height: 40,
+                            padding: "8px 12px",
+                            boxSizing: "border-box",
+                            display: "flex",
+                            alignItems: "center",
+                          }}
+                        >
                           <span
                             style={{
                               fontSize: 11,
@@ -789,9 +804,10 @@ export default function VisionPage() {
                           <div
                             style={{
                               minWidth: 200,
-                              minHeight: 48,
+                              height: 40,
                               padding: "8px 12px",
                               borderRight: "1px solid var(--color-border-tertiary)",
+                              boxSizing: "border-box",
                             }}
                           >
                             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -859,7 +875,9 @@ export default function VisionPage() {
                           <div
                             style={{
                               minWidth: 200,
+                              height: 40,
                               borderRight: "1px solid var(--color-border-tertiary)",
+                              boxSizing: "border-box",
                             }}
                           />
                         )}
@@ -868,11 +886,12 @@ export default function VisionPage() {
                         <div
                           style={{
                             minWidth: 110,
-                            height: 36,
+                            height: 40,
                             padding: "4px 8px",
                             borderRight: "1px solid var(--color-border-tertiary)",
                             display: "flex",
                             alignItems: "center",
+                            boxSizing: "border-box",
                           }}
                         >
                           <span style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>
@@ -885,9 +904,10 @@ export default function VisionPage() {
                           style={{
                             flex: 1,
                             position: "relative",
-                            height: 36,
+                            height: 40,
                             display: "flex",
                             alignItems: "center",
+                            boxSizing: "border-box",
                           }}
                         >
                           {/* Linea oggi */}
@@ -905,6 +925,25 @@ export default function VisionPage() {
                               }}
                             />
                           )}
+                          {timelineDates.map((d, i) => {
+                            if (d.getDate() !== 1) return null;
+                            const pct = (i / totalDays) * 100;
+                            return (
+                              <div
+                                key={`ms${i}`}
+                                style={{
+                                  position: "absolute",
+                                  left: `${pct}%`,
+                                  top: 0,
+                                  bottom: 0,
+                                  width: "0.5px",
+                                  background: "var(--color-border-tertiary)",
+                                  zIndex: 0,
+                                  pointerEvents: "none",
+                                }}
+                              />
+                            );
+                          })}
                           {/* Barra fase */}
                           <div
                             style={{
@@ -978,6 +1017,23 @@ export default function VisionPage() {
 
       {view === "calendar" && (
         <div style={{ marginTop: 8 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+            {ALL_PHASES.map((ph) => (
+              <div
+                key={ph}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  fontSize: 11,
+                  color: "var(--color-text-secondary)",
+                }}
+              >
+                <div style={{ width: 10, height: 10, borderRadius: 2, background: PHASE_COLORS[ph].bg }} />
+                {PHASE_LABELS[ph]}
+              </div>
+            ))}
+          </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
             <button
               type="button"

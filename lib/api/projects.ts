@@ -15,6 +15,17 @@ export interface WorkBlock {
   notes: string | null;
 }
 
+export interface ProjectPhaseSession {
+  id: number;
+  phase_id: number;
+  project_id: number;
+  session_date: string;
+  date_to: string | null;
+  label: string | null;
+  notes: string | null;
+  status: string;
+}
+
 export interface ProjectPhase {
   id: number;
   project_id: number;
@@ -26,11 +37,13 @@ export interface ProjectPhase {
   notes: string | null;
   sort_order: number;
   work_blocks: WorkBlock[];
+  project_phase_sessions: ProjectPhaseSession[];
 }
 
 export interface Project {
   id: number;
   name: string;
+  client: string | null;
   project_type: string;
   total_episodes: number;
   notes: string | null;
@@ -42,6 +55,7 @@ export interface ProjectPayload {
   name: string;
   project_type: string;
   total_episodes: number;
+  client?: string | null;
   notes?: string | null;
   phases?: {
     phase_name: PhaseName;

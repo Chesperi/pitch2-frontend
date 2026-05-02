@@ -33,6 +33,7 @@ const PROJECT_TYPES = ["BRANDED", "EDITORIAL", "TECH", "PLATFORM"];
 function emptyForm(): ProjectPayload & { phases: NonNullable<ProjectPayload["phases"]> } {
   return {
     name: "",
+    client: null,
     project_type: "BRANDED",
     total_episodes: 1,
     notes: null,
@@ -149,19 +150,18 @@ export default function VisionPage() {
     });
   }, [projects, searchValue, activeFilters]);
 
-  // Calcolo progress
   function getProgress(p: Project) {
     const onAirPhase = p.project_phases.find((ph) => ph.phase_name === "ON_AIR");
-    const onAirCount = onAirPhase?.episodes_completed ?? 0;
+    const sessions = onAirPhase?.project_phase_sessions ?? [];
+    const onAirCount = sessions.filter((s) => s.status === "COMPLETED").length;
     const total = p.total_episodes;
     const pct = total > 0 ? Math.round((onAirCount / total) * 100) : 0;
     return { onAirCount, total, pct };
   }
 
-  // Salva nuovo progetto
   async function handleSaveProject() {
     if (!form.name.trim()) {
-      setFormError("Nome obbligatorio");
+      setFormError("Project name is required");
       return;
     }
     setSaving(true);
@@ -169,12 +169,16 @@ export default function VisionPage() {
     try {
       // Filtra fasi senza date (non pianificate)
       const phases = form.phases.filter((ph) => ph.date_from || ph.date_to);
-      const created = await createProject({ ...form, phases });
+      const created = await createProject({
+        ...form,
+        client: form.client?.trim() || null,
+        phases,
+      });
       setProjects((prev) => [...prev, created]);
       setShowForm(false);
       setForm(emptyForm());
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : "Errore salvataggio");
+      setFormError(e instanceof Error ? e.message : "Save error");
     } finally {
       setSaving(false);
     }
@@ -354,7 +358,7 @@ export default function VisionPage() {
           className={btnPrimary}
           style={{ marginLeft: view === "gantt" ? 8 : "auto" }}
         >
-          + Nuovo progetto
+          + New project
         </button>
       </div>
 
@@ -368,7 +372,7 @@ export default function VisionPage() {
             onChange={setActiveFilters}
             searchValue={searchValue}
             onSearchChange={setSearchValue}
-            searchPlaceholder="Cerca progetto..."
+            searchPlaceholder="Search project..."
           />
 
           {/* Legenda fasi */}
@@ -420,7 +424,7 @@ export default function VisionPage() {
                     letterSpacing: "0.05em",
                   }}
                 >
-                  Progetto
+                  Project
                 </div>
                 <div
                   style={{
@@ -434,7 +438,7 @@ export default function VisionPage() {
                     letterSpacing: "0.05em",
                   }}
                 >
-                  Fase
+                  Phase
                 </div>
                 <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
                   {monthLabels.map((ml, i) => (
@@ -470,7 +474,7 @@ export default function VisionPage() {
                     fontSize: 13,
                   }}
                 >
-                  Nessun progetto. Clicca &quot;+ Nuovo progetto&quot; per iniziare.
+                  No projects yet. Click &quot;+ New project&quot; to get started.
                 </div>
               ) : (
                 filteredProjects.flatMap((project) => {
@@ -526,6 +530,11 @@ export default function VisionPage() {
                               {project.name}
                             </span>
                           </div>
+                          {project.client ? (
+                            <span style={{ fontSize: 10, color: "var(--color-text-secondary)", display: "block", marginTop: 4 }}>
+                              {project.client}
+                            </span>
+                          ) : null}
                           <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
                             <span style={{ fontSize: 11, color: "var(--color-text-info)" }}>
                               {onAirCount}/{total} on air
@@ -564,7 +573,7 @@ export default function VisionPage() {
                               fontStyle: "italic",
                             }}
                           >
-                            Nessuna fase nel periodo visualizzato
+                            No phases in current period
                           </span>
                         </div>
                       </div>,
@@ -626,6 +635,11 @@ export default function VisionPage() {
                                 {project.name}
                               </span>
                             </div>
+                            {project.client ? (
+                              <span style={{ fontSize: 10, color: "var(--color-text-secondary)", display: "block", marginTop: 4 }}>
+                                {project.client}
+                              </span>
+                            ) : null}
                             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
                               <span style={{ fontSize: 11, color: "var(--color-text-info)" }}>
                                 {onAirCount}/{total} on air
@@ -725,6 +739,36 @@ export default function VisionPage() {
                           >
                             {phase.status === "COMPLETED" ? "✓" : phase.status === "IN_PROGRESS" ? "●" : ""}
                           </div>
+                          {phase.project_phase_sessions
+                            ?.slice()
+                            .sort((a, b) => a.session_date.localeCompare(b.session_date))
+                            .map((session) => {
+                              const sessionPct = dateToPct(session.session_date);
+                              if (sessionPct < 0 || sessionPct > 100) return null;
+                              const sessionColors = PHASE_COLORS[phase.phase_name as PhaseName];
+                              return (
+                                <div
+                                  key={session.id}
+                                  title={session.label ?? session.session_date}
+                                  style={{
+                                    position: "absolute",
+                                    left: `${sessionPct}%`,
+                                    top: "50%",
+                                    transform: "translate(-50%, -50%)",
+                                    width: 8,
+                                    height: 8,
+                                    borderRadius: "50%",
+                                    background:
+                                      session.status === "COMPLETED"
+                                        ? sessionColors?.bg ?? "#888"
+                                        : "transparent",
+                                    border: `2px solid ${sessionColors?.bg ?? "#888"}`,
+                                    zIndex: 3,
+                                    cursor: "default",
+                                  }}
+                                />
+                              );
+                            })}
                         </div>
                       </div>
                     );
@@ -741,7 +785,7 @@ export default function VisionPage() {
       {view === "calendar" && (
         <div style={{ marginTop: 8 }}>
           <p style={{ marginBottom: 12, fontSize: 13, color: "var(--color-text-secondary)" }}>
-            Integrazione eventi in arrivo
+            Calendar integration coming soon
           </p>
           <MonthCalendar
             year={calendarMonth.getFullYear()}
@@ -827,56 +871,94 @@ export default function VisionPage() {
                   <div
                     key={phaseName}
                     style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                      padding: "8px 10px",
                       borderRadius: 6,
                       border: "0.5px solid var(--color-border-tertiary)",
                       opacity: phase ? 1 : 0.35,
+                      overflow: "hidden",
                     }}
                   >
-                    <div style={{ width: 10, height: 10, borderRadius: 2, background: colors.bg, flexShrink: 0 }} />
-                    <span style={{ fontSize: 12, color: "var(--color-text-primary)", minWidth: 130 }}>
-                      {PHASE_LABELS[phaseName]}
-                    </span>
-                    {phase ? (
-                      <>
-                        <span style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>
-                          {phase.date_from ?? "—"} → {phase.date_to ?? "—"}
-                        </span>
-                        <span
-                          style={{
-                            marginLeft: "auto",
-                            fontSize: 10,
-                            padding: "1px 6px",
-                            borderRadius: 3,
-                            background:
-                              phase.status === "COMPLETED"
-                                ? "#1a2e1a"
-                                : phase.status === "IN_PROGRESS"
-                                  ? "#1a1a2e"
-                                  : "#1e1e1e",
-                            color:
-                              phase.status === "COMPLETED"
-                                ? "#4ade80"
-                                : phase.status === "IN_PROGRESS"
-                                  ? "#60a5fa"
-                                  : "#888",
-                          }}
-                        >
-                          {phase.status === "COMPLETED"
-                            ? "✓ Completato"
-                            : phase.status === "IN_PROGRESS"
-                              ? "● In corso"
-                              : "○ Pianificato"}
-                        </span>
-                      </>
-                    ) : (
-                      <span style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>
-                        Non pianificata
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        padding: "8px 10px",
+                      }}
+                    >
+                      <div style={{ width: 10, height: 10, borderRadius: 2, background: colors.bg, flexShrink: 0 }} />
+                      <span style={{ fontSize: 12, color: "var(--color-text-primary)", minWidth: 130 }}>
+                        {PHASE_LABELS[phaseName]}
                       </span>
-                    )}
+                      {phase ? (
+                        <>
+                          <span style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>
+                            {phase.date_from ?? "—"} → {phase.date_to ?? "—"}
+                          </span>
+                          <span
+                            style={{
+                              marginLeft: "auto",
+                              fontSize: 10,
+                              padding: "1px 6px",
+                              borderRadius: 3,
+                              background:
+                                phase.status === "COMPLETED"
+                                  ? "#1a2e1a"
+                                  : phase.status === "IN_PROGRESS"
+                                    ? "#1a1a2e"
+                                    : "#1e1e1e",
+                              color:
+                                phase.status === "COMPLETED"
+                                  ? "#4ade80"
+                                  : phase.status === "IN_PROGRESS"
+                                    ? "#60a5fa"
+                                    : "#888",
+                            }}
+                          >
+                            {phase.status === "COMPLETED"
+                              ? "✓ Completed"
+                              : phase.status === "IN_PROGRESS"
+                                ? "● In progress"
+                                : "○ Planned"}
+                          </span>
+                        </>
+                      ) : (
+                        <span style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>
+                          Not scheduled
+                        </span>
+                      )}
+                    </div>
+                    {phase?.project_phase_sessions && phase.project_phase_sessions.length > 0 ? (
+                      <div
+                        style={{
+                          marginTop: 4,
+                          marginLeft: 20,
+                          marginBottom: 8,
+                          display: "flex",
+                          flexWrap: "wrap",
+                          gap: 4,
+                        }}
+                      >
+                        {phase.project_phase_sessions
+                          .slice()
+                          .sort((a, b) => a.session_date.localeCompare(b.session_date))
+                          .map((s) => (
+                            <span
+                              key={s.id}
+                              style={{
+                                fontSize: 10,
+                                padding: "1px 6px",
+                                borderRadius: 3,
+                                background: s.status === "COMPLETED" ? "#1a2e1a" : "#1e1e1e",
+                                color: s.status === "COMPLETED" ? "#4ade80" : "#888",
+                                border: "0.5px solid",
+                                borderColor: s.status === "COMPLETED" ? "#4ade80" : "#333",
+                              }}
+                            >
+                              {s.label ?? s.session_date}
+                            </span>
+                          ))}
+                      </div>
+                    ) : null}
                   </div>
                 );
               })}
@@ -895,7 +977,7 @@ export default function VisionPage() {
             ) : null}
             <div style={{ marginTop: 16, display: "flex", justifyContent: "flex-end" }}>
               <button type="button" onClick={() => setSelectedProject(null)} className={btnSecondary}>
-                Chiudi
+                Close
               </button>
             </div>
           </div>
@@ -942,7 +1024,7 @@ export default function VisionPage() {
                 marginBottom: 20,
               }}
             >
-              Nuovo progetto
+              New project
             </h3>
             {formError ? (
               <p
@@ -978,13 +1060,31 @@ export default function VisionPage() {
                     marginBottom: 4,
                   }}
                 >
-                  Nome progetto *
+                  Project name *
                 </label>
                 <input
                   className={inputClass}
                   value={form.name}
                   onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                  placeholder="es. CULT"
+                  placeholder="e.g. CULT"
+                />
+              </div>
+              <div style={{ gridColumn: "1 / -1" }}>
+                <label
+                  style={{
+                    fontSize: 11,
+                    color: "var(--color-text-secondary)",
+                    display: "block",
+                    marginBottom: 4,
+                  }}
+                >
+                  Client
+                </label>
+                <input
+                  className={inputClass}
+                  value={form.client ?? ""}
+                  onChange={(e) => setForm((f) => ({ ...f, client: e.target.value || null }))}
+                  placeholder="e.g. EBAY"
                 />
               </div>
               <div>
@@ -996,7 +1096,7 @@ export default function VisionPage() {
                     marginBottom: 4,
                   }}
                 >
-                  Tipo
+                  Type
                 </label>
                 <select
                   className={inputClass}
@@ -1019,7 +1119,7 @@ export default function VisionPage() {
                     marginBottom: 4,
                   }}
                 >
-                  Episodi totali
+                  Total episodes
                 </label>
                 <input
                   className={inputClass}
@@ -1040,13 +1140,13 @@ export default function VisionPage() {
                     marginBottom: 4,
                   }}
                 >
-                  Note
+                  Notes
                 </label>
                 <input
                   className={inputClass}
                   value={form.notes ?? ""}
                   onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value || null }))}
-                  placeholder="opzionale"
+                  placeholder="optional"
                 />
               </div>
             </div>
@@ -1063,7 +1163,7 @@ export default function VisionPage() {
                   letterSpacing: "0.05em",
                 }}
               >
-                Fasi — inserisci le date (lascia vuote le fasi non applicable)
+                PHASES — SET DATES (LEAVE EMPTY IF NOT APPLICABLE)
               </p>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {form.phases.map((ph, i) => (
@@ -1129,9 +1229,9 @@ export default function VisionPage() {
                         }))
                       }
                     >
-                      <option value="PLANNED">Pianificato</option>
-                      <option value="IN_PROGRESS">In corso</option>
-                      <option value="COMPLETED">Completato</option>
+                      <option value="PLANNED">Planned</option>
+                      <option value="IN_PROGRESS">In progress</option>
+                      <option value="COMPLETED">Completed</option>
                     </select>
                   </div>
                 ))}
@@ -1140,7 +1240,7 @@ export default function VisionPage() {
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
               <button type="button" onClick={() => setShowForm(false)} disabled={saving} className={btnSecondary}>
-                Annulla
+                Cancel
               </button>
               <button
                 type="button"
@@ -1148,7 +1248,7 @@ export default function VisionPage() {
                 disabled={saving}
                 className={btnPrimary}
               >
-                {saving ? "Salvataggio..." : "Salva progetto"}
+                {saving ? "Saving..." : "Save project"}
               </button>
             </div>
           </div>

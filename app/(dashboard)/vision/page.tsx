@@ -4,6 +4,7 @@ import ComposableFilters, {
   type ActiveFilter,
   type FilterOption,
 } from "@/components/ui/ComposableFilters";
+import MonthCalendar from "@/components/ui/MonthCalendar";
 import PageLoading from "@/components/ui/PageLoading";
 import {
   fetchProjects,
@@ -15,6 +16,7 @@ import {
   deleteSession,
   type Project,
   type ProjectPhase,
+  type ProjectPhaseSession,
   type ProjectPayload,
   type PhaseName,
   type PhaseStatus,
@@ -94,6 +96,7 @@ export default function VisionPage() {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
+  const [selectedVisionCalendarDay, setSelectedVisionCalendarDay] = useState<string | null>(null);
 
   const today = useMemo(() => new Date(), []);
 
@@ -174,6 +177,32 @@ export default function VisionPage() {
       return true;
     });
   }, [projects, searchValue, activeFilters]);
+
+  type VisionCalendarDayEntry = {
+    project: Project;
+    phase: ProjectPhase;
+    session: ProjectPhaseSession;
+  };
+
+  const visionCalendarSessionsByIso = useMemo(() => {
+    const map = new Map<string, VisionCalendarDayEntry[]>();
+    for (const p of filteredProjects) {
+      for (const ph of p.project_phases) {
+        for (const s of ph.project_phase_sessions ?? []) {
+          const iso = s.session_date;
+          const list = map.get(iso) ?? [];
+          list.push({ project: p, phase: ph, session: s });
+          map.set(iso, list);
+        }
+      }
+    }
+    return map;
+  }, [filteredProjects]);
+
+  const selectedVisionCalendarDaySessions = useMemo(() => {
+    if (!selectedVisionCalendarDay) return [];
+    return visionCalendarSessionsByIso.get(selectedVisionCalendarDay) ?? [];
+  }, [selectedVisionCalendarDay, visionCalendarSessionsByIso]);
 
   function getProgress(p: Project) {
     const onAirPhase = p.project_phases.find((ph) => ph.phase_name === "ON_AIR");
@@ -681,7 +710,7 @@ export default function VisionPage() {
                         <div
                           style={{
                             minWidth: 200,
-                            height: 40,
+                            minHeight: 40,
                             padding: "8px 12px",
                             borderRight: "1px solid var(--color-border-tertiary)",
                             boxSizing: "border-box",
@@ -804,7 +833,7 @@ export default function VisionPage() {
                           <div
                             style={{
                               minWidth: 200,
-                              height: 40,
+                              minHeight: 40,
                               padding: "8px 12px",
                               borderRight: "1px solid var(--color-border-tertiary)",
                               boxSizing: "border-box",
@@ -1034,163 +1063,92 @@ export default function VisionPage() {
               </div>
             ))}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-            <button
-              type="button"
-              onClick={() =>
-                setCalendarMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))
-              }
-              style={{
-                background: "none",
-                border: "0.5px solid var(--color-border-tertiary)",
-                borderRadius: 4,
-                color: "var(--color-text-secondary)",
-                width: 28,
-                height: 28,
-                cursor: "pointer",
-                fontSize: 14,
-              }}
-            >
-              ‹
-            </button>
-            <span
-              style={{
-                fontSize: 14,
-                fontWeight: 500,
-                color: "var(--color-text-primary)",
-                minWidth: 140,
-                textAlign: "center",
-              }}
-            >
-              {calendarMonth.toLocaleDateString("it-IT", { month: "long", year: "numeric" })}
-            </span>
-            <button
-              type="button"
-              onClick={() =>
-                setCalendarMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))
-              }
-              style={{
-                background: "none",
-                border: "0.5px solid var(--color-border-tertiary)",
-                borderRadius: 4,
-                color: "var(--color-text-secondary)",
-                width: 28,
-                height: 28,
-                cursor: "pointer",
-                fontSize: 14,
-              }}
-            >
-              ›
-            </button>
-          </div>
-
-          {/* Griglia calendario */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(7, 1fr)",
-              gap: 1,
-              border: "0.5px solid var(--color-border-tertiary)",
-              borderRadius: 8,
-              overflow: "hidden",
+          <MonthCalendar
+            year={calendarMonth.getFullYear()}
+            month={calendarMonth.getMonth()}
+            onPrevMonth={() =>
+              setCalendarMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))
+            }
+            onNextMonth={() =>
+              setCalendarMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))
+            }
+            onDayClick={(y, m, d) =>
+              setSelectedVisionCalendarDay(
+                `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`
+              )
+            }
+            renderDayContent={(y, m, d) => {
+              const iso = `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+              const daySessions = visionCalendarSessionsByIso.get(iso) ?? [];
+              const shown = daySessions.slice(0, 4);
+              const rest = daySessions.length - shown.length;
+              return (
+                <div className="mt-1 flex flex-col gap-0.5 overflow-hidden">
+                  {shown.map(({ project: p, phase: ph, session: s }) => {
+                    const colors = PHASE_COLORS[ph.phase_name as PhaseName];
+                    return (
+                      <div
+                        key={s.id}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setSelectedProject(p);
+                        }}
+                        className="max-w-full cursor-pointer truncate rounded border border-solid px-1 py-0.5 text-left text-[10px]"
+                        style={{
+                          borderColor: colors?.bg ?? "#888",
+                          color: colors?.bg ?? "#888",
+                          background: "transparent",
+                        }}
+                        title={`${p.name} · ${PHASE_LABELS[ph.phase_name as PhaseName]} · ${s.label ?? ""}`}
+                      >
+                        {p.name} · {s.label ?? PHASE_LABELS[ph.phase_name as PhaseName]}
+                      </div>
+                    );
+                  })}
+                  {rest > 0 ? <div className="text-[10px] text-[#777]">+{rest}</div> : null}
+                </div>
+              );
             }}
-          >
-            {["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"].map((d) => (
-              <div
-                key={d}
-                style={{
-                  padding: "6px 8px",
-                  background: "var(--color-background-secondary)",
-                  fontSize: 11,
-                  fontWeight: 500,
-                  color: "var(--color-text-secondary)",
-                  textAlign: "center",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                }}
-              >
-                {d}
+          />
+
+          {selectedVisionCalendarDay ? (
+            <div
+              className="mt-5 rounded-lg border p-3"
+              style={{ borderColor: "#2a2a2a", background: "#1a1a1a" }}
+            >
+              <div className="text-sm font-bold text-white">
+                Sessions on{" "}
+                {new Date(`${selectedVisionCalendarDay}T12:00:00`).toLocaleDateString("it-IT", {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                })}
               </div>
-            ))}
-            {(() => {
-              const year = calendarMonth.getFullYear();
-              const month = calendarMonth.getMonth();
-              const firstDay = new Date(year, month, 1);
-              const lastDay = new Date(year, month + 1, 0);
-              const offset = (firstDay.getDay() + 6) % 7;
-              const days = [];
-              for (let i = 0; i < offset; i++) {
-                days.push(
-                  <div
-                    key={`e${i}`}
-                    style={{
-                      background: "var(--color-background-secondary)",
-                      minHeight: 80,
-                    }}
-                  />
-                );
-              }
-              for (let d = 1; d <= lastDay.getDate(); d++) {
-                const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-                const isToday = dateStr === toIsoDate(today);
-                const daySessions = filteredProjects.flatMap((p) =>
-                  p.project_phases.flatMap((ph) =>
-                    (ph.project_phase_sessions ?? [])
-                      .filter((s) => s.session_date === dateStr)
-                      .map((s) => ({ project: p, phase: ph, session: s }))
-                  )
-                );
-                days.push(
-                  <div
-                    key={d}
-                    style={{
-                      background: "var(--color-background-primary)",
-                      minHeight: 80,
-                      padding: "4px 6px",
-                      border: isToday ? "1.5px solid #FFFA00" : "none",
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: 12,
-                        fontWeight: isToday ? 700 : 400,
-                        color: isToday ? "#FFFA00" : "var(--color-text-secondary)",
-                        marginBottom: 4,
-                      }}
+              <div className="mt-2 space-y-2">
+                {selectedVisionCalendarDaySessions.length === 0 ? (
+                  <p className="text-sm" style={{ color: "#888" }}>
+                    No sessions.
+                  </p>
+                ) : (
+                  selectedVisionCalendarDaySessions.map(({ project: p, phase: ph, session: s }) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => void setSelectedProject(p)}
+                      className="w-full rounded border px-3 py-2 text-left text-sm"
+                      style={{ borderColor: "#2a2a2a", background: "#111", color: "#fff" }}
                     >
-                      {d}
-                    </div>
-                    {daySessions.map(({ project: p, phase: ph, session: s }) => {
-                      const colors = PHASE_COLORS[ph.phase_name as PhaseName];
-                      return (
-                        <div
-                          key={s.id}
-                          onClick={() => setSelectedProject(p)}
-                          style={{
-                            fontSize: 10,
-                            padding: "1px 4px",
-                            borderRadius: 3,
-                            background: "transparent",
-                            border: `1px solid ${colors?.bg ?? "#888"}`,
-                            color: colors?.bg ?? "#888",
-                            marginBottom: 2,
-                            cursor: "pointer",
-                            whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                          }}
-                          title={`${p.name} · ${PHASE_LABELS[ph.phase_name as PhaseName]} · ${s.label ?? ""}`}
-                        >
-                          {p.name} · {s.label ?? PHASE_LABELS[ph.phase_name as PhaseName]}
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              }
-              return days;
-            })()}
-          </div>
+                      {[p.name, PHASE_LABELS[ph.phase_name as PhaseName], s.label?.trim() || null]
+                        .filter(Boolean)
+                        .join(" — ")}
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          ) : null}
         </div>
       )}
 

@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ComposableFilters, {
   type ActiveFilter,
   type FilterOption,
@@ -25,6 +26,7 @@ import {
   ALL_PHASES,
   PROJECT_TYPE_COLORS,
 } from "@/lib/api/projects";
+import { fetchRoles } from "@/lib/api/roles";
 
 // Helper date
 function toIsoDate(d: Date): string {
@@ -39,6 +41,118 @@ function formatDisplayDate(d: string | null): string {
 }
 function getDaysToShow(z: "W" | "M" | "Q"): number {
   return z === "W" ? 42 : z === "M" ? 84 : 168;
+}
+
+function WorkBlockAddRow({
+  availableRoles,
+  onAdd,
+}: {
+  availableRoles: { role_code: string; location: string }[];
+  onAdd: (wb: {
+    role_code: string;
+    location: string;
+    quantity: number;
+    hours_per_session: number;
+  }) => void;
+}) {
+  const [roleCode, setRoleCode] = useState("");
+  const [location, setLocation] = useState("COLOGNO");
+  const [quantity, setQuantity] = useState(1);
+  const [hours, setHours] = useState(8);
+
+  const locationOpts = [...new Set(availableRoles.map((r) => r.location))].sort();
+  const locations = locationOpts.length > 0 ? locationOpts : ["COLOGNO"];
+  const filteredRoles = availableRoles
+    .filter((r) => r.location === location)
+    .map((r) => r.role_code)
+    .filter((v, idx, arr) => arr.indexOf(v) === idx)
+    .sort();
+
+  const inputCls =
+    "rounded border border-[#222] bg-[#141414] px-2 py-1 text-xs text-white focus:border-[#FFFA00] focus:outline-none";
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: 6,
+        alignItems: "center",
+        flexWrap: "wrap",
+        marginTop: 4,
+      }}
+    >
+      <select
+        className={inputCls}
+        style={{ flex: 1, minWidth: 120 }}
+        value={roleCode}
+        onChange={(e) => setRoleCode(e.target.value)}
+      >
+        <option value="">Select role...</option>
+        {filteredRoles.map((r) => (
+          <option key={r} value={r}>
+            {r}
+          </option>
+        ))}
+      </select>
+      <select
+        className={inputCls}
+        value={location}
+        onChange={(e) => {
+          setLocation(e.target.value);
+          setRoleCode("");
+        }}
+      >
+        {locations.map((l) => (
+          <option key={l} value={l}>
+            {l}
+          </option>
+        ))}
+      </select>
+      <input
+        className={inputCls}
+        type="number"
+        min={1}
+        max={20}
+        value={quantity}
+        onChange={(e) => setQuantity(Number(e.target.value))}
+        style={{ width: 48 }}
+        title="Quantity"
+      />
+      <input
+        className={inputCls}
+        type="number"
+        min={1}
+        max={24}
+        value={hours}
+        onChange={(e) => setHours(Number(e.target.value))}
+        style={{ width: 48 }}
+        title="Hours"
+      />
+      <button
+        type="button"
+        disabled={!roleCode}
+        onClick={() => {
+          if (!roleCode) return;
+          onAdd({ role_code: roleCode, location, quantity, hours_per_session: hours });
+          setRoleCode("");
+          setQuantity(1);
+          setHours(8);
+        }}
+        style={{
+          background: roleCode ? "#FFFA00" : "#333",
+          border: "none",
+          borderRadius: 4,
+          color: roleCode ? "#000" : "#666",
+          fontSize: 12,
+          fontWeight: 500,
+          padding: "4px 10px",
+          cursor: roleCode ? "pointer" : "not-allowed",
+        }}
+      >
+        + Add
+      </button>
+    </div>
+  );
 }
 
 const PROJECT_TYPES = ["BRANDED", "EDITORIAL", "TECH", "PLATFORM"];
@@ -80,6 +194,10 @@ export default function VisionPage() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [expandedPhases, setExpandedPhases] = useState<Set<number>>(new Set());
+  const [expandedWorkBlocks, setExpandedWorkBlocks] = useState<Set<number>>(new Set());
+  const [availableRoles, setAvailableRoles] = useState<{ role_code: string; location: string }[]>(
+    []
+  );
   const [editingPhase, setEditingPhase] = useState<{
     id: number;
     date_from: string;
@@ -104,6 +222,25 @@ export default function VisionPage() {
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
   const [selectedVisionCalendarDay, setSelectedVisionCalendarDay] = useState<string | null>(null);
+  const [sessionTooltip, setSessionTooltip] = useState<{
+    session: ProjectPhaseSession;
+    phaseName: PhaseName;
+    x: number;
+    y: number;
+  } | null>(null);
+  const tooltipClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const cancelClearTooltip = () => {
+    if (tooltipClearTimer.current) clearTimeout(tooltipClearTimer.current);
+    tooltipClearTimer.current = null;
+  };
+  const scheduleClearTooltip = () => {
+    if (tooltipClearTimer.current) clearTimeout(tooltipClearTimer.current);
+    tooltipClearTimer.current = setTimeout(() => {
+      setSessionTooltip(null);
+      tooltipClearTimer.current = null;
+    }, 120);
+  };
 
   const today = useMemo(() => new Date(), []);
 
@@ -115,6 +252,19 @@ export default function VisionPage() {
       try {
         const data = await fetchProjects();
         if (!cancelled) setProjects(data);
+        try {
+          const rolesList = await fetchRoles();
+          if (!cancelled) {
+            setAvailableRoles(
+              rolesList.map((r) => ({
+                role_code: r.code,
+                location: r.location ?? "COLOGNO",
+              }))
+            );
+          }
+        } catch {
+          if (!cancelled) setAvailableRoles([]);
+        }
       } catch (e) {
         console.error(e);
       } finally {
@@ -123,6 +273,12 @@ export default function VisionPage() {
     })();
     return () => {
       cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (tooltipClearTimer.current) clearTimeout(tooltipClearTimer.current);
     };
   }, []);
 
@@ -982,8 +1138,18 @@ export default function VisionPage() {
                               return (
                                 <div
                                   key={session.id}
+                                  onMouseEnter={(e) => {
+                                    cancelClearTooltip();
+                                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                                    setSessionTooltip({
+                                      session,
+                                      phaseName: phase.phase_name as PhaseName,
+                                      x: rect.left + rect.width / 2,
+                                      y: rect.top,
+                                    });
+                                  }}
+                                  onMouseLeave={scheduleClearTooltip}
                                   onClick={() => setSelectedProject(project)}
-                                  title={`${session.label ?? ""} · ${session.session_date}${session.date_to ? " → " + session.date_to : ""} · ${session.status}`}
                                   style={{
                                     position: "absolute",
                                     left: `${sessionPct}%`,
@@ -1417,6 +1583,25 @@ export default function VisionPage() {
                               )}
                             </div>
                           ))}
+                      </div>
+                    ) : null}
+                    {phase?.work_blocks && phase.work_blocks.length > 0 ? (
+                      <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 4, marginLeft: 20 }}>
+                        {phase.work_blocks.map((wb) => (
+                          <span
+                            key={wb.id}
+                            style={{
+                              fontSize: 10,
+                              padding: "1px 8px",
+                              borderRadius: 3,
+                              background: "#1a1a2e",
+                              color: "#60a5fa",
+                              border: "0.5px solid #2a2a4e",
+                            }}
+                          >
+                            {wb.role_code} · {wb.location} · {wb.quantity}× {wb.hours_per_session}h
+                          </span>
+                        ))}
                       </div>
                     ) : null}
                     {phase ? (
@@ -2020,6 +2205,159 @@ export default function VisionPage() {
                             </button>
                           </div>
                         ) : null}
+                        <div style={{ marginLeft: 0, marginTop: 4 }}>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExpandedWorkBlocks((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(i)) next.delete(i);
+                                else next.add(i);
+                                return next;
+                              })
+                            }
+                            style={{
+                              fontSize: 11,
+                              color: "var(--color-text-secondary)",
+                              background: "none",
+                              border: "none",
+                              cursor: "pointer",
+                              padding: 0,
+                            }}
+                          >
+                            {expandedWorkBlocks.has(i) ? "▾" : "▸"} Work blocks (
+                            {ph.work_blocks?.length ?? 0})
+                          </button>
+                          {expandedWorkBlocks.has(i) ? (
+                            <div
+                              style={{
+                                marginTop: 6,
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 4,
+                              }}
+                            >
+                              {(ph.work_blocks ?? []).length > 0 ? (
+                                <div
+                                  style={{
+                                    display: "grid",
+                                    gridTemplateColumns: "1fr 80px 60px 60px 24px",
+                                    gap: 4,
+                                    marginBottom: 4,
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      fontSize: 10,
+                                      color: "var(--color-text-secondary)",
+                                      textTransform: "uppercase",
+                                      letterSpacing: "0.05em",
+                                    }}
+                                  >
+                                    Role
+                                  </span>
+                                  <span
+                                    style={{
+                                      fontSize: 10,
+                                      color: "var(--color-text-secondary)",
+                                      textTransform: "uppercase",
+                                      letterSpacing: "0.05em",
+                                    }}
+                                  >
+                                    Location
+                                  </span>
+                                  <span
+                                    style={{
+                                      fontSize: 10,
+                                      color: "var(--color-text-secondary)",
+                                      textTransform: "uppercase",
+                                      letterSpacing: "0.05em",
+                                    }}
+                                  >
+                                    Qty
+                                  </span>
+                                  <span
+                                    style={{
+                                      fontSize: 10,
+                                      color: "var(--color-text-secondary)",
+                                      textTransform: "uppercase",
+                                      letterSpacing: "0.05em",
+                                    }}
+                                  >
+                                    Hrs
+                                  </span>
+                                  <span />
+                                </div>
+                              ) : null}
+                              {(ph.work_blocks ?? []).map((wb, wi) => (
+                                <div
+                                  key={wi}
+                                  style={{
+                                    display: "grid",
+                                    gridTemplateColumns: "1fr 80px 60px 60px 24px",
+                                    gap: 4,
+                                    alignItems: "center",
+                                  }}
+                                >
+                                  <span style={{ fontSize: 12, color: "var(--color-text-primary)" }}>
+                                    {wb.role_code}
+                                  </span>
+                                  <span style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>
+                                    {wb.location}
+                                  </span>
+                                  <span style={{ fontSize: 12, color: "var(--color-text-primary)" }}>
+                                    {wb.quantity}
+                                  </span>
+                                  <span style={{ fontSize: 12, color: "var(--color-text-primary)" }}>
+                                    {wb.hours_per_session}h
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setForm((f) => ({
+                                        ...f,
+                                        phases: f.phases.map((p, j) =>
+                                          j === i
+                                            ? {
+                                                ...p,
+                                                work_blocks: (p.work_blocks ?? []).filter((_, k) => k !== wi),
+                                              }
+                                            : p
+                                        ),
+                                      }))
+                                    }
+                                    style={{
+                                      fontSize: 14,
+                                      color: "#f87171",
+                                      background: "none",
+                                      border: "none",
+                                      cursor: "pointer",
+                                      padding: 0,
+                                    }}
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              ))}
+                              <WorkBlockAddRow
+                                availableRoles={availableRoles}
+                                onAdd={(wb) =>
+                                  setForm((f) => ({
+                                    ...f,
+                                    phases: f.phases.map((p, j) =>
+                                      j === i
+                                        ? {
+                                            ...p,
+                                            work_blocks: [...(p.work_blocks ?? []), wb],
+                                          }
+                                        : p
+                                    ),
+                                  }))
+                                }
+                              />
+                            </div>
+                          ) : null}
+                        </div>
                       </div>
                     ) : null}
                   </div>
@@ -2043,6 +2381,64 @@ export default function VisionPage() {
           </div>
         </div>
       )}
+      {sessionTooltip && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              role="tooltip"
+              onMouseEnter={cancelClearTooltip}
+              onMouseLeave={scheduleClearTooltip}
+              style={{
+                position: "fixed",
+                top: sessionTooltip.y - 8,
+                left: sessionTooltip.x,
+                transform: "translate(-50%, -100%)",
+                zIndex: 100,
+                background: "#1a1a1a",
+                border: "0.5px solid #333",
+                borderRadius: 8,
+                padding: "8px 12px",
+                minWidth: 160,
+                pointerEvents: "auto",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
+              }}
+            >
+              <div style={{ fontSize: 12, fontWeight: 500, color: "#fff", marginBottom: 4 }}>
+                {sessionTooltip.session.label ?? formatDisplayDate(sessionTooltip.session.session_date)}
+              </div>
+              <div style={{ fontSize: 11, color: "#888", marginBottom: 2 }}>
+                {PHASE_LABELS[sessionTooltip.phaseName]}
+              </div>
+              <div style={{ fontSize: 11, color: "#888", marginBottom: 2 }}>
+                {formatDisplayDate(sessionTooltip.session.session_date)}
+                {sessionTooltip.session.date_to
+                  ? ` → ${formatDisplayDate(sessionTooltip.session.date_to)}`
+                  : ""}
+              </div>
+              <div
+                style={{
+                  fontSize: 10,
+                  padding: "1px 6px",
+                  borderRadius: 3,
+                  marginTop: 4,
+                  display: "inline-block",
+                  background:
+                    sessionTooltip.session.status === "COMPLETED" ? "#1a2e1a" : "#1e1e1e",
+                  color: sessionTooltip.session.status === "COMPLETED" ? "#4ade80" : "#888",
+                  border: `0.5px solid ${
+                    sessionTooltip.session.status === "COMPLETED" ? "#4ade80" : "#333"
+                  }`,
+                }}
+              >
+                {sessionTooltip.session.status === "COMPLETED"
+                  ? "✓ Completed"
+                  : sessionTooltip.session.status === "IN_PROGRESS"
+                    ? "● In progress"
+                    : "○ Planned"}
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 }

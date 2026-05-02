@@ -4,7 +4,6 @@ import ComposableFilters, {
   type ActiveFilter,
   type FilterOption,
 } from "@/components/ui/ComposableFilters";
-import MonthCalendar from "@/components/ui/MonthCalendar";
 import PageLoading from "@/components/ui/PageLoading";
 import {
   fetchProjects,
@@ -311,22 +310,34 @@ export default function VisionPage() {
   const monthLabels = useMemo(() => {
     const labels: { label: string; startPct: number; widthPct: number }[] = [];
     let currentMonth = -1;
+    let currentYear = -1;
     let monthStart = 0;
+
     timelineDates.forEach((d, i) => {
-      if (d.getMonth() !== currentMonth) {
+      const m = d.getMonth();
+      const y = d.getFullYear();
+      if (m !== currentMonth || y !== currentYear) {
         if (currentMonth !== -1) {
           labels.push({
-            label: d.toLocaleDateString("it-IT", { month: "short", year: "2-digit" }),
+            label: new Date(currentYear, currentMonth, 1).toLocaleDateString("it-IT", {
+              month: "short",
+              year: "2-digit",
+            }),
             startPct: (monthStart / totalDays) * 100,
             widthPct: ((i - monthStart) / totalDays) * 100,
           });
         }
-        currentMonth = d.getMonth();
+        currentMonth = m;
+        currentYear = y;
         monthStart = i;
       }
     });
+    // Ultimo mese
     labels.push({
-      label: timelineDates[totalDays - 1].toLocaleDateString("it-IT", { month: "short", year: "2-digit" }),
+      label: new Date(currentYear, currentMonth, 1).toLocaleDateString("it-IT", {
+        month: "short",
+        year: "2-digit",
+      }),
       startPct: (monthStart / totalDays) * 100,
       widthPct: ((totalDays - monthStart) / totalDays) * 100,
     });
@@ -444,26 +455,31 @@ export default function VisionPage() {
               >
                 Today
               </button>
-              {(["W", "M", "Q"] as const).map((z) => (
-                <button
-                  key={z}
-                  type="button"
-                  onClick={() => setZoom(z)}
-                  style={{
-                    background: zoom === z ? "var(--color-background-primary)" : "none",
-                    border: "0.5px solid var(--color-border-tertiary)",
-                    borderRadius: 4,
-                    color: zoom === z ? "var(--color-text-primary)" : "var(--color-text-secondary)",
-                    width: "auto",
-                    padding: "3px 10px",
-                    cursor: "pointer",
-                    fontSize: 12,
-                    fontWeight: 500,
-                  }}
-                >
-                  {z === "W" ? "Week" : z === "M" ? "Month" : "Quarter"}
-                </button>
-              ))}
+              <div style={{ display: "flex", gap: 24, alignItems: "center" }}>
+                {(["W", "M", "Q"] as const).map((z) => (
+                  <button
+                    key={z}
+                    type="button"
+                    onClick={() => setZoom(z)}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      letterSpacing: "0.05em",
+                      textTransform: "uppercase",
+                      color: zoom === z ? "#FFFA00" : "var(--color-text-secondary)",
+                      borderBottom: zoom === z ? "2px solid #FFFA00" : "2px solid transparent",
+                      paddingBottom: 2,
+                      transition: "color 0.15s, border-color 0.15s",
+                      padding: "0 4px 2px 4px",
+                    }}
+                  >
+                    {z === "W" ? "Week" : z === "M" ? "Month" : "Quarter"}
+                  </button>
+                ))}
+              </div>
             </div>
           </>
         )}
@@ -962,23 +978,163 @@ export default function VisionPage() {
 
       {view === "calendar" && (
         <div style={{ marginTop: 8 }}>
-          <p style={{ marginBottom: 12, fontSize: 13, color: "var(--color-text-secondary)" }}>
-            Calendar integration coming soon
-          </p>
-          <MonthCalendar
-            year={calendarMonth.getFullYear()}
-            month={calendarMonth.getMonth()}
-            onPrevMonth={() =>
-              setCalendarMonth(
-                new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1)
-              )
-            }
-            onNextMonth={() =>
-              setCalendarMonth(
-                new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1)
-              )
-            }
-          />
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+            <button
+              type="button"
+              onClick={() =>
+                setCalendarMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))
+              }
+              style={{
+                background: "none",
+                border: "0.5px solid var(--color-border-tertiary)",
+                borderRadius: 4,
+                color: "var(--color-text-secondary)",
+                width: 28,
+                height: 28,
+                cursor: "pointer",
+                fontSize: 14,
+              }}
+            >
+              ‹
+            </button>
+            <span
+              style={{
+                fontSize: 14,
+                fontWeight: 500,
+                color: "var(--color-text-primary)",
+                minWidth: 140,
+                textAlign: "center",
+              }}
+            >
+              {calendarMonth.toLocaleDateString("it-IT", { month: "long", year: "numeric" })}
+            </span>
+            <button
+              type="button"
+              onClick={() =>
+                setCalendarMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))
+              }
+              style={{
+                background: "none",
+                border: "0.5px solid var(--color-border-tertiary)",
+                borderRadius: 4,
+                color: "var(--color-text-secondary)",
+                width: 28,
+                height: 28,
+                cursor: "pointer",
+                fontSize: 14,
+              }}
+            >
+              ›
+            </button>
+          </div>
+
+          {/* Griglia calendario */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(7, 1fr)",
+              gap: 1,
+              border: "0.5px solid var(--color-border-tertiary)",
+              borderRadius: 8,
+              overflow: "hidden",
+            }}
+          >
+            {["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"].map((d) => (
+              <div
+                key={d}
+                style={{
+                  padding: "6px 8px",
+                  background: "var(--color-background-secondary)",
+                  fontSize: 11,
+                  fontWeight: 500,
+                  color: "var(--color-text-secondary)",
+                  textAlign: "center",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                {d}
+              </div>
+            ))}
+            {(() => {
+              const year = calendarMonth.getFullYear();
+              const month = calendarMonth.getMonth();
+              const firstDay = new Date(year, month, 1);
+              const lastDay = new Date(year, month + 1, 0);
+              const offset = (firstDay.getDay() + 6) % 7;
+              const days = [];
+              for (let i = 0; i < offset; i++) {
+                days.push(
+                  <div
+                    key={`e${i}`}
+                    style={{
+                      background: "var(--color-background-secondary)",
+                      minHeight: 80,
+                    }}
+                  />
+                );
+              }
+              for (let d = 1; d <= lastDay.getDate(); d++) {
+                const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+                const isToday = dateStr === toIsoDate(today);
+                const daySessions = filteredProjects.flatMap((p) =>
+                  p.project_phases.flatMap((ph) =>
+                    (ph.project_phase_sessions ?? [])
+                      .filter((s) => s.session_date === dateStr)
+                      .map((s) => ({ project: p, phase: ph, session: s }))
+                  )
+                );
+                days.push(
+                  <div
+                    key={d}
+                    style={{
+                      background: "var(--color-background-primary)",
+                      minHeight: 80,
+                      padding: "4px 6px",
+                      border: isToday ? "1.5px solid #FFFA00" : "none",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 12,
+                        fontWeight: isToday ? 700 : 400,
+                        color: isToday ? "#FFFA00" : "var(--color-text-secondary)",
+                        marginBottom: 4,
+                      }}
+                    >
+                      {d}
+                    </div>
+                    {daySessions.map(({ project: p, phase: ph, session: s }) => {
+                      const colors = PHASE_COLORS[ph.phase_name as PhaseName];
+                      return (
+                        <div
+                          key={s.id}
+                          onClick={() => setSelectedProject(p)}
+                          style={{
+                            fontSize: 10,
+                            padding: "1px 4px",
+                            borderRadius: 3,
+                            background: "transparent",
+                            border: `1px solid ${colors?.bg ?? "#888"}`,
+                            color: colors?.bg ?? "#888",
+                            marginBottom: 2,
+                            cursor: "pointer",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                          title={`${p.name} · ${PHASE_LABELS[ph.phase_name as PhaseName]} · ${s.label ?? ""}`}
+                        >
+                          {p.name} · {s.label ?? PHASE_LABELS[ph.phase_name as PhaseName]}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              }
+              return days;
+            })()}
+          </div>
         </div>
       )}
 

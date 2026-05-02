@@ -71,6 +71,13 @@ export interface ProjectPayload {
       hours_per_session?: number;
       notes?: string | null;
     }[];
+    sessions?: {
+      session_date: string;
+      date_to?: string | null;
+      label?: string | null;
+      notes?: string | null;
+      status?: string;
+    }[];
   }[];
 }
 

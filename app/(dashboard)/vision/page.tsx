@@ -45,6 +45,7 @@ function emptyForm(): ProjectPayload & { phases: NonNullable<ProjectPayload["pha
       episodes_completed: 0,
       notes: null,
       work_blocks: [],
+      sessions: [],
     })),
   };
 }
@@ -64,6 +65,7 @@ export default function VisionPage() {
   const [form, setForm] = useState(emptyForm());
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [expandedPhases, setExpandedPhases] = useState<Set<number>>(new Set());
   // Calendar
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const d = new Date();
@@ -410,6 +412,7 @@ export default function VisionPage() {
                   display: "flex",
                   borderBottom: "1px solid var(--color-border-tertiary)",
                   background: "var(--color-background-secondary)",
+                  height: "auto",
                 }}
               >
                 <div
@@ -440,27 +443,75 @@ export default function VisionPage() {
                 >
                   Phase
                 </div>
-                <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
-                  {monthLabels.map((ml, i) => (
-                    <span
-                      key={i}
-                      style={{
-                        position: "absolute",
-                        left: `${ml.startPct}%`,
-                        width: `${ml.widthPct}%`,
-                        fontSize: 11,
-                        color: "var(--color-text-secondary)",
-                        padding: "6px 4px",
-                        borderRight: "0.5px solid var(--color-border-tertiary)",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {ml.label}
-                    </span>
-                  ))}
-                  <div style={{ height: 28 }} />
+                <div
+                  style={{
+                    flex: 1,
+                    display: "flex",
+                    flexDirection: "column",
+                    minWidth: 0,
+                    height: "auto",
+                  }}
+                >
+                  {/* Header timeline — mesi */}
+                  <div
+                    style={{
+                      flex: 1,
+                      position: "relative",
+                      overflow: "hidden",
+                      borderBottom: "0.5px solid var(--color-border-tertiary)",
+                    }}
+                  >
+                    {monthLabels.map((ml, i) => (
+                      <span
+                        key={i}
+                        style={{
+                          position: "absolute",
+                          left: `${ml.startPct}%`,
+                          width: `${ml.widthPct}%`,
+                          fontSize: 11,
+                          color: "var(--color-text-secondary)",
+                          padding: "4px 4px",
+                          borderRight: "0.5px solid var(--color-border-tertiary)",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          fontWeight: 500,
+                        }}
+                      >
+                        {ml.label}
+                      </span>
+                    ))}
+                    <div style={{ height: 22 }} />
+                  </div>
+                  {/* Header timeline — giorni */}
+                  <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+                    {timelineDates.map((d, i) => {
+                      const pct = (i / totalDays) * 100;
+                      const isToday = toIsoDate(d) === toIsoDate(today);
+                      const showLabel =
+                        zoom === "W" ||
+                        (zoom === "M" && (d.getDate() === 1 || d.getDate() % 7 === 0)) ||
+                        (zoom === "Q" && (d.getDate() === 1 || d.getDate() % 14 === 0));
+                      if (!showLabel) return null;
+                      return (
+                        <span
+                          key={i}
+                          style={{
+                            position: "absolute",
+                            left: `${pct}%`,
+                            fontSize: 10,
+                            color: isToday ? "#FFFA00" : "var(--color-text-secondary)",
+                            fontWeight: isToday ? 700 : 400,
+                            padding: "3px 2px",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {d.getDate()}
+                        </span>
+                      );
+                    })}
+                    <div style={{ height: 20 }} />
+                  </div>
                 </div>
               </div>
 
@@ -587,6 +638,7 @@ export default function VisionPage() {
                     const colors = PHASE_COLORS[phase.phase_name as PhaseName];
                     const opacity =
                       phase.status === "COMPLETED" ? 1 : phase.status === "IN_PROGRESS" ? 0.85 : 0.4;
+                    const isOnAir = phase.phase_name === "ON_AIR";
 
                     return (
                       <div
@@ -721,10 +773,13 @@ export default function VisionPage() {
                               position: "absolute",
                               left: `${leftPct}%`,
                               width: `${widthPct}%`,
-                              height: 20,
-                              borderRadius: 4,
-                              background: colors?.bg ?? "#888",
+                              height: 14,
+                              borderRadius: 3,
+                              background: isOnAir
+                                ? `${colors?.bg ?? "#888"}60`
+                                : colors?.bg ?? "#888",
                               opacity,
+                              border: isOnAir ? `1.5px solid ${colors?.bg ?? "#888"}` : "none",
                               display: "flex",
                               alignItems: "center",
                               justifyContent: "center",
@@ -735,6 +790,7 @@ export default function VisionPage() {
                               whiteSpace: "nowrap",
                               padding: "0 6px",
                               zIndex: 1,
+                              boxSizing: "border-box",
                             }}
                           >
                             {phase.status === "COMPLETED" ? "✓" : phase.status === "IN_PROGRESS" ? "●" : ""}
@@ -755,8 +811,8 @@ export default function VisionPage() {
                                     left: `${sessionPct}%`,
                                     top: "50%",
                                     transform: "translate(-50%, -50%)",
-                                    width: 8,
-                                    height: 8,
+                                    width: 6,
+                                    height: 6,
                                     borderRadius: "50%",
                                     background:
                                       session.status === "COMPLETED"
@@ -957,6 +1013,44 @@ export default function VisionPage() {
                               {s.label ?? s.session_date}
                             </span>
                           ))}
+                      </div>
+                    ) : null}
+                    {phase ? (
+                      <div style={{ marginTop: 6, marginLeft: 10, marginBottom: 8, display: "flex", gap: 6 }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            console.log("Edit phase", phase.id);
+                          }}
+                          style={{
+                            fontSize: 11,
+                            color: "var(--color-text-secondary)",
+                            background: "none",
+                            border: "0.5px solid var(--color-border-tertiary)",
+                            borderRadius: 4,
+                            padding: "2px 8px",
+                            cursor: "pointer",
+                          }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            console.log("Add session to phase", phase.id);
+                          }}
+                          style={{
+                            fontSize: 11,
+                            color: "#FFFA00",
+                            background: "none",
+                            border: "0.5px solid #FFFA00",
+                            borderRadius: 4,
+                            padding: "2px 8px",
+                            cursor: "pointer",
+                          }}
+                        >
+                          + Session
+                        </button>
                       </div>
                     ) : null}
                   </div>
@@ -1170,69 +1264,208 @@ export default function VisionPage() {
                   <div
                     key={ph.phase_name}
                     style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                      padding: "6px 10px",
                       borderRadius: 6,
                       border: "0.5px solid var(--color-border-tertiary)",
+                      overflow: "hidden",
                     }}
                   >
                     <div
                       style={{
-                        width: 10,
-                        height: 10,
-                        borderRadius: 2,
-                        background: PHASE_COLORS[ph.phase_name].bg,
-                        flexShrink: 0,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        padding: "6px 10px",
+                        flexWrap: "wrap",
                       }}
-                    />
-                    <span style={{ fontSize: 12, color: "var(--color-text-primary)", minWidth: 130 }}>
-                      {PHASE_LABELS[ph.phase_name]}
-                    </span>
-                    <input
-                      type="date"
-                      className="rounded border border-[#222] bg-[#141414] px-2 py-1 text-xs text-white focus:border-[#FFFA00] focus:outline-none"
-                      value={ph.date_from ?? ""}
-                      onChange={(e) =>
-                        setForm((f) => ({
-                          ...f,
-                          phases: f.phases.map((p, j) =>
-                            j === i ? { ...p, date_from: e.target.value || null } : p
-                          ),
-                        }))
-                      }
-                    />
-                    <span style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>→</span>
-                    <input
-                      type="date"
-                      className="rounded border border-[#222] bg-[#141414] px-2 py-1 text-xs text-white focus:border-[#FFFA00] focus:outline-none"
-                      value={ph.date_to ?? ""}
-                      onChange={(e) =>
-                        setForm((f) => ({
-                          ...f,
-                          phases: f.phases.map((p, j) =>
-                            j === i ? { ...p, date_to: e.target.value || null } : p
-                          ),
-                        }))
-                      }
-                    />
-                    <select
-                      className="rounded border border-[#222] bg-[#141414] px-2 py-1 text-xs text-white focus:outline-none"
-                      value={ph.status}
-                      onChange={(e) =>
-                        setForm((f) => ({
-                          ...f,
-                          phases: f.phases.map((p, j) =>
-                            j === i ? { ...p, status: e.target.value as PhaseStatus } : p
-                          ),
-                        }))
-                      }
                     >
-                      <option value="PLANNED">Planned</option>
-                      <option value="IN_PROGRESS">In progress</option>
-                      <option value="COMPLETED">Completed</option>
-                    </select>
+                      <div
+                        style={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: 2,
+                          background: PHASE_COLORS[ph.phase_name].bg,
+                          flexShrink: 0,
+                        }}
+                      />
+                      <span style={{ fontSize: 12, color: "var(--color-text-primary)", minWidth: 130 }}>
+                        {PHASE_LABELS[ph.phase_name]}
+                      </span>
+                      <input
+                        type="date"
+                        className="rounded border border-[#222] bg-[#141414] px-2 py-1 text-xs text-white focus:border-[#FFFA00] focus:outline-none"
+                        value={ph.date_from ?? ""}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            phases: f.phases.map((p, j) =>
+                              j === i ? { ...p, date_from: e.target.value || null } : p
+                            ),
+                          }))
+                        }
+                      />
+                      <span style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>→</span>
+                      <input
+                        type="date"
+                        className="rounded border border-[#222] bg-[#141414] px-2 py-1 text-xs text-white focus:border-[#FFFA00] focus:outline-none"
+                        value={ph.date_to ?? ""}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            phases: f.phases.map((p, j) =>
+                              j === i ? { ...p, date_to: e.target.value || null } : p
+                            ),
+                          }))
+                        }
+                      />
+                      <select
+                        className="rounded border border-[#222] bg-[#141414] px-2 py-1 text-xs text-white focus:outline-none"
+                        value={ph.status}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            phases: f.phases.map((p, j) =>
+                              j === i ? { ...p, status: e.target.value as PhaseStatus } : p
+                            ),
+                          }))
+                        }
+                      >
+                        <option value="PLANNED">Planned</option>
+                        <option value="IN_PROGRESS">In progress</option>
+                        <option value="COMPLETED">Completed</option>
+                      </select>
+                    </div>
+                    {(ph.date_from || ph.date_to) ? (
+                      <div style={{ marginLeft: 20, marginTop: 4, marginBottom: 8 }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setExpandedPhases((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(i)) next.delete(i);
+                              else next.add(i);
+                              return next;
+                            });
+                          }}
+                          style={{
+                            fontSize: 11,
+                            color: "var(--color-text-secondary)",
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            padding: 0,
+                          }}
+                        >
+                          {expandedPhases.has(i) ? "▾" : "▸"} Sessions ({ph.sessions?.length ?? 0})
+                        </button>
+                        {expandedPhases.has(i) ? (
+                          <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 4 }}>
+                            {(ph.sessions ?? []).map((s, si) => (
+                              <div key={si} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                <input
+                                  type="date"
+                                  className="rounded border border-[#222] bg-[#141414] px-2 py-1 text-xs text-white focus:border-[#FFFA00] focus:outline-none"
+                                  value={s.session_date}
+                                  onChange={(e) =>
+                                    setForm((f) => ({
+                                      ...f,
+                                      phases: f.phases.map((p, j) =>
+                                        j === i
+                                          ? {
+                                              ...p,
+                                              sessions: (p.sessions ?? []).map((ss, k) =>
+                                                k === si ? { ...ss, session_date: e.target.value } : ss
+                                              ),
+                                            }
+                                          : p
+                                      ),
+                                    }))
+                                  }
+                                />
+                                <input
+                                  className="w-32 rounded border border-[#222] bg-[#141414] px-2 py-1 text-xs text-white focus:border-[#FFFA00] focus:outline-none"
+                                  placeholder="Label (e.g. Ep. 1)"
+                                  value={s.label ?? ""}
+                                  onChange={(e) =>
+                                    setForm((f) => ({
+                                      ...f,
+                                      phases: f.phases.map((p, j) =>
+                                        j === i
+                                          ? {
+                                              ...p,
+                                              sessions: (p.sessions ?? []).map((ss, k) =>
+                                                k === si ? { ...ss, label: e.target.value || null } : ss
+                                              ),
+                                            }
+                                          : p
+                                      ),
+                                    }))
+                                  }
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setForm((f) => ({
+                                      ...f,
+                                      phases: f.phases.map((p, j) =>
+                                        j === i
+                                          ? {
+                                              ...p,
+                                              sessions: (p.sessions ?? []).filter((_, k) => k !== si),
+                                            }
+                                          : p
+                                      ),
+                                    }))
+                                  }
+                                  style={{
+                                    fontSize: 14,
+                                    color: "#f87171",
+                                    background: "none",
+                                    border: "none",
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ))}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setForm((f) => ({
+                                  ...f,
+                                  phases: f.phases.map((p, j) =>
+                                    j === i
+                                      ? {
+                                          ...p,
+                                          sessions: [
+                                            ...(p.sessions ?? []),
+                                            {
+                                              session_date: p.date_from ?? "",
+                                              label: null,
+                                              status: "PLANNED",
+                                            },
+                                          ],
+                                        }
+                                      : p
+                                  ),
+                                }))
+                              }
+                              style={{
+                                fontSize: 11,
+                                color: "#FFFA00",
+                                background: "none",
+                                border: "none",
+                                cursor: "pointer",
+                                padding: 0,
+                                textAlign: "left",
+                              }}
+                            >
+                              + Add session
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </div>
                 ))}
               </div>

@@ -773,6 +773,7 @@ export default function VisionPage() {
                           <div
                             style={{
                               minWidth: 200,
+                              minHeight: 48,
                               padding: "8px 12px",
                               borderRight: "1px solid var(--color-border-tertiary)",
                             }}
@@ -851,6 +852,7 @@ export default function VisionPage() {
                         <div
                           style={{
                             minWidth: 110,
+                            height: 36,
                             padding: "4px 8px",
                             borderRight: "1px solid var(--color-border-tertiary)",
                             display: "flex",
@@ -893,17 +895,19 @@ export default function VisionPage() {
                               position: "absolute",
                               left: `${leftPct}%`,
                               width: `${widthPct}%`,
-                              height: 20,
+                              height: 18,
+                              top: "50%",
+                              transform: "translateY(-50%)",
                               borderRadius: 999,
-                              background: "transparent",
                               border: `1.5px solid ${barBg}`,
+                              background: "transparent",
+                              color: barBg,
                               opacity,
                               display: "flex",
                               alignItems: "center",
                               justifyContent: "center",
                               fontSize: 10,
                               fontWeight: 500,
-                              color: barBg,
                               overflow: "hidden",
                               whiteSpace: "nowrap",
                               padding: "0 8px",
@@ -925,19 +929,13 @@ export default function VisionPage() {
                                 <div
                                   key={session.id}
                                   onClick={() => setSelectedProject(project)}
-                                  title={[
-                                    session.label,
-                                    session.session_date,
-                                    session.date_to ? "→ " + session.date_to : null,
-                                    session.status,
-                                  ]
-                                    .filter(Boolean)
-                                    .join(" · ")}
+                                  title={`${session.label ?? ""} · ${session.session_date}${session.date_to ? " → " + session.date_to : ""} · ${session.status}`}
                                   style={{
                                     position: "absolute",
                                     left: `${sessionPct}%`,
                                     top: "50%",
                                     transform: "translate(-50%, -50%)",
+                                    margin: 0,
                                     width: 12,
                                     height: 12,
                                     borderRadius: "50%",

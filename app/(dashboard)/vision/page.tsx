@@ -15,6 +15,8 @@ import {
   createSession,
   updateSession,
   deleteSession,
+  createWorkBlock,
+  deleteWorkBlock,
   type Project,
   type ProjectPhase,
   type ProjectPhaseSession,
@@ -108,26 +110,30 @@ function WorkBlockAddRow({
           </option>
         ))}
       </select>
-      <input
-        className={inputCls}
-        type="number"
-        min={1}
-        max={20}
-        value={quantity}
-        onChange={(e) => setQuantity(Number(e.target.value))}
-        style={{ width: 48 }}
-        title="Quantity"
-      />
-      <input
-        className={inputCls}
-        type="number"
-        min={1}
-        max={24}
-        value={hours}
-        onChange={(e) => setHours(Number(e.target.value))}
-        style={{ width: 48 }}
-        title="Hours"
-      />
+      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <label style={{ fontSize: 10, color: "var(--color-text-secondary)" }}>Qty</label>
+        <input
+          className={inputCls}
+          type="number"
+          min={1}
+          max={20}
+          value={quantity}
+          onChange={(e) => setQuantity(Number(e.target.value))}
+          style={{ width: 48 }}
+        />
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <label style={{ fontSize: 10, color: "var(--color-text-secondary)" }}>Hours</label>
+        <input
+          className={inputCls}
+          type="number"
+          min={1}
+          max={24}
+          value={hours}
+          onChange={(e) => setHours(Number(e.target.value))}
+          style={{ width: 48 }}
+        />
+      </div>
       <button
         type="button"
         disabled={!roleCode}
@@ -207,6 +213,7 @@ export default function VisionPage() {
     notes: string;
   } | null>(null);
   const [addingSessionToPhase, setAddingSessionToPhase] = useState<number | null>(null);
+  const [addingWorkBlockToPhase, setAddingWorkBlockToPhase] = useState<number | null>(null);
   const [newSession, setNewSession] = useState({ session_date: "", label: "" });
   const [modalSaving, setModalSaving] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
@@ -383,6 +390,7 @@ export default function VisionPage() {
 
   const handleEditPhase = (phase: ProjectPhase) => {
     setAddingSessionToPhase(null);
+    setAddingWorkBlockToPhase(null);
     setEditingSession(null);
     setModalError(null);
     setEditingPhase({
@@ -413,6 +421,43 @@ export default function VisionPage() {
       setEditingPhase(null);
     } catch (e) {
       setModalError(e instanceof Error ? e.message : "Error saving phase");
+    } finally {
+      setModalSaving(false);
+    }
+  };
+
+  const handleAddWorkBlock = async (
+    phaseId: number,
+    wb: { role_code: string; location: string; quantity: number; hours_per_session: number }
+  ) => {
+    if (!selectedProject) return;
+    setModalSaving(true);
+    setModalError(null);
+    try {
+      await createWorkBlock(phaseId, wb);
+      const updated = await fetchProject(selectedProject.id);
+      setSelectedProject(updated);
+      setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+      setAddingWorkBlockToPhase(null);
+    } catch (e) {
+      setModalError(e instanceof Error ? e.message : "Error adding work block");
+    } finally {
+      setModalSaving(false);
+    }
+  };
+
+  const handleDeleteWorkBlock = async (phaseId: number, workBlockId: number) => {
+    if (!selectedProject) return;
+    if (!window.confirm("Delete this work block?")) return;
+    setModalSaving(true);
+    setModalError(null);
+    try {
+      await deleteWorkBlock(phaseId, workBlockId);
+      const updated = await fetchProject(selectedProject.id);
+      setSelectedProject(updated);
+      setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+    } catch (e) {
+      setModalError(e instanceof Error ? e.message : "Error deleting work block");
     } finally {
       setModalSaving(false);
     }
@@ -1585,23 +1630,87 @@ export default function VisionPage() {
                           ))}
                       </div>
                     ) : null}
-                    {phase?.work_blocks && phase.work_blocks.length > 0 ? (
-                      <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 4, marginLeft: 20 }}>
-                        {phase.work_blocks.map((wb) => (
-                          <span
-                            key={wb.id}
+                    {/* Work blocks */}
+                    {phase ? (
+                      <div style={{ marginTop: 8 }}>
+                        {phase.work_blocks && phase.work_blocks.length > 0 && (
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 6 }}>
+                            {phase.work_blocks.map((wb) => (
+                              <div
+                                key={wb.id}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 4,
+                                  fontSize: 10,
+                                  padding: "2px 8px",
+                                  borderRadius: 3,
+                                  background: "#1a1a2e",
+                                  color: "#60a5fa",
+                                  border: "0.5px solid #2a2a4e",
+                                }}
+                              >
+                                <span>
+                                  {wb.role_code} · {wb.location} · {wb.quantity}× {wb.hours_per_session}h
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => void handleDeleteWorkBlock(phase.id, wb.id)}
+                                  style={{
+                                    fontSize: 12,
+                                    color: "#f87171",
+                                    background: "none",
+                                    border: "none",
+                                    cursor: "pointer",
+                                    padding: 0,
+                                    marginLeft: 2,
+                                  }}
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {addingWorkBlockToPhase === phase.id ? (
+                          <div style={{ marginTop: 4 }}>
+                            <WorkBlockAddRow
+                              availableRoles={availableRoles}
+                              onAdd={(wb) => void handleAddWorkBlock(phase.id, wb)}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setAddingWorkBlockToPhase(null)}
+                              style={{
+                                fontSize: 11,
+                                color: "var(--color-text-secondary)",
+                                background: "none",
+                                border: "none",
+                                cursor: "pointer",
+                                marginTop: 4,
+                              }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setAddingWorkBlockToPhase(phase.id)}
                             style={{
-                              fontSize: 10,
-                              padding: "1px 8px",
-                              borderRadius: 3,
-                              background: "#1a1a2e",
+                              fontSize: 11,
                               color: "#60a5fa",
+                              background: "none",
                               border: "0.5px solid #2a2a4e",
+                              borderRadius: 4,
+                              padding: "2px 8px",
+                              cursor: "pointer",
+                              marginTop: 4,
                             }}
                           >
-                            {wb.role_code} · {wb.location} · {wb.quantity}× {wb.hours_per_session}h
-                          </span>
-                        ))}
+                            + Work block
+                          </button>
+                        )}
                       </div>
                     ) : null}
                     {phase ? (

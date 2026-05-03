@@ -223,3 +223,31 @@ export const PROJECT_TYPE_COLORS: Record<string, string> = {
   TECH:      "#E8A838",
   PLATFORM:  "#9B59B6",
 };
+
+export async function createWorkBlock(
+  phaseId: number,
+  payload: {
+    role_code: string;
+    location: string;
+    quantity: number;
+    hours_per_session: number;
+    notes?: string | null;
+  }
+): Promise<WorkBlock> {
+  const res = await fetch(`/api/projects/phases/${phaseId}/workblocks`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`createWorkBlock error: ${res.status}`);
+  return res.json();
+}
+
+export async function deleteWorkBlock(phaseId: number, workBlockId: number): Promise<void> {
+  const res = await fetch(`/api/projects/phases/${phaseId}/workblocks/${workBlockId}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error(`deleteWorkBlock error: ${res.status}`);
+}

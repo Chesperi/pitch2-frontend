@@ -18,6 +18,7 @@ import {
   Monitor,
   MessageSquare,
   LayoutTemplate,
+  CalendarDays,
 } from "lucide-react";
 import {
   usePagePermissions,
@@ -45,6 +46,12 @@ const NAV_ITEMS: NavItem[] = [
   },
   { href: "/eventi", label: "Events", icon: Zap, pageKey: "eventi" },
   { href: "/vision", label: "Vision", icon: LayoutTemplate, pageKey: "vision" },
+  {
+    href: "/media-scheduler",
+    label: "Scheduler",
+    icon: CalendarDays,
+    pageKey: "editing_scheduler",
+  },
   {
     href: "/designazioni",
     label: "Assignments",

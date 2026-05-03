@@ -73,7 +73,7 @@ function WorkBlockAddRow({
     "rounded border border-[#222] bg-[#141414] px-2 py-1 text-xs text-white focus:border-[#FFFA00] focus:outline-none";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 4 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 4, marginLeft: 0 }}>
       <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
         <select
           className={inputCls}
@@ -1446,6 +1446,7 @@ export default function VisionPage() {
                       border: "0.5px solid var(--color-border-tertiary)",
                       opacity: phase ? 1 : 0.35,
                       overflow: "hidden",
+                      padding: "8px 10px",
                     }}
                   >
                     <div
@@ -1453,7 +1454,6 @@ export default function VisionPage() {
                         display: "flex",
                         alignItems: "center",
                         gap: 10,
-                        padding: "8px 10px",
                       }}
                     >
                       <div style={{ width: 10, height: 10, borderRadius: 2, background: colors.bg, flexShrink: 0 }} />
@@ -1502,7 +1502,7 @@ export default function VisionPage() {
                       <div
                         style={{
                           marginTop: 4,
-                          marginLeft: 20,
+                          marginLeft: 0,
                           marginBottom: 8,
                           display: "flex",
                           flexWrap: "wrap",
@@ -1623,7 +1623,7 @@ export default function VisionPage() {
                     ) : null}
                     {/* Work blocks */}
                     {phase ? (
-                      <div style={{ marginTop: 8 }}>
+                      <div style={{ marginTop: 8, marginLeft: 0 }}>
                         {phase.work_blocks && phase.work_blocks.length > 0 && (
                           <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 6 }}>
                             {phase.work_blocks.map((wb) => (
@@ -1654,7 +1654,6 @@ export default function VisionPage() {
                                     border: "none",
                                     cursor: "pointer",
                                     padding: 0,
-                                    marginLeft: 2,
                                   }}
                                 >
                                   ×
@@ -1664,7 +1663,7 @@ export default function VisionPage() {
                           </div>
                         )}
                         {addingWorkBlockToPhase === phase.id ? (
-                          <div style={{ marginTop: 4 }}>
+                          <div style={{ marginTop: 4, marginLeft: 0 }}>
                             <WorkBlockAddRow
                               availableRoles={availableRoles}
                               onAdd={(wb) => void handleAddWorkBlock(phase.id, wb)}
@@ -1689,7 +1688,7 @@ export default function VisionPage() {
                     ) : null}
                     {phase ? (
                       editingPhase?.id === phase.id ? (
-                        <div style={{ marginTop: 8, marginLeft: 10, marginBottom: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+                        <div style={{ marginTop: 8, marginLeft: 0, marginBottom: 8, display: "flex", flexDirection: "column", gap: 6 }}>
                           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
                             <div>
                               <label
@@ -1781,7 +1780,7 @@ export default function VisionPage() {
                           </div>
                         </div>
                       ) : addingSessionToPhase === phase.id ? (
-                        <div style={{ marginTop: 8, marginLeft: 10, marginBottom: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+                        <div style={{ marginTop: 8, marginLeft: 0, marginBottom: 8, display: "flex", flexDirection: "column", gap: 6 }}>
                           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                             <input
                               type="date"
@@ -1840,7 +1839,7 @@ export default function VisionPage() {
                         <div
                           style={{
                             marginTop: 6,
-                            marginLeft: 10,
+                            marginLeft: 0,
                             marginBottom: 8,
                             display: "flex",
                             gap: 6,

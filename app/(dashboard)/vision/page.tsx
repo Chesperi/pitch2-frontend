@@ -62,8 +62,7 @@ function WorkBlockAddRow({
   const [quantity, setQuantity] = useState(1);
   const [hours, setHours] = useState(8);
 
-  const locationOpts = [...new Set(availableRoles.map((r) => r.location))].sort();
-  const locations = locationOpts.length > 0 ? locationOpts : ["COLOGNO"];
+  const locations = [...new Set(availableRoles.map((r) => r.location))].sort();
   const filteredRoles = availableRoles
     .filter((r) => r.location === location)
     .map((r) => r.role_code)
@@ -74,44 +73,38 @@ function WorkBlockAddRow({
     "rounded border border-[#222] bg-[#141414] px-2 py-1 text-xs text-white focus:border-[#FFFA00] focus:outline-none";
 
   return (
-    <div
-      style={{
-        display: "flex",
-        gap: 6,
-        alignItems: "center",
-        flexWrap: "wrap",
-        marginTop: 4,
-      }}
-    >
-      <select
-        className={inputCls}
-        style={{ flex: 1, minWidth: 120 }}
-        value={roleCode}
-        onChange={(e) => setRoleCode(e.target.value)}
-      >
-        <option value="">Select role...</option>
-        {filteredRoles.map((r) => (
-          <option key={r} value={r}>
-            {r}
-          </option>
-        ))}
-      </select>
-      <select
-        className={inputCls}
-        value={location}
-        onChange={(e) => {
-          setLocation(e.target.value);
-          setRoleCode("");
-        }}
-      >
-        {locations.map((l) => (
-          <option key={l} value={l}>
-            {l}
-          </option>
-        ))}
-      </select>
-      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <label style={{ fontSize: 10, color: "var(--color-text-secondary)" }}>Qty</label>
+    <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 4 }}>
+      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+        <select
+          className={inputCls}
+          style={{ flex: 1 }}
+          value={roleCode}
+          onChange={(e) => setRoleCode(e.target.value)}
+        >
+          <option value="">Select role...</option>
+          {filteredRoles.map((r) => (
+            <option key={r} value={r}>
+              {r}
+            </option>
+          ))}
+        </select>
+        <select
+          className={inputCls}
+          value={location}
+          onChange={(e) => {
+            setLocation(e.target.value);
+            setRoleCode("");
+          }}
+        >
+          {locations.map((l) => (
+            <option key={l} value={l}>
+              {l}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+        <span style={{ fontSize: 11, color: "var(--color-text-secondary)", minWidth: 28 }}>Qty</span>
         <input
           className={inputCls}
           type="number"
@@ -119,11 +112,9 @@ function WorkBlockAddRow({
           max={20}
           value={quantity}
           onChange={(e) => setQuantity(Number(e.target.value))}
-          style={{ width: 48 }}
+          style={{ width: 52 }}
         />
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <label style={{ fontSize: 10, color: "var(--color-text-secondary)" }}>Hours</label>
+        <span style={{ fontSize: 11, color: "var(--color-text-secondary)", minWidth: 36 }}>Hours</span>
         <input
           className={inputCls}
           type="number"
@@ -131,32 +122,32 @@ function WorkBlockAddRow({
           max={24}
           value={hours}
           onChange={(e) => setHours(Number(e.target.value))}
-          style={{ width: 48 }}
+          style={{ width: 52 }}
         />
+        <button
+          type="button"
+          disabled={!roleCode}
+          onClick={() => {
+            if (!roleCode) return;
+            onAdd({ role_code: roleCode, location, quantity, hours_per_session: hours });
+            setRoleCode("");
+            setQuantity(1);
+            setHours(8);
+          }}
+          style={{
+            background: roleCode ? "#FFFA00" : "#333",
+            border: "none",
+            borderRadius: 4,
+            color: roleCode ? "#000" : "#666",
+            fontSize: 12,
+            fontWeight: 500,
+            padding: "4px 10px",
+            cursor: roleCode ? "pointer" : "not-allowed",
+          }}
+        >
+          + Add
+        </button>
       </div>
-      <button
-        type="button"
-        disabled={!roleCode}
-        onClick={() => {
-          if (!roleCode) return;
-          onAdd({ role_code: roleCode, location, quantity, hours_per_session: hours });
-          setRoleCode("");
-          setQuantity(1);
-          setHours(8);
-        }}
-        style={{
-          background: roleCode ? "#FFFA00" : "#333",
-          border: "none",
-          borderRadius: 4,
-          color: roleCode ? "#000" : "#666",
-          fontSize: 12,
-          fontWeight: 500,
-          padding: "4px 10px",
-          cursor: roleCode ? "pointer" : "not-allowed",
-        }}
-      >
-        + Add
-      </button>
     </div>
   );
 }
@@ -1693,24 +1684,7 @@ export default function VisionPage() {
                               Cancel
                             </button>
                           </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => setAddingWorkBlockToPhase(phase.id)}
-                            style={{
-                              fontSize: 11,
-                              color: "#60a5fa",
-                              background: "none",
-                              border: "0.5px solid #2a2a4e",
-                              borderRadius: 4,
-                              padding: "2px 8px",
-                              cursor: "pointer",
-                              marginTop: 4,
-                            }}
-                          >
-                            + Work block
-                          </button>
-                        )}
+                        ) : null}
                       </div>
                     ) : null}
                     {phase ? (
@@ -1863,7 +1837,16 @@ export default function VisionPage() {
                           </div>
                         </div>
                       ) : (
-                        <div style={{ marginTop: 6, marginLeft: 10, marginBottom: 8, display: "flex", gap: 6 }}>
+                        <div
+                          style={{
+                            marginTop: 6,
+                            marginLeft: 10,
+                            marginBottom: 8,
+                            display: "flex",
+                            gap: 6,
+                            flexWrap: "wrap",
+                          }}
+                        >
                           <button
                             type="button"
                             onClick={() => handleEditPhase(phase)}
@@ -1882,11 +1865,9 @@ export default function VisionPage() {
                           <button
                             type="button"
                             onClick={() => {
-                              setEditingPhase(null);
-                              setEditingSession(null);
                               setAddingSessionToPhase(phase.id);
                               setNewSession({ session_date: phase.date_from ?? "", label: "" });
-                              setModalError(null);
+                              setEditingSession(null);
                             }}
                             style={{
                               fontSize: 11,
@@ -1899,6 +1880,21 @@ export default function VisionPage() {
                             }}
                           >
                             + Session
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setAddingWorkBlockToPhase(phase.id)}
+                            style={{
+                              fontSize: 11,
+                              color: "#60a5fa",
+                              background: "none",
+                              border: "0.5px solid #2a2a4e",
+                              borderRadius: 4,
+                              padding: "2px 8px",
+                              cursor: "pointer",
+                            }}
+                          >
+                            + Work block
                           </button>
                         </div>
                       )

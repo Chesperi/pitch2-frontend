@@ -45,6 +45,21 @@ function getDaysToShow(z: "W" | "M" | "Q"): number {
   return z === "W" ? 42 : z === "M" ? 84 : 168;
 }
 
+/** Sfondo semitrasparente da hex #RRGGBB per barre IN_PROGRESS */
+function withAlpha(hex: string, alpha: number): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function phaseGanttTitle(phase: ProjectPhase): string {
+  return PHASE_LABELS[phase.phase_name as PhaseName] ?? String(phase.phase_name);
+}
+
 function WorkBlockAddRow({
   availableRoles,
   onAdd,
@@ -249,7 +264,13 @@ export default function VisionPage() {
       setLoading(true);
       try {
         const data = await fetchProjects();
-        if (!cancelled) setProjects(data);
+        if (!cancelled) {
+          const byId = new Map<number, Project>();
+          for (const p of data) {
+            byId.set(p.id, p);
+          }
+          setProjects([...byId.values()]);
+        }
         try {
           const rolesList = await fetchRoles();
           if (!cancelled) {
@@ -322,7 +343,12 @@ export default function VisionPage() {
   ];
 
   const filteredProjects = useMemo(() => {
-    return projects.filter((p) => {
+    const byId = new Map<number, Project>();
+    for (const p of projects) {
+      byId.set(p.id, p);
+    }
+    const unique = [...byId.values()];
+    return unique.filter((p) => {
       if (searchValue) {
         const s = searchValue.toLowerCase();
         if (!p.name.toLowerCase().includes(s)) return false;
@@ -368,8 +394,17 @@ export default function VisionPage() {
   function getProgress(p: Project) {
     const onAirPhase = p.project_phases.find((ph) => ph.phase_name === "ON_AIR");
     const sessions = onAirPhase?.project_phase_sessions ?? [];
-    const onAirCount = sessions.filter((s) => s.status === "COMPLETED").length;
+    let onAirCount = sessions.filter((s) => s.status === "COMPLETED").length;
     const total = p.total_episodes;
+    if (onAirPhase?.status === "COMPLETED" && total > 0) {
+      const ecRaw = onAirPhase.episodes_completed as unknown as number | null | undefined;
+      const ec = ecRaw == null || Number.isNaN(Number(ecRaw)) ? null : Number(ecRaw);
+      if (ec == null || ec === 0) {
+        onAirCount = Math.max(onAirCount, total);
+      } else {
+        onAirCount = Math.max(onAirCount, ec);
+      }
+    }
     const pct = total > 0 ? Math.round((onAirCount / total) * 100) : 0;
     return { onAirCount, total, pct };
   }
@@ -995,14 +1030,22 @@ export default function VisionPage() {
                     const leftPct = dateToPct(phase.date_from);
                     const rightPct = dateToPct(phase.date_to);
                     const widthPct = Math.max(0.5, rightPct - leftPct);
-                    const opacity =
-                      phase.status === "COMPLETED"
-                        ? 1
-                        : phase.status === "IN_PROGRESS"
-                          ? 0.85
-                          : 0.35;
                     const colors = PHASE_COLORS[phase.phase_name as PhaseName];
                     const barBg = colors?.bg ?? "#888";
+                    const contrastText = colors?.text ?? "#ffffff";
+                    const phaseTitle = phaseGanttTitle(phase);
+                    const fromDisp = phase.date_from ? formatDisplayDate(phase.date_from) : "?";
+                    const toDisp = phase.date_to ? formatDisplayDate(phase.date_to) : "?";
+                    const barTooltip = `${phaseTitle} · ${fromDisp} – ${toDisp} · ${phase.status}`;
+                    const sameCalDay =
+                      Boolean(phase.date_from) &&
+                      Boolean(phase.date_to) &&
+                      new Date(phase.date_from!).toDateString() === new Date(phase.date_to!).toDateString();
+                    const useDotBar = sameCalDay || widthPct < 1.2;
+                    const centerPct = leftPct + widthPct / 2;
+                    const showTextInside = !useDotBar && widthPct >= 7;
+                    const isCompleted = phase.status === "COMPLETED";
+                    const isInProgress = phase.status === "IN_PROGRESS";
 
                     return (
                       <div
@@ -1085,9 +1128,7 @@ export default function VisionPage() {
                             boxSizing: "border-box",
                           }}
                         >
-                          <span style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>
-                            {PHASE_LABELS[phase.phase_name as PhaseName]}
-                          </span>
+                          <span style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>{phaseTitle}</span>
                         </div>
 
                         {/* Timeline */}
@@ -1135,34 +1176,74 @@ export default function VisionPage() {
                               />
                             );
                           })}
-                          {/* Barra fase */}
-                          <div
-                            style={{
-                              position: "absolute",
-                              left: `${leftPct}%`,
-                              width: `${widthPct}%`,
-                              height: 18,
-                              top: "50%",
-                              transform: "translateY(-50%)",
-                              borderRadius: 999,
-                              border: `1.5px solid ${barBg}`,
-                              background: "transparent",
-                              color: barBg,
-                              opacity,
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              fontSize: 10,
-                              fontWeight: 500,
-                              overflow: "hidden",
-                              whiteSpace: "nowrap",
-                              padding: "0 8px",
-                              zIndex: 1,
-                              boxSizing: "border-box",
-                            }}
-                          >
-                            {phase.status === "COMPLETED" ? "✓" : phase.status === "IN_PROGRESS" ? "●" : ""}
-                          </div>
+                          {/* Barra fase Gantt (sempre barra/dot; completed = pieno, IN_PROGRESS = fill leggero + bordo) */}
+                          {useDotBar ? (
+                            <div
+                              title={barTooltip}
+                              style={{
+                                position: "absolute",
+                                left: `${centerPct}%`,
+                                top: "50%",
+                                transform: "translate(-50%, -50%)",
+                                width: 14,
+                                height: 14,
+                                borderRadius: "50%",
+                                background: isCompleted ? barBg : isInProgress ? withAlpha(barBg, 0.42) : "transparent",
+                                border: `2px solid ${barBg}`,
+                                zIndex: 1,
+                                boxSizing: "border-box",
+                                cursor: "default",
+                              }}
+                            />
+                          ) : (
+                            <div
+                              title={barTooltip}
+                              style={{
+                                position: "absolute",
+                                left: `${leftPct}%`,
+                                width: `${widthPct}%`,
+                                height: 18,
+                                top: "50%",
+                                transform: "translateY(-50%)",
+                                borderRadius: 6,
+                                border: isCompleted
+                                  ? `1px solid ${barBg}`
+                                  : isInProgress
+                                    ? `2px solid ${barBg}`
+                                    : `2px dashed ${barBg}`,
+                                background: isCompleted
+                                  ? barBg
+                                  : isInProgress
+                                    ? withAlpha(barBg, 0.38)
+                                    : "transparent",
+                                color: isCompleted || isInProgress ? contrastText : barBg,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontSize: 10,
+                                fontWeight: 600,
+                                overflow: "hidden",
+                                whiteSpace: "nowrap",
+                                padding: "0 6px",
+                                zIndex: 1,
+                                boxSizing: "border-box",
+                              }}
+                            >
+                              {showTextInside ? (
+                                <span
+                                  style={{
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                    width: "100%",
+                                    textAlign: "center",
+                                  }}
+                                >
+                                  {phaseTitle}
+                                </span>
+                              ) : null}
+                            </div>
+                          )}
                           {phase.project_phase_sessions
                             ?.slice()
                             .sort((a, b) => a.session_date.localeCompare(b.session_date))

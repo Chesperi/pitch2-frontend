@@ -56,8 +56,75 @@ function withAlpha(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
+/** Colonna Phase Gantt: valore esatto dal DB (nessuna trasformazione di case o label). */
 function phaseGanttTitle(phase: ProjectPhase): string {
-  return PHASE_LABELS[phase.phase_name as PhaseName] ?? String(phase.phase_name);
+  return String(phase.phase_name ?? "");
+}
+
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** Trova la chiave PHASE_COLORS per phase_name (enum, testo libero, prefisso prima di " — "). */
+function matchPhaseKey(phaseName: string): PhaseName | null {
+  const raw = phaseName?.trim() ?? "";
+  if (!raw) return null;
+  if (Object.prototype.hasOwnProperty.call(PHASE_COLORS, raw)) {
+    return raw as PhaseName;
+  }
+
+  const head = raw.split(/\s*[—–\-]\s*/)[0].trim();
+  const headNorm = head.toLowerCase();
+  const fullNorm = raw.toLowerCase();
+
+  const sortedKeys = [...ALL_PHASES].sort((a, b) => PHASE_LABELS[b].length - PHASE_LABELS[a].length);
+
+  for (const key of sortedKeys) {
+    const label = PHASE_LABELS[key].toLowerCase();
+    const keySpaced = key.replace(/_/g, " ").toLowerCase();
+    const keyNorm = key.toLowerCase();
+
+    if (headNorm === label || headNorm === keySpaced || headNorm === keyNorm) return key;
+
+    if (
+      headNorm.startsWith(`${label} `) ||
+      headNorm.startsWith(`${label}(`) ||
+      headNorm.startsWith(`${label}—`) ||
+      headNorm.startsWith(`${label}–`)
+    ) {
+      return key;
+    }
+
+    const labelSlashParts = label
+      .split(/\s*\/\s*/)
+      .map((p) => p.trim())
+      .filter(Boolean);
+    for (const part of labelSlashParts) {
+      if (headNorm === part || headNorm.startsWith(`${part} `) || headNorm.startsWith(`${part}(`)) return key;
+    }
+
+    const labelTokens = label.split(/[\s\/]+/).filter((t) => t.length >= 2);
+    if (labelTokens.length >= 2 && labelTokens.every((t) => fullNorm.includes(t))) return key;
+
+    if (label.length >= 5 && fullNorm.includes(label)) return key;
+    if (keySpaced.length >= 5 && fullNorm.includes(keySpaced)) return key;
+
+    if (label.length <= 4) {
+      const re = new RegExp(`(^|[^a-z0-9])${escapeRegex(label)}([^a-z0-9]|$)`, "i");
+      if (re.test(head) || re.test(raw)) return key;
+    }
+  }
+  return null;
+}
+
+function resolvePhasePalette(phaseName: string): { bg: string; text: string } {
+  const key = matchPhaseKey(phaseName);
+  return key ? PHASE_COLORS[key] : { bg: "#888", text: "#ffffff" };
+}
+
+/** Colore barra Gantt / legenda: allineato a PHASE_COLORS con match parziale su phase_name libero. */
+function resolvePhaseColor(phaseName: string): string {
+  return resolvePhasePalette(phaseName).bg;
 }
 
 /** Allinea confronti status al DB (COMPLETED, IN_PROGRESS, …). */
@@ -271,7 +338,7 @@ export default function VisionPage() {
   const [selectedVisionCalendarDay, setSelectedVisionCalendarDay] = useState<string | null>(null);
   const [sessionTooltip, setSessionTooltip] = useState<{
     session: ProjectPhaseSession;
-    phaseName: PhaseName;
+    phaseName: string;
     x: number;
     y: number;
   } | null>(null);
@@ -825,7 +892,7 @@ export default function VisionPage() {
                   color: "var(--color-text-secondary)",
                 }}
               >
-                <div style={{ width: 10, height: 10, borderRadius: 2, background: PHASE_COLORS[ph].bg }} />
+                <div style={{ width: 10, height: 10, borderRadius: 2, background: resolvePhaseColor(ph) }} />
                 {PHASE_LABELS[ph]}
               </div>
             ))}
@@ -841,7 +908,8 @@ export default function VisionPage() {
                 overflow: "hidden",
               }}
             >
-              {/* Header timeline */}
+              {/* TODO: sticky header - requires layout refactor */}
+              {/* Header timeline (mesi + date) */}
               <div
                 style={{
                   display: "flex",
@@ -1102,9 +1170,9 @@ export default function VisionPage() {
                     const leftPct = dateToPct(phase.date_from);
                     const rightPct = dateToPct(phase.date_to);
                     const widthPct = Math.max(0.5, rightPct - leftPct);
-                    const colors = PHASE_COLORS[phase.phase_name as PhaseName];
-                    const barBg = colors?.bg ?? "#888";
-                    const contrastText = colors?.text ?? "#ffffff";
+                    const palette = resolvePhasePalette(String(phase.phase_name));
+                    const barBg = palette.bg;
+                    const contrastText = palette.text;
                     const phaseTitle = phaseGanttTitle(phase);
                     const fromDisp = phase.date_from ? formatDisplayDate(phase.date_from) : "?";
                     const toDisp = phase.date_to ? formatDisplayDate(phase.date_to) : "?";
@@ -1311,7 +1379,7 @@ export default function VisionPage() {
                             .map((session) => {
                               const sessionPct = dateToPct(session.session_date);
                               if (sessionPct < 0 || sessionPct > 100) return null;
-                              const sColors = PHASE_COLORS[phase.phase_name as PhaseName];
+                              const sessionPalette = resolvePhasePalette(String(phase.phase_name));
                               const isCompleted = normalizeSessionStatus(session.status) === "COMPLETED";
                               return (
                                 <div
@@ -1321,7 +1389,7 @@ export default function VisionPage() {
                                     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
                                     setSessionTooltip({
                                       session,
-                                      phaseName: phase.phase_name as PhaseName,
+                                      phaseName: String(phase.phase_name),
                                       x: rect.left + rect.width / 2,
                                       y: rect.top,
                                     });
@@ -1337,8 +1405,8 @@ export default function VisionPage() {
                                     width: 12,
                                     height: 12,
                                     borderRadius: "50%",
-                                    background: isCompleted ? sColors?.bg ?? "#888" : "transparent",
-                                    border: `2px solid ${sColors?.bg ?? "#888"}`,
+                                    background: isCompleted ? sessionPalette.bg : "transparent",
+                                    border: `2px solid ${sessionPalette.bg}`,
                                     zIndex: 3,
                                     cursor: "pointer",
                                   }}
@@ -1374,7 +1442,7 @@ export default function VisionPage() {
                   color: "var(--color-text-secondary)",
                 }}
               >
-                <div style={{ width: 10, height: 10, borderRadius: 2, background: PHASE_COLORS[ph].bg }} />
+                <div style={{ width: 10, height: 10, borderRadius: 2, background: resolvePhaseColor(ph) }} />
                 {PHASE_LABELS[ph]}
               </div>
             ))}
@@ -1401,7 +1469,7 @@ export default function VisionPage() {
               return (
                 <div className="mt-1 flex flex-col gap-0.5 overflow-hidden">
                   {shown.map(({ project: p, phase: ph, session: s }) => {
-                    const colors = PHASE_COLORS[ph.phase_name as PhaseName];
+                    const calPalette = resolvePhasePalette(String(ph.phase_name));
                     return (
                       <div
                         key={s.id}
@@ -1412,13 +1480,13 @@ export default function VisionPage() {
                         }}
                         className="max-w-full cursor-pointer truncate rounded border border-solid px-1 py-0.5 text-left text-[10px]"
                         style={{
-                          borderColor: colors?.bg ?? "#888",
-                          color: colors?.bg ?? "#888",
+                          borderColor: calPalette.bg,
+                          color: calPalette.bg,
                           background: "transparent",
                         }}
-                        title={`${p.name} · ${PHASE_LABELS[ph.phase_name as PhaseName]} · ${s.label ?? ""}`}
+                        title={`${p.name} · ${String(ph.phase_name)} · ${s.label ?? ""}`}
                       >
-                        {p.name} · {s.label ?? PHASE_LABELS[ph.phase_name as PhaseName]}
+                        {p.name} · {s.label ?? String(ph.phase_name)}
                       </div>
                     );
                   })}
@@ -1456,7 +1524,7 @@ export default function VisionPage() {
                       className="w-full rounded border px-3 py-2 text-left text-sm"
                       style={{ borderColor: "#2a2a2a", background: "#111", color: "#fff" }}
                     >
-                      {[p.name, PHASE_LABELS[ph.phase_name as PhaseName], s.label?.trim() || null]
+                      {[p.name, String(ph.phase_name), s.label?.trim() || null]
                         .filter(Boolean)
                         .join(" — ")}
                     </button>
@@ -1581,7 +1649,7 @@ export default function VisionPage() {
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               {ALL_PHASES.map((phaseName) => {
                 const phase = selectedProject.project_phases.find((p) => p.phase_name === phaseName);
-                const colors = PHASE_COLORS[phaseName];
+                const modalPhasePalette = resolvePhasePalette(phaseName);
                 const phaseStatusNorm = phase ? normalizePhaseStatus(phase.status) : "";
                 return (
                   <div
@@ -1601,7 +1669,15 @@ export default function VisionPage() {
                         gap: 10,
                       }}
                     >
-                      <div style={{ width: 10, height: 10, borderRadius: 2, background: colors.bg, flexShrink: 0 }} />
+                      <div
+                        style={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: 2,
+                          background: modalPhasePalette.bg,
+                          flexShrink: 0,
+                        }}
+                      />
                       <span style={{ fontSize: 12, color: "var(--color-text-primary)", minWidth: 130 }}>
                         {PHASE_LABELS[phaseName]}
                       </span>
@@ -2297,7 +2373,7 @@ export default function VisionPage() {
                           width: 10,
                           height: 10,
                           borderRadius: 2,
-                          background: PHASE_COLORS[ph.phase_name].bg,
+                          background: resolvePhaseColor(String(ph.phase_name)),
                           flexShrink: 0,
                         }}
                       />
@@ -2681,7 +2757,7 @@ export default function VisionPage() {
                   {sessionTooltip.session.label ?? formatDisplayDate(sessionTooltip.session.session_date)}
                 </div>
                 <div style={{ fontSize: 11, color: "#888", marginBottom: 2 }}>
-                  {PHASE_LABELS[sessionTooltip.phaseName]}
+                  {sessionTooltip.phaseName}
                 </div>
                 <div style={{ fontSize: 11, color: "#888", marginBottom: 2 }}>
                   {formatDisplayDate(sessionTooltip.session.session_date)}

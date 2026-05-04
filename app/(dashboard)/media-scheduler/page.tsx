@@ -895,7 +895,7 @@ export default function MediaSchedulerPage() {
               </div>
             </div>
 
-            {/* Colonne giorno: compressa 48px / espansa 200px */}
+            {/* Colonne giorno: compressa flex 1 (48–80px) / espansa 220px */}
             <div
               style={{
                 display: "flex",
@@ -926,7 +926,6 @@ export default function MediaSchedulerPage() {
                 const dayShifts = shiftsByDay.get(day) ?? [];
                 const totalTasks = dayShifts.reduce((acc, s) => acc + (s.editing_tasks?.length ?? 0), 0);
                 const isExpanded = expandedDay === day;
-                const colW = isExpanded ? 200 : 48;
                 const isToday = day === todayIso;
 
                 if (!isExpanded) {
@@ -944,10 +943,12 @@ export default function MediaSchedulerPage() {
                       }}
                       style={{
                         ...columnCard,
-                        width: colW,
-                        flex: `0 0 ${colW}px`,
+                        flex: "1",
+                        minWidth: "48px",
+                        maxWidth: "80px",
                         maxHeight: "100%",
-                        transition: "width 250ms ease, background-color 0.15s ease",
+                        transition:
+                          "flex 250ms ease, min-width 250ms ease, max-width 250ms ease, background-color 0.15s ease",
                         padding: "8px 4px",
                         border: isToday ? "0.5px solid #FFFA00" : "0.5px solid #2a2a2a",
                         overflow: "hidden",
@@ -1000,10 +1001,10 @@ export default function MediaSchedulerPage() {
                     key={day}
                     style={{
                       ...columnCard,
-                      width: colW,
-                      flex: `0 0 ${colW}px`,
+                      flex: "0 0 220px",
+                      width: "220px",
                       maxHeight: "100%",
-                      transition: "width 250ms ease",
+                      transition: "flex 250ms ease, min-width 250ms ease, max-width 250ms ease",
                       padding: 10,
                       overflow: "hidden",
                       display: "flex",
@@ -1109,7 +1110,7 @@ export default function MediaSchedulerPage() {
               border: "0.5px solid #FFFA00",
               borderRadius: 6,
               padding: 8,
-              maxWidth: 200,
+              maxWidth: "220px",
               boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
             }}
           >

@@ -63,6 +63,22 @@ export interface UnassignedData {
   slots: EditingSlotUnassigned[];
 }
 
+export type EditingTaskTemplateTriggerType = "PER_MATCH" | "PER_MD";
+
+export interface EditingTaskTemplate {
+  id: number;
+  task_type: string;
+  trigger_type: EditingTaskTemplateTriggerType;
+  competition: string | null;
+  quantity: number | null;
+  estimated_hours: number | null;
+  role_code: string | null;
+  notes: string | null;
+  active: boolean;
+  day_of_week: number | null;
+  created_at: string | null;
+}
+
 export const TASK_TYPE_LABELS: Record<TaskType, string> = {
   HL: "Highlights",
   GOL_COLLECTION: "Gol Collection",
@@ -170,4 +186,67 @@ export async function fetchUnassigned(): Promise<UnassignedData> {
   const res = await fetch("/api/editing-scheduler/unassigned", { credentials: "include" });
   if (!res.ok) throw new Error(`fetchUnassigned error: ${res.status}`);
   return res.json();
+}
+
+export async function fetchTaskTemplatesAll(): Promise<EditingTaskTemplate[]> {
+  const res = await fetch("/api/editing-scheduler/templates/all", { credentials: "include" });
+  if (!res.ok) throw new Error(`fetchTaskTemplatesAll error: ${res.status}`);
+  return res.json();
+}
+
+export async function fetchTaskTemplates(): Promise<EditingTaskTemplate[]> {
+  const res = await fetch("/api/editing-scheduler/templates", { credentials: "include" });
+  if (!res.ok) throw new Error(`fetchTaskTemplates error: ${res.status}`);
+  return res.json();
+}
+
+export async function createTaskTemplate(payload: {
+  task_type: string;
+  trigger_type: EditingTaskTemplateTriggerType;
+  competition?: string | null;
+  quantity?: number | null;
+  estimated_hours?: number | null;
+  role_code?: string | null;
+  notes?: string | null;
+  active?: boolean;
+}): Promise<EditingTaskTemplate> {
+  const res = await fetch("/api/editing-scheduler/templates", {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`createTaskTemplate error: ${res.status}`);
+  return res.json();
+}
+
+export async function updateTaskTemplate(
+  id: number,
+  payload: Partial<{
+    task_type: string;
+    trigger_type: EditingTaskTemplateTriggerType;
+    competition: string | null;
+    quantity: number | null;
+    estimated_hours: number | null;
+    role_code: string | null;
+    notes: string | null;
+    active: boolean;
+  }>
+): Promise<EditingTaskTemplate> {
+  const res = await fetch(`/api/editing-scheduler/templates/${id}`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`updateTaskTemplate error: ${res.status}`);
+  return res.json();
+}
+
+export async function deleteTaskTemplate(id: number): Promise<void> {
+  const res = await fetch(`/api/editing-scheduler/templates/${id}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error(`deleteTaskTemplate error: ${res.status}`);
 }

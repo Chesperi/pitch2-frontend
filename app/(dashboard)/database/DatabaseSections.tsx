@@ -47,6 +47,14 @@ import {
   fetchStandardCombos,
   updateStandardCombo,
 } from "@/lib/api/standardCombos";
+import {
+  createTaskTemplate,
+  deleteTaskTemplate,
+  fetchTaskTemplatesAll,
+  updateTaskTemplate,
+  type EditingTaskTemplate,
+  type EditingTaskTemplateTriggerType,
+} from "@/lib/api/editingScheduler";
 import { fetchAccreditationAreas } from "@/lib/api/accrediti";
 import { apiFetch } from "@/lib/api/apiFetch";
 import { LookupValuesSection } from "./LookupValuesSection";
@@ -396,6 +404,7 @@ export function DatabaseSections({
   const [staffOpen, setStaffOpen] = useState(false);
   const [rolesOpen, setRolesOpen] = useState(false);
   const [standardOpen, setStandardOpen] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
   const [lookupOpen, setLookupOpen] = useState(false);
   const [eventRulesOpen, setEventRulesOpen] = useState(false);
   const [lookupCount, setLookupCount] = useState(0);
@@ -560,6 +569,34 @@ export function DatabaseSections({
   const [deleteComboTarget, setDeleteComboTarget] =
     useState<StandardComboWithRequirements | null>(null);
   const [deletingCombo, setDeletingCombo] = useState(false);
+  const [templates, setTemplates] = useState<EditingTaskTemplate[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [templatesError, setTemplatesError] = useState<string | null>(null);
+  const [templatesLoaded, setTemplatesLoaded] = useState(false);
+  const [templateModalOpen, setTemplateModalOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<EditingTaskTemplate | null>(null);
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [deleteTemplateTarget, setDeleteTemplateTarget] = useState<EditingTaskTemplate | null>(null);
+  const [deletingTemplate, setDeletingTemplate] = useState(false);
+  const [templateForm, setTemplateForm] = useState<{
+    task_type: string;
+    trigger_type: EditingTaskTemplateTriggerType;
+    competition: string;
+    quantity: string;
+    estimated_hours: string;
+    role_code: string;
+    notes: string;
+    active: boolean;
+  }>({
+    task_type: "",
+    trigger_type: "PER_MATCH",
+    competition: "",
+    quantity: "1",
+    estimated_hours: "",
+    role_code: "",
+    notes: "",
+    active: true,
+  });
 
   useEffect(() => {
     setStaff(initialStaff);
@@ -1200,6 +1237,111 @@ export function DatabaseSections({
     }
   };
 
+  const openNewTemplateModal = () => {
+    setEditingTemplate(null);
+    setTemplatesError(null);
+    setTemplateForm({
+      task_type: "",
+      trigger_type: "PER_MATCH",
+      competition: "",
+      quantity: "1",
+      estimated_hours: "",
+      role_code: "",
+      notes: "",
+      active: true,
+    });
+    setTemplateModalOpen(true);
+  };
+
+  const openEditTemplateModal = (tpl: EditingTaskTemplate) => {
+    setEditingTemplate(tpl);
+    setTemplatesError(null);
+    setTemplateForm({
+      task_type: tpl.task_type ?? "",
+      trigger_type: tpl.trigger_type ?? "PER_MATCH",
+      competition: tpl.competition ?? "",
+      quantity: String(tpl.quantity ?? 1),
+      estimated_hours:
+        tpl.estimated_hours == null ? "" : String(tpl.estimated_hours),
+      role_code: tpl.role_code ?? "",
+      notes: tpl.notes ?? "",
+      active: !!tpl.active,
+    });
+    setTemplateModalOpen(true);
+  };
+
+  const loadTemplates = async () => {
+    setTemplatesLoading(true);
+    setTemplatesError(null);
+    try {
+      const rows = await fetchTaskTemplatesAll();
+      setTemplates(rows);
+      setTemplatesLoaded(true);
+    } catch (err) {
+      setTemplatesError(
+        err instanceof Error ? err.message : "Error loading templates."
+      );
+    } finally {
+      setTemplatesLoading(false);
+    }
+  };
+
+  const handleSubmitTemplate = async (e: FormEvent) => {
+    e.preventDefault();
+    const taskType = templateForm.task_type.trim();
+    if (!taskType) {
+      setTemplatesError("task_type is required.");
+      return;
+    }
+    setSavingTemplate(true);
+    setTemplatesError(null);
+    try {
+      const quantityNum = parseInt(templateForm.quantity.trim(), 10);
+      const estHoursNum = parseFloat(templateForm.estimated_hours.trim());
+      const payload = {
+        task_type: taskType,
+        trigger_type: templateForm.trigger_type,
+        competition: templateForm.competition.trim() || null,
+        quantity: Number.isFinite(quantityNum) ? quantityNum : 1,
+        estimated_hours: Number.isFinite(estHoursNum) ? estHoursNum : null,
+        role_code: templateForm.role_code.trim() || null,
+        notes: templateForm.notes.trim() || null,
+        active: templateForm.active,
+      };
+      if (editingTemplate) {
+        const updated = await updateTaskTemplate(editingTemplate.id, payload);
+        setTemplates((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+      } else {
+        const created = await createTaskTemplate(payload);
+        setTemplates((prev) => [created, ...prev]);
+      }
+      setTemplateModalOpen(false);
+      setEditingTemplate(null);
+    } catch (err) {
+      setTemplatesError(
+        err instanceof Error ? err.message : "Error saving template."
+      );
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
+
+  const handleConfirmDeleteTemplate = async () => {
+    if (!deleteTemplateTarget) return;
+    setDeletingTemplate(true);
+    try {
+      await deleteTaskTemplate(deleteTemplateTarget.id);
+      setTemplates((prev) => prev.filter((t) => t.id !== deleteTemplateTarget.id));
+      setDeleteTemplateTarget(null);
+    } catch (err) {
+      setTemplatesError(
+        err instanceof Error ? err.message : "Error deleting template."
+      );
+    } finally {
+      setDeletingTemplate(false);
+    }
+  };
+
   const loadAccreditationAreas = async (ownerCode: string): Promise<void> => {
     setAccreditationAreasLoading(true);
     setAccreditationAreasError(null);
@@ -1224,6 +1366,11 @@ export function DatabaseSections({
     setEditingAccreditationAreasValue("");
     setSavingAccreditationRoleCode(null);
   }, [accreditationOwnerCode]);
+
+  useEffect(() => {
+    if (!templatesOpen || templatesLoaded) return;
+    void loadTemplates();
+  }, [templatesOpen, templatesLoaded]);
 
   return (
     <>
@@ -2022,6 +2169,112 @@ export function DatabaseSections({
       </CollapsibleSection>
 
       <CollapsibleSection
+        title={`Task Templates (${templates.length})`}
+        open={templatesOpen}
+        onToggle={() => setTemplatesOpen(!templatesOpen)}
+      >
+        <div className="rounded-lg border border-[#2a2a2a] p-4" style={{ background: "#111" }}>
+          <div className="mb-4 flex justify-end">
+            {canEditDatabase ? (
+              <button type="button" className={PRIMARY_BTN_SM} onClick={openNewTemplateModal}>
+                New template
+              </button>
+            ) : null}
+          </div>
+
+          {templatesError ? (
+            <p className="mb-3 text-xs text-red-300">{templatesError}</p>
+          ) : null}
+
+          <ResponsiveTable minWidth="980px">
+            <table className="w-full border-collapse text-sm">
+              <thead className="sticky top-0 z-10">
+                <tr className="border-b border-[#2a2a2a]">
+                  <th className={DB_TH_FIRST}>Type</th>
+                  <th className={DB_TH_CELL}>Trigger</th>
+                  <th className={DB_TH_FIRST}>Competition</th>
+                  <th className={DB_TH_CELL}>Qty</th>
+                  <th className={DB_TH_CELL}>Est. hours</th>
+                  <th className={DB_TH_FIRST}>Role</th>
+                  <th className={DB_TH_CELL}>Active</th>
+                  <th className={DB_TH_CELL}>Azioni</th>
+                </tr>
+              </thead>
+              <tbody>
+                {templatesLoading ? (
+                  <tr className={DB_TBODY_TR_COMPACT}>
+                    <td colSpan={8} className={`${DB_TD_EMPTY_CELL} text-center`}>
+                      Loading...
+                    </td>
+                  </tr>
+                ) : templates.length === 0 ? (
+                  <tr className={DB_TBODY_TR_COMPACT}>
+                    <td colSpan={8} className={`${DB_TD_EMPTY_CELL} text-center`}>
+                      No templates found
+                    </td>
+                  </tr>
+                ) : (
+                  templates.map((tpl) => (
+                    <tr key={tpl.id} className={DB_TBODY_TR_COMPACT}>
+                      <td className={DB_TD_FIRST}>{tpl.task_type}</td>
+                      <td className={DB_TD_CELL}>
+                        {tpl.trigger_type === "PER_MATCH" ? "Per partita" : "Per matchday"}
+                      </td>
+                      <td className={tpl.competition ? DB_TD_FIRST : DB_TD_EMPTY_FIRST}>
+                        {tpl.competition || "—"}
+                      </td>
+                      <td className={DB_TD_CELL}>{tpl.quantity ?? "—"}</td>
+                      <td className={tpl.estimated_hours == null ? DB_TD_EMPTY_CELL : DB_TD_CELL}>
+                        {tpl.estimated_hours == null ? "—" : tpl.estimated_hours}
+                      </td>
+                      <td className={tpl.role_code ? DB_TD_FIRST : DB_TD_EMPTY_FIRST}>
+                        {tpl.role_code || "—"}
+                      </td>
+                      <td className={DB_TD_CELL}>
+                        <span
+                          className="rounded px-2 py-[2px] text-[10px]"
+                          style={{
+                            background: tpl.active ? "#1a2e1a" : "#2e1a1a",
+                            color: tpl.active ? "#4ade80" : "#f87171",
+                          }}
+                        >
+                          {tpl.active ? "ON" : "OFF"}
+                        </span>
+                      </td>
+                      <td className={DB_TD_CELL}>
+                        <div className="inline-flex items-center justify-center gap-3">
+                          {canEditDatabase ? (
+                            <>
+                              <button
+                                type="button"
+                                className="text-xs text-pitch-accent underline-offset-2 hover:underline"
+                                onClick={() => openEditTemplateModal(tpl)}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                className="text-xs text-red-400 underline-offset-2 hover:underline"
+                                onClick={() => setDeleteTemplateTarget(tpl)}
+                              >
+                                Delete
+                              </button>
+                            </>
+                          ) : (
+                            <span className="text-xs text-[#666]">—</span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </ResponsiveTable>
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection
         title={`Aree Accredito (${accreditationAreaMappings.length})`}
         open={accreditationAreasOpen}
         onToggle={() => setAccreditationAreasOpen(!accreditationAreasOpen)}
@@ -2658,6 +2911,191 @@ export function DatabaseSections({
                 onClick={() => void handleConfirmDeleteCombo()}
               >
                 {deletingCombo ? "Deleting…" : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {templateModalOpen ? (
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4"
+          role="presentation"
+          onClick={() => {
+            if (!savingTemplate) {
+              setTemplateModalOpen(false);
+              setEditingTemplate(null);
+              setTemplatesError(null);
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="template-modal-title"
+            className="w-full max-w-xl rounded-lg border p-5 shadow-xl"
+            style={{ background: "#111", borderColor: "#2a2a2a" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="template-modal-title" className="text-base font-semibold text-pitch-white">
+              {editingTemplate ? "Edit template" : "New template"}
+            </h2>
+            {templatesError ? (
+              <p className="mt-3 rounded border border-red-900/50 bg-red-950/40 px-3 py-2 text-xs text-red-200">
+                {templatesError}
+              </p>
+            ) : null}
+            <form className="mt-4 space-y-3" onSubmit={handleSubmitTemplate}>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-xs text-pitch-gray">task_type</label>
+                  <input
+                    className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+                    value={templateForm.task_type}
+                    onChange={(e) =>
+                      setTemplateForm((v) => ({ ...v, task_type: e.target.value }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-pitch-gray">trigger_type</label>
+                  <select
+                    className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+                    value={templateForm.trigger_type}
+                    onChange={(e) =>
+                      setTemplateForm((v) => ({
+                        ...v,
+                        trigger_type: e.target.value as EditingTaskTemplateTriggerType,
+                      }))
+                    }
+                  >
+                    <option value="PER_MATCH">Per partita</option>
+                    <option value="PER_MD">Per matchday</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="mb-1 block text-xs text-pitch-gray">competition</label>
+                  <input
+                    className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+                    value={templateForm.competition}
+                    onChange={(e) =>
+                      setTemplateForm((v) => ({ ...v, competition: e.target.value }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-pitch-gray">quantity</label>
+                  <input
+                    type="number"
+                    min={1}
+                    className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+                    value={templateForm.quantity}
+                    onChange={(e) =>
+                      setTemplateForm((v) => ({ ...v, quantity: e.target.value }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-pitch-gray">estimated_hours</label>
+                  <input
+                    type="number"
+                    step={0.5}
+                    className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+                    value={templateForm.estimated_hours}
+                    onChange={(e) =>
+                      setTemplateForm((v) => ({ ...v, estimated_hours: e.target.value }))
+                    }
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-pitch-gray">role_code</label>
+                <input
+                  className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+                  value={templateForm.role_code}
+                  onChange={(e) =>
+                    setTemplateForm((v) => ({ ...v, role_code: e.target.value }))
+                  }
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-pitch-gray">notes</label>
+                <textarea
+                  rows={3}
+                  className="w-full rounded border border-pitch-gray-dark bg-pitch-gray-dark px-3 py-2 text-sm text-pitch-white focus:border-pitch-accent focus:outline-none"
+                  value={templateForm.notes}
+                  onChange={(e) =>
+                    setTemplateForm((v) => ({ ...v, notes: e.target.value }))
+                  }
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-pitch-gray">Active</span>
+                <ToggleSwitch
+                  checked={templateForm.active}
+                  onChange={(val) => setTemplateForm((v) => ({ ...v, active: val }))}
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  className="rounded border border-pitch-gray px-3 py-1.5 text-xs text-pitch-gray-light hover:bg-pitch-gray-dark disabled:opacity-50"
+                  disabled={savingTemplate}
+                  onClick={() => {
+                    setTemplateModalOpen(false);
+                    setEditingTemplate(null);
+                    setTemplatesError(null);
+                  }}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className={PRIMARY_BTN_SM} disabled={savingTemplate}>
+                  {savingTemplate ? "Saving..." : "Save"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {deleteTemplateTarget ? (
+        <div
+          className="fixed inset-0 z-[85] flex items-center justify-center bg-black/70 p-4"
+          role="presentation"
+          onClick={() => {
+            if (!deletingTemplate) setDeleteTemplateTarget(null);
+          }}
+        >
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            className="w-full max-w-md rounded-lg border p-5 shadow-xl"
+            style={{ background: "#111", borderColor: "#2a2a2a" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-base font-semibold text-pitch-white">Delete template</h2>
+            <p className="mt-3 text-sm text-pitch-gray-light">
+              Delete template <strong>{deleteTemplateTarget.task_type}</strong>?
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                className="rounded border px-3 py-1.5 text-xs text-pitch-gray-light hover:bg-[#1a1a1a] disabled:opacity-50"
+                style={{ borderColor: "#2a2a2a" }}
+                disabled={deletingTemplate}
+                onClick={() => setDeleteTemplateTarget(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="rounded bg-red-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-600 disabled:opacity-50"
+                disabled={deletingTemplate}
+                onClick={() => void handleConfirmDeleteTemplate()}
+              >
+                {deletingTemplate ? "Deleting..." : "Delete"}
               </button>
             </div>
           </div>

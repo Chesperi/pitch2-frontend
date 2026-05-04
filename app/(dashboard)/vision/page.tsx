@@ -1647,17 +1647,28 @@ export default function VisionPage() {
               </div>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              {ALL_PHASES.map((phaseName) => {
-                const phase = selectedProject.project_phases.find((p) => p.phase_name === phaseName);
-                const modalPhasePalette = resolvePhasePalette(phaseName);
-                const phaseStatusNorm = phase ? normalizePhaseStatus(phase.status) : "";
-                return (
+              {[...selectedProject.project_phases]
+                .sort((a, b) => {
+                  if (
+                    a.sort_order != null &&
+                    b.sort_order != null &&
+                    a.sort_order !== b.sort_order
+                  ) {
+                    return a.sort_order - b.sort_order;
+                  }
+                  if (a.sort_order != null && b.sort_order == null) return -1;
+                  if (a.sort_order == null && b.sort_order != null) return 1;
+                  return (a.date_from ?? "").localeCompare(b.date_from ?? "");
+                })
+                .map((phase) => {
+                  const phaseStatusNorm = normalizePhaseStatus(phase.status);
+                  return (
                   <div
-                    key={phaseName}
+                    key={phase.id}
                     style={{
                       borderRadius: 6,
                       border: "0.5px solid var(--color-border-tertiary)",
-                      opacity: phase ? 1 : 0.35,
+                      opacity: 1,
                       overflow: "hidden",
                       padding: "8px 10px",
                     }}
@@ -1674,15 +1685,13 @@ export default function VisionPage() {
                           width: 10,
                           height: 10,
                           borderRadius: 2,
-                          background: modalPhasePalette.bg,
+                          background: resolvePhaseColor(String(phase.phase_name)),
                           flexShrink: 0,
                         }}
                       />
                       <span style={{ fontSize: 12, color: "var(--color-text-primary)", minWidth: 130 }}>
-                        {PHASE_LABELS[phaseName]}
+                        {phase.phase_name}
                       </span>
-                      {phase ? (
-                        <>
                           <span style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>
                             {formatDisplayDate(phase.date_from)} → {formatDisplayDate(phase.date_to)}
                           </span>
@@ -1718,14 +1727,8 @@ export default function VisionPage() {
                                   ? "⊘ On hold"
                                   : "○ Planned"}
                           </span>
-                        </>
-                      ) : (
-                        <span style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>
-                          Not scheduled
-                        </span>
-                      )}
                     </div>
-                    {phase?.project_phase_sessions && phase.project_phase_sessions.length > 0 ? (
+                    {phase.project_phase_sessions && phase.project_phase_sessions.length > 0 ? (
                       <div
                         style={{
                           marginTop: 4,
@@ -1867,7 +1870,6 @@ export default function VisionPage() {
                       </div>
                     ) : null}
                     {/* Work blocks */}
-                    {phase ? (
                       <div style={{ marginTop: 8, marginLeft: 0 }}>
                         {phase.work_blocks && phase.work_blocks.length > 0 && (
                           <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 6 }}>
@@ -1930,9 +1932,7 @@ export default function VisionPage() {
                           </div>
                         ) : null}
                       </div>
-                    ) : null}
-                    {phase ? (
-                      editingPhase?.id === phase.id ? (
+                    {editingPhase?.id === phase.id ? (
                         <div style={{ marginTop: 8, marginLeft: 0, marginBottom: 8, display: "flex", flexDirection: "column", gap: 6 }}>
                           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
                             <div>
@@ -2141,11 +2141,10 @@ export default function VisionPage() {
                             + Work block
                           </button>
                         </div>
-                      )
-                    ) : null}
+                      )}
                   </div>
-                );
-              })}
+                  );
+                })}
             </div>
             {selectedProject.notes ? (
               <p

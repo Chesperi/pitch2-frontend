@@ -60,6 +60,40 @@ function phaseGanttTitle(phase: ProjectPhase): string {
   return PHASE_LABELS[phase.phase_name as PhaseName] ?? String(phase.phase_name);
 }
 
+/** Allinea confronti status al DB (COMPLETED, IN_PROGRESS, …). */
+function normalizePhaseStatus(status: string | PhaseStatus | null | undefined): string {
+  return String(status ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "_");
+}
+
+function normalizeSessionStatus(status: string | null | undefined): string {
+  return String(status ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "_");
+}
+
+/** Chiavi PROJECT_TYPE_COLORS sono UPPERCASE; normalizza varianti ("Branded", "platform", …). */
+function projectTypeBadgeBackground(projectType: string): string {
+  const raw = projectType?.trim() ?? "";
+  if (!raw) return "#888";
+  const direct = PROJECT_TYPE_COLORS[raw];
+  if (direct) return direct;
+  const upper = raw.toUpperCase().replace(/\s+/g, "_");
+  if (PROJECT_TYPE_COLORS[upper]) return PROJECT_TYPE_COLORS[upper];
+  const titleCaseKey = raw
+    .split(/[\s_-]+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join("_")
+    .toUpperCase();
+  return PROJECT_TYPE_COLORS[titleCaseKey] ?? "#888";
+}
+
+const GANTT_LEFT_COLS_PX = 200 + 110;
+
 function WorkBlockAddRow({
   availableRoles,
   onAdd,
@@ -394,9 +428,9 @@ export default function VisionPage() {
   function getProgress(p: Project) {
     const onAirPhase = p.project_phases.find((ph) => ph.phase_name === "ON_AIR");
     const sessions = onAirPhase?.project_phase_sessions ?? [];
-    let onAirCount = sessions.filter((s) => s.status === "COMPLETED").length;
+    let onAirCount = sessions.filter((s) => normalizeSessionStatus(s.status) === "COMPLETED").length;
     const total = p.total_episodes;
-    if (onAirPhase?.status === "COMPLETED" && total > 0) {
+    if (onAirPhase && normalizePhaseStatus(onAirPhase.status) === "COMPLETED" && total > 0) {
       const ecRaw = onAirPhase.episodes_completed as unknown as number | null | undefined;
       const ec = ecRaw == null || Number.isNaN(Number(ecRaw)) ? null : Number(ecRaw);
       if (ec == null || ec === 0) {
@@ -918,82 +952,120 @@ export default function VisionPage() {
                 </div>
               </div>
 
-              {/* Righe progetti */}
-              {filteredProjects.length === 0 ? (
-                <div
-                  style={{
-                    padding: 32,
-                    textAlign: "center",
-                    color: "var(--color-text-secondary)",
-                    fontSize: 13,
-                  }}
-                >
-                  No projects yet. Click &quot;+ New project&quot; to get started.
-                </div>
-              ) : (
-                filteredProjects.flatMap((project) => {
-                  const visiblePhases = project.project_phases
-                    .filter((ph) => phaseInRange(ph.date_from, ph.date_to))
-                    .sort((a, b) => a.sort_order - b.sort_order);
+              {/* Righe progetti — linea oggi unica sul container */}
+              <div style={{ position: "relative" }}>
+                {todayPct >= 0 && todayPct <= 100 ? (
+                  <div
+                    aria-hidden
+                    style={{
+                      position: "absolute",
+                      left: `calc(${GANTT_LEFT_COLS_PX}px + (100% - ${GANTT_LEFT_COLS_PX}px) * ${todayPct / 100})`,
+                      top: 0,
+                      bottom: 0,
+                      width: 1,
+                      background: "#FFFA00",
+                      opacity: 0.4,
+                      pointerEvents: "none",
+                      zIndex: 10,
+                    }}
+                  />
+                ) : null}
+                {filteredProjects.length === 0 ? (
+                  <div
+                    style={{
+                      padding: 32,
+                      textAlign: "center",
+                      color: "var(--color-text-secondary)",
+                      fontSize: 13,
+                    }}
+                  >
+                    No projects yet. Click &quot;+ New project&quot; to get started.
+                  </div>
+                ) : (
+                  (() => {
+                    const renderedProjectIds = new Set<number>();
+                    return filteredProjects.flatMap((project) => {
+                      const visiblePhases = project.project_phases
+                        .filter((ph) => phaseInRange(ph.date_from, ph.date_to))
+                        .sort((a, b) => a.sort_order - b.sort_order);
 
-                  if (visiblePhases.length === 0) {
-                    // Progetto senza fasi nel range: mostra solo la riga nome
-                    return [
-                      <div
-                        key={project.id}
-                        style={{
-                          display: "flex",
-                          borderBottom: "0.5px solid var(--color-border-tertiary)",
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 8,
-                            minWidth: 200,
-                            minHeight: 40,
-                            padding: "0 12px",
-                            borderRight: "1px solid var(--color-border-tertiary)",
-                            boxSizing: "border-box",
-                          }}
-                        >
-                          <span
+                      if (visiblePhases.length === 0) {
+                        const showProjectCol = !renderedProjectIds.has(project.id);
+                        if (showProjectCol) renderedProjectIds.add(project.id);
+                        return [
+                          <div
+                            key={`${project.id}-norange`}
                             style={{
-                              fontSize: 11,
-                              padding: "1px 6px",
-                              borderRadius: 3,
-                              background: PROJECT_TYPE_COLORS[project.project_type] ?? "#888",
-                              color: "#fff",
-                              fontWeight: 500,
-                              flexShrink: 0,
+                              display: "flex",
+                              borderBottom: "0.5px solid var(--color-border-tertiary)",
                             }}
                           >
-                            {project.project_type}
-                          </span>
-                          <span
-                            role="button"
-                            tabIndex={0}
-                            style={{
-                              fontSize: 13,
-                              fontWeight: 500,
-                              cursor: "pointer",
-                              color: "var(--color-text-primary)",
-                              whiteSpace: "nowrap",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                            }}
-                            onClick={() => setSelectedProject(project)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === " ") setSelectedProject(project);
-                            }}
-                          >
-                            {project.name}
-                          </span>
-                          <span style={{ fontSize: 11, color: "var(--color-text-secondary)", flexShrink: 0, marginLeft: "auto" }}>
-                            {getProgress(project).onAirCount}/{project.total_episodes}
-                          </span>
-                        </div>
+                            {showProjectCol ? (
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 8,
+                                  minWidth: 200,
+                                  minHeight: 40,
+                                  padding: "0 12px",
+                                  borderRight: "1px solid var(--color-border-tertiary)",
+                                  boxSizing: "border-box",
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    fontSize: 11,
+                                    padding: "1px 6px",
+                                    borderRadius: 3,
+                                    background: projectTypeBadgeBackground(project.project_type),
+                                    color: "#fff",
+                                    fontWeight: 500,
+                                    flexShrink: 0,
+                                  }}
+                                >
+                                  {project.project_type}
+                                </span>
+                                <span
+                                  role="button"
+                                  tabIndex={0}
+                                  style={{
+                                    fontSize: 13,
+                                    fontWeight: 500,
+                                    cursor: "pointer",
+                                    color: "var(--color-text-primary)",
+                                    whiteSpace: "nowrap",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                  }}
+                                  onClick={() => setSelectedProject(project)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") setSelectedProject(project);
+                                  }}
+                                >
+                                  {project.name}
+                                </span>
+                                <span
+                                  style={{
+                                    fontSize: 11,
+                                    color: "var(--color-text-secondary)",
+                                    flexShrink: 0,
+                                    marginLeft: "auto",
+                                  }}
+                                >
+                                  {getProgress(project).onAirCount}/{project.total_episodes}
+                                </span>
+                              </div>
+                            ) : (
+                              <div
+                                style={{
+                                  minWidth: 200,
+                                  height: 40,
+                                  borderRight: "1px solid var(--color-border-tertiary)",
+                                  boxSizing: "border-box",
+                                }}
+                              />
+                            )}
                         <div
                           style={{
                             minWidth: 110,
@@ -1044,8 +1116,12 @@ export default function VisionPage() {
                     const useDotBar = sameCalDay || widthPct < 1.2;
                     const centerPct = leftPct + widthPct / 2;
                     const showTextInside = !useDotBar && widthPct >= 7;
-                    const isCompleted = phase.status === "COMPLETED";
-                    const isInProgress = phase.status === "IN_PROGRESS";
+                    const phaseNorm = normalizePhaseStatus(phase.status);
+                    const isCompleted = phaseNorm === "COMPLETED";
+                    const isInProgress = phaseNorm === "IN_PROGRESS";
+
+                    const showProjectCol = phaseIdx === 0 && !renderedProjectIds.has(project.id);
+                    if (showProjectCol) renderedProjectIds.add(project.id);
 
                     return (
                       <div
@@ -1055,8 +1131,8 @@ export default function VisionPage() {
                           borderBottom: "0.5px solid var(--color-border-tertiary)",
                         }}
                       >
-                        {/* Colonna progetto — solo sulla prima fase */}
-                        {phaseIdx === 0 ? (
+                        {/* Colonna progetto — solo sulla prima riga utile del progetto */}
+                        {showProjectCol ? (
                           <div
                             style={{
                               display: "flex",
@@ -1074,7 +1150,7 @@ export default function VisionPage() {
                                 fontSize: 11,
                                 padding: "1px 6px",
                                 borderRadius: 3,
-                                background: PROJECT_TYPE_COLORS[project.project_type] ?? "#888",
+                                background: projectTypeBadgeBackground(project.project_type),
                                 color: "#fff",
                                 fontWeight: 500,
                                 flexShrink: 0,
@@ -1142,21 +1218,6 @@ export default function VisionPage() {
                             boxSizing: "border-box",
                           }}
                         >
-                          {/* Linea oggi */}
-                          {todayPct >= 0 && todayPct <= 100 && (
-                            <div
-                              style={{
-                                position: "absolute",
-                                left: `${todayPct}%`,
-                                top: 0,
-                                bottom: 0,
-                                width: 1,
-                                background: "#FFFA00",
-                                opacity: 0.6,
-                                zIndex: 2,
-                              }}
-                            />
-                          )}
                           {timelineDates.map((d, i) => {
                             if (d.getDate() !== 1) return null;
                             const pct = (i / totalDays) * 100;
@@ -1251,7 +1312,7 @@ export default function VisionPage() {
                               const sessionPct = dateToPct(session.session_date);
                               if (sessionPct < 0 || sessionPct > 100) return null;
                               const sColors = PHASE_COLORS[phase.phase_name as PhaseName];
-                              const isCompleted = session.status === "COMPLETED";
+                              const isCompleted = normalizeSessionStatus(session.status) === "COMPLETED";
                               return (
                                 <div
                                   key={session.id}
@@ -1288,8 +1349,10 @@ export default function VisionPage() {
                       </div>
                     );
                   });
-                })
+                });
+                  })()
               )}
+              </div>
 
               {/* Separatore tra progetti */}
             </div>
@@ -1459,7 +1522,7 @@ export default function VisionPage() {
                     fontSize: 11,
                     padding: "2px 8px",
                     borderRadius: 4,
-                    background: PROJECT_TYPE_COLORS[selectedProject.project_type] ?? "#888",
+                    background: projectTypeBadgeBackground(selectedProject.project_type),
                     color: "#fff",
                     fontWeight: 500,
                   }}
@@ -1519,6 +1582,7 @@ export default function VisionPage() {
               {ALL_PHASES.map((phaseName) => {
                 const phase = selectedProject.project_phases.find((p) => p.phase_name === phaseName);
                 const colors = PHASE_COLORS[phaseName];
+                const phaseStatusNorm = phase ? normalizePhaseStatus(phase.status) : "";
                 return (
                   <div
                     key={phaseName}
@@ -1553,24 +1617,30 @@ export default function VisionPage() {
                               padding: "1px 6px",
                               borderRadius: 3,
                               background:
-                                phase.status === "COMPLETED"
+                                phaseStatusNorm === "COMPLETED"
                                   ? "#1a2e1a"
-                                  : phase.status === "IN_PROGRESS"
+                                  : phaseStatusNorm === "IN_PROGRESS"
                                     ? "#1a1a2e"
-                                    : "#1e1e1e",
+                                    : phaseStatusNorm === "ON_HOLD"
+                                      ? "#2a2210"
+                                      : "#1e1e1e",
                               color:
-                                phase.status === "COMPLETED"
+                                phaseStatusNorm === "COMPLETED"
                                   ? "#4ade80"
-                                  : phase.status === "IN_PROGRESS"
+                                  : phaseStatusNorm === "IN_PROGRESS"
                                     ? "#60a5fa"
-                                    : "#888",
+                                    : phaseStatusNorm === "ON_HOLD"
+                                      ? "#fbbf24"
+                                      : "#888",
                             }}
                           >
-                            {phase.status === "COMPLETED"
+                            {phaseStatusNorm === "COMPLETED"
                               ? "✓ Completed"
-                              : phase.status === "IN_PROGRESS"
+                              : phaseStatusNorm === "IN_PROGRESS"
                                 ? "● In progress"
-                                : "○ Planned"}
+                                : phaseStatusNorm === "ON_HOLD"
+                                  ? "⊘ On hold"
+                                  : "○ Planned"}
                           </span>
                         </>
                       ) : (
@@ -1593,7 +1663,9 @@ export default function VisionPage() {
                         {phase.project_phase_sessions
                           .slice()
                           .sort((a, b) => a.session_date.localeCompare(b.session_date))
-                          .map((s) => (
+                          .map((s) => {
+                            const sn = normalizeSessionStatus(s.status);
+                            return (
                             <div key={s.id}>
                               {editingSession?.id === s.id ? (
                                 <div
@@ -1686,10 +1758,25 @@ export default function VisionPage() {
                                     fontSize: 10,
                                     padding: "1px 6px",
                                     borderRadius: 3,
-                                    background: s.status === "COMPLETED" ? "#1a2e1a" : "#1e1e1e",
-                                    color: s.status === "COMPLETED" ? "#4ade80" : "#888",
+                                    background:
+                                      sn === "COMPLETED"
+                                        ? "#1a2e1a"
+                                        : sn === "IN_PROGRESS"
+                                          ? "#1a1a2e"
+                                          : "#1e1e1e",
+                                    color:
+                                      sn === "COMPLETED"
+                                        ? "#4ade80"
+                                        : sn === "IN_PROGRESS"
+                                          ? "#60a5fa"
+                                          : "#888",
                                     border: "0.5px solid",
-                                    borderColor: s.status === "COMPLETED" ? "#4ade80" : "#333",
+                                    borderColor:
+                                      sn === "COMPLETED"
+                                        ? "#4ade80"
+                                        : sn === "IN_PROGRESS"
+                                          ? "#60a5fa"
+                                          : "#333",
                                     cursor: "pointer",
                                     userSelect: "none",
                                   }}
@@ -1699,7 +1786,8 @@ export default function VisionPage() {
                                 </span>
                               )}
                             </div>
-                          ))}
+                            );
+                          })}
                       </div>
                     ) : null}
                     {/* Work blocks */}
@@ -2567,62 +2655,65 @@ export default function VisionPage() {
         </div>
       )}
       {sessionTooltip && typeof document !== "undefined"
-        ? createPortal(
-            <div
-              role="tooltip"
-              onMouseEnter={cancelClearTooltip}
-              onMouseLeave={scheduleClearTooltip}
-              style={{
-                position: "fixed",
-                top: sessionTooltip.y - 8,
-                left: sessionTooltip.x,
-                transform: "translate(-50%, -100%)",
-                zIndex: 100,
-                background: "#1a1a1a",
-                border: "0.5px solid #333",
-                borderRadius: 8,
-                padding: "8px 12px",
-                minWidth: 160,
-                pointerEvents: "auto",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
-              }}
-            >
-              <div style={{ fontSize: 12, fontWeight: 500, color: "#fff", marginBottom: 4 }}>
-                {sessionTooltip.session.label ?? formatDisplayDate(sessionTooltip.session.session_date)}
-              </div>
-              <div style={{ fontSize: 11, color: "#888", marginBottom: 2 }}>
-                {PHASE_LABELS[sessionTooltip.phaseName]}
-              </div>
-              <div style={{ fontSize: 11, color: "#888", marginBottom: 2 }}>
-                {formatDisplayDate(sessionTooltip.session.session_date)}
-                {sessionTooltip.session.date_to
-                  ? ` → ${formatDisplayDate(sessionTooltip.session.date_to)}`
-                  : ""}
-              </div>
+        ? (() => {
+            const ttSn = normalizeSessionStatus(sessionTooltip.session.status);
+            return createPortal(
               <div
+                role="tooltip"
+                onMouseEnter={cancelClearTooltip}
+                onMouseLeave={scheduleClearTooltip}
                 style={{
-                  fontSize: 10,
-                  padding: "1px 6px",
-                  borderRadius: 3,
-                  marginTop: 4,
-                  display: "inline-block",
-                  background:
-                    sessionTooltip.session.status === "COMPLETED" ? "#1a2e1a" : "#1e1e1e",
-                  color: sessionTooltip.session.status === "COMPLETED" ? "#4ade80" : "#888",
-                  border: `0.5px solid ${
-                    sessionTooltip.session.status === "COMPLETED" ? "#4ade80" : "#333"
-                  }`,
+                  position: "fixed",
+                  top: sessionTooltip.y - 8,
+                  left: sessionTooltip.x,
+                  transform: "translate(-50%, -100%)",
+                  zIndex: 100,
+                  background: "#1a1a1a",
+                  border: "0.5px solid #333",
+                  borderRadius: 8,
+                  padding: "8px 12px",
+                  minWidth: 160,
+                  pointerEvents: "auto",
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
                 }}
               >
-                {sessionTooltip.session.status === "COMPLETED"
-                  ? "✓ Completed"
-                  : sessionTooltip.session.status === "IN_PROGRESS"
-                    ? "● In progress"
-                    : "○ Planned"}
-              </div>
-            </div>,
-            document.body
-          )
+                <div style={{ fontSize: 12, fontWeight: 500, color: "#fff", marginBottom: 4 }}>
+                  {sessionTooltip.session.label ?? formatDisplayDate(sessionTooltip.session.session_date)}
+                </div>
+                <div style={{ fontSize: 11, color: "#888", marginBottom: 2 }}>
+                  {PHASE_LABELS[sessionTooltip.phaseName]}
+                </div>
+                <div style={{ fontSize: 11, color: "#888", marginBottom: 2 }}>
+                  {formatDisplayDate(sessionTooltip.session.session_date)}
+                  {sessionTooltip.session.date_to
+                    ? ` → ${formatDisplayDate(sessionTooltip.session.date_to)}`
+                    : ""}
+                </div>
+                <div
+                  style={{
+                    fontSize: 10,
+                    padding: "1px 6px",
+                    borderRadius: 3,
+                    marginTop: 4,
+                    display: "inline-block",
+                    background:
+                      ttSn === "COMPLETED" ? "#1a2e1a" : ttSn === "IN_PROGRESS" ? "#1a1a2e" : "#1e1e1e",
+                    color: ttSn === "COMPLETED" ? "#4ade80" : ttSn === "IN_PROGRESS" ? "#60a5fa" : "#888",
+                    border: `0.5px solid ${
+                      ttSn === "COMPLETED" ? "#4ade80" : ttSn === "IN_PROGRESS" ? "#60a5fa" : "#333"
+                    }`,
+                  }}
+                >
+                  {ttSn === "COMPLETED"
+                    ? "✓ Completed"
+                    : ttSn === "IN_PROGRESS"
+                      ? "● In progress"
+                      : "○ Planned"}
+                </div>
+              </div>,
+              document.body
+            );
+          })()
         : null}
     </div>
   );

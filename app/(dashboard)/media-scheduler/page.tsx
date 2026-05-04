@@ -67,6 +67,13 @@ function formatWeekRangeLabel(startIso: string, endIso: string): string {
   return `${ds}/${ms} – ${de}/${me}/${ye}`;
 }
 
+/** DD/MM – DD/MM (sotto-header settimana) */
+function formatWeekSubheader(startIso: string, endIso: string): string {
+  const [, ms, ds] = startIso.split("-");
+  const [, me, de] = endIso.split("-");
+  return `${ds}/${ms} – ${de}/${me}`;
+}
+
 function formatDayTitle(iso: string): string {
   const d = new Date(`${iso}T12:00:00`);
   const weekday = d.toLocaleDateString("it-IT", { weekday: "short" });
@@ -96,23 +103,46 @@ function shiftStatusDotColor(status: string | null | undefined): string {
   return "#888888";
 }
 
-function pillBadgeStyle(taskType: string): CSSProperties {
-  if (taskType === "HL") return { background: "#FFFA00", color: "#000", border: "none" };
-  if (taskType === "GOL_COLLECTION")
-    return { background: "#1a3a1a", color: "#4ade80", border: "0.5px solid #4ade80" };
-  return { background: "#2a2a2a", color: "#888", border: "none" };
+/** Dot nella colonna giorno compressa (UNASSIGNED = #555) */
+function shiftBarDotColor(status: string | null | undefined): string {
+  const s = String(status ?? "UNASSIGNED").toUpperCase();
+  if (s === "ASSIGNED" || s === "CONFIRMED") return "#378ADD";
+  if (s === "DONE" || s === "COMPLETED") return "#4ade80";
+  return "#555";
 }
 
-function unassignedBadgeStyle(taskType: string): CSSProperties {
-  if (taskType === "HL") return { background: "#FFFA00", color: "#000" };
+/** Badge tipo: sempre stile outline, nessun pieno */
+function taskTypeBadgeOutline(taskType: string): CSSProperties {
+  if (taskType === "HL")
+    return { background: "#1a3a00", color: "#a3e635", border: "0.5px solid #a3e635" };
   if (taskType === "GOL_COLLECTION")
     return { background: "#1a3a1a", color: "#4ade80", border: "0.5px solid #4ade80" };
-  return { background: "#2a2a2a", color: "#888" };
+  if (taskType === "TAGLIO_INTERVISTE")
+    return { background: "#1a1a3a", color: "#818cf8", border: "0.5px solid #818cf8" };
+  return { background: "#2a2a2a", color: "#888", border: "0.5px solid #555" };
 }
 
-function displayTaskTypeShort(taskType: string): string {
-  if (taskType === "TAGLIO_INTERVISTE") return "INTERVISTE";
-  return taskType;
+function taskTypeBadgeLabel(taskType: string): string {
+  if (taskType === "HL") return "HL";
+  if (taskType === "GOL_COLLECTION") return "GOL_COL";
+  if (taskType === "TAGLIO_INTERVISTE") return "INTV";
+  return taskType.slice(0, 6).toUpperCase();
+}
+
+function collapsedDayText(iso: string): string {
+  const d = new Date(`${iso}T12:00:00`);
+  const wd = d.toLocaleDateString("it-IT", { weekday: "short" });
+  const letter = (wd.charAt(0) || "?").toUpperCase();
+  const dayNum = d.toLocaleDateString("it-IT", { day: "2-digit" });
+  return `${letter}\n${dayNum}`;
+}
+
+/** Filtro visivo settimana (placeholder fino a campo date sui task). */
+function unassignedRelevantForWeekView(task: EditingTask): boolean {
+  if (task.event_id) return true;
+  const lab = task.label ?? "";
+  if (/MD\s*\d+/i.test(lab) || /MD\d+/i.test(lab)) return true;
+  return true;
 }
 
 function mapUiTypeToApi(t: TaskModalUiType): TaskType {
@@ -139,7 +169,7 @@ function UnassignedTaskCard({ task }: { task: EditingTask }) {
     id: `unassigned-task-${task.id}`,
     data: { type: "unassigned-task", taskId: task.id, task },
   });
-  const badge = unassignedBadgeStyle(task.task_type);
+  const badge = taskTypeBadgeOutline(task.task_type);
   return (
     <div
       ref={setNodeRef}
@@ -174,7 +204,7 @@ function UnassignedTaskCard({ task }: { task: EditingTask }) {
                 ...badge,
               }}
             >
-              {displayTaskTypeShort(task.task_type)}
+              {taskTypeBadgeLabel(task.task_type)}
             </span>
           </div>
           {eventSubtitle(task) ? (
@@ -281,10 +311,10 @@ function ShiftCardInner({
                     borderRadius: 3,
                     flexShrink: 0,
                     fontSize: 8,
-                    ...pillBadgeStyle(task.task_type),
+                    ...taskTypeBadgeOutline(task.task_type),
                   }}
                 >
-                  {displayTaskTypeShort(task.task_type)}
+                  {taskTypeBadgeLabel(task.task_type)}
                 </span>
                 {canEdit ? (
                   <button
@@ -389,6 +419,7 @@ export default function MediaSchedulerPage() {
 
   const [shifts, setShifts] = useState<EditingShift[]>([]);
   const [unassignedTasks, setUnassignedTasks] = useState<EditingTask[]>([]);
+  const [expandedDay, setExpandedDay] = useState<string | null>(() => toIsoDate(new Date()));
   const [activeDragTask, setActiveDragTask] = useState<EditingTask | null>(null);
 
   const [shiftModalOpenForDate, setShiftModalOpenForDate] = useState<string | null>(null);
@@ -409,6 +440,17 @@ export default function MediaSchedulerPage() {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
   const days = useMemo(() => Array.from({ length: daysCount }, (_, i) => addDays(startDate, i)), [startDate, daysCount]);
+
+  const filteredUnassignedTasks = useMemo(
+    () => unassignedTasks.filter(unassignedRelevantForWeekView),
+    [unassignedTasks]
+  );
+
+  /** Oggi espanso se cade nella settimana; altrimenti tutte compresse. */
+  useEffect(() => {
+    const today = toIsoDate(new Date());
+    setExpandedDay(days.includes(today) ? today : null);
+  }, [days]);
 
   const showToast = useCallback((message: string) => {
     setToast(message);
@@ -688,7 +730,7 @@ export default function MediaSchedulerPage() {
     setActiveDragTask(null);
     if (!taskId || !shiftId) return;
 
-    const movedTask = unassignedTasks.find((t) => t.id === taskId);
+    const movedTask = filteredUnassignedTasks.find((t) => t.id === taskId);
     if (!movedTask) return;
 
     const prevU = [...unassignedTasks];
@@ -720,6 +762,8 @@ export default function MediaSchedulerPage() {
 
   const endIso = addDays(startDate, daysCount - 1);
   const rangeLabel = formatWeekRangeLabel(startDate, endIso);
+  const weekSubLabel = formatWeekSubheader(startDate, endIso);
+  const todayIso = toIsoDate(new Date());
 
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
@@ -810,11 +854,11 @@ export default function MediaSchedulerPage() {
           <div style={{ flexShrink: 0, fontSize: 12, color: "#f87171", marginBottom: 8 }}>{error}</div>
         ) : null}
 
-        <div style={{ flex: 1, minHeight: 0, overflowX: "auto", overflowY: "hidden" }}>
-          <div style={{ display: "flex", gap: 10, alignItems: "stretch", height: "100%", paddingBottom: 4 }}>
-            {/* UNASSIGNED */}
-            <div style={{ ...columnCard, flex: "0 0 220px", maxHeight: "100%" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+        <div style={{ flex: 1, minHeight: 0, overflowX: "hidden", overflowY: "hidden" }}>
+          <div style={{ display: "flex", gap: 6, alignItems: "stretch", height: "100%", paddingBottom: 4 }}>
+            {/* UNASSIGNED — larghezza fissa 180px */}
+            <div style={{ ...columnCard, flex: "0 0 180px", width: 180, maxHeight: "100%" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                 <span style={{ fontSize: 11, fontWeight: 700, color: "#888", letterSpacing: "0.06em" }}>
                   UNASSIGNED
                 </span>
@@ -841,22 +885,23 @@ export default function MediaSchedulerPage() {
                   </button>
                 ) : null}
               </div>
+              <div style={{ fontSize: 10, color: "#666", marginBottom: 8 }}>Settimana {weekSubLabel}</div>
               <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
-                {unassignedTasks.length === 0 ? (
+                {filteredUnassignedTasks.length === 0 ? (
                   <div style={{ fontSize: 12, color: "#555", fontStyle: "italic" }}>Nessun task</div>
                 ) : (
-                  unassignedTasks.map((task) => <UnassignedTaskCard key={task.id} task={task} />)
+                  filteredUnassignedTasks.map((task) => <UnassignedTaskCard key={task.id} task={task} />)
                 )}
               </div>
             </div>
 
-            {/* Colonne giorno: loading settimanale solo qui */}
+            {/* Colonne giorno: compressa 48px / espansa 200px */}
             <div
               style={{
                 display: "flex",
-                gap: 10,
-                flex: "1 1 auto",
-                minWidth: "max-content",
+                gap: 6,
+                flex: 1,
+                minWidth: 0,
                 position: "relative",
                 alignItems: "stretch",
               }}
@@ -880,10 +925,104 @@ export default function MediaSchedulerPage() {
               {days.map((day) => {
                 const dayShifts = shiftsByDay.get(day) ?? [];
                 const totalTasks = dayShifts.reduce((acc, s) => acc + (s.editing_tasks?.length ?? 0), 0);
+                const isExpanded = expandedDay === day;
+                const colW = isExpanded ? 200 : 48;
+                const isToday = day === todayIso;
+
+                if (!isExpanded) {
+                  return (
+                    <div
+                      key={day}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setExpandedDay(day)}
+                      onKeyDown={(ev) => {
+                        if (ev.key === "Enter" || ev.key === " ") {
+                          ev.preventDefault();
+                          setExpandedDay(day);
+                        }
+                      }}
+                      style={{
+                        ...columnCard,
+                        width: colW,
+                        flex: `0 0 ${colW}px`,
+                        maxHeight: "100%",
+                        transition: "width 250ms ease, background-color 0.15s ease",
+                        padding: "8px 4px",
+                        border: isToday ? "0.5px solid #FFFA00" : "0.5px solid #2a2a2a",
+                        overflow: "hidden",
+                        cursor: "pointer",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        background: "#111",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = "#1a1a1a";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "#111";
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 500,
+                          color: dayShifts.length === 0 ? "#444" : "#fff",
+                          textAlign: "center",
+                          whiteSpace: "pre-line",
+                          lineHeight: 1.25,
+                          marginBottom: 8,
+                        }}
+                      >
+                        {collapsedDayText(day)}
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, flex: 1 }}>
+                        {dayShifts.map((s) => (
+                          <span
+                            key={s.id}
+                            style={{
+                              width: 6,
+                              height: 6,
+                              borderRadius: 999,
+                              background: shiftBarDotColor(s.status),
+                              flexShrink: 0,
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                }
+
                 return (
-                  <div key={day} style={{ ...columnCard, flex: "0 0 200px", maxHeight: "100%" }}>
+                  <div
+                    key={day}
+                    style={{
+                      ...columnCard,
+                      width: colW,
+                      flex: `0 0 ${colW}px`,
+                      maxHeight: "100%",
+                      transition: "width 250ms ease",
+                      padding: 10,
+                      overflow: "hidden",
+                      display: "flex",
+                      flexDirection: "column",
+                    }}
+                  >
                     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
-                      <div style={{ minWidth: 0 }}>
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setExpandedDay(null)}
+                        onKeyDown={(ev) => {
+                          if (ev.key === "Enter" || ev.key === " ") {
+                            ev.preventDefault();
+                            setExpandedDay(null);
+                          }
+                        }}
+                        style={{ minWidth: 0, cursor: "pointer" }}
+                      >
                         <div style={{ fontSize: 13, color: "#fff", fontWeight: 500 }}>{formatDayTitle(day)}</div>
                         <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>
                           {dayShifts.length} shifts · {totalTasks} tasks
@@ -892,7 +1031,10 @@ export default function MediaSchedulerPage() {
                       {canEdit ? (
                         <button
                           type="button"
-                          onClick={() => openShiftModal(day)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openShiftModal(day);
+                          }}
                           style={{
                             fontSize: 11,
                             fontWeight: 600,
@@ -909,7 +1051,7 @@ export default function MediaSchedulerPage() {
                         </button>
                       ) : null}
                     </div>
-                    <div style={{ flex: 1, overflowY: "auto", minHeight: 0, marginBottom: 8 }}>
+                    <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
                       {dayShifts.map((shift) => (
                         <ShiftCardInner
                           key={shift.id}
@@ -930,25 +1072,6 @@ export default function MediaSchedulerPage() {
                         />
                       ))}
                     </div>
-                    {canEdit ? (
-                      <button
-                        type="button"
-                        onClick={() => openShiftModal(day)}
-                        style={{
-                          flexShrink: 0,
-                          width: "100%",
-                          padding: "8px",
-                          fontSize: 11,
-                          color: "#555",
-                          background: "transparent",
-                          border: "1px dashed #3F4547",
-                          borderRadius: 6,
-                          cursor: "pointer",
-                        }}
-                      >
-                        + Shift
-                      </button>
-                    ) : null}
                   </div>
                 );
               })}

@@ -429,15 +429,6 @@ export default function VisionPage() {
     return Math.max(0, Math.min(100, (pos / total) * 100));
   }
 
-  function phaseInRange(dateFrom: string | null, dateTo: string | null): boolean {
-    if (!dateFrom && !dateTo) return false;
-    const from = dateFrom ? new Date(dateFrom) : null;
-    const to = dateTo ? new Date(dateTo) : null;
-    if (from && from > timelineEnd) return false;
-    if (to && to < timelineStart) return false;
-    return true;
-  }
-
   // Filtri
   const filterOptions: FilterOption[] = [
     { key: "type", label: "Type", values: PROJECT_TYPES.map((t) => ({ value: t })) },
@@ -492,8 +483,16 @@ export default function VisionPage() {
     return visionCalendarSessionsByIso.get(selectedVisionCalendarDay) ?? [];
   }, [selectedVisionCalendarDay, visionCalendarSessionsByIso]);
 
+  function isOnAirPhaseName(name: string | null | undefined): boolean {
+    const n = String(name ?? "")
+      .trim()
+      .toLowerCase()
+      .replace(/_/g, " ");
+    return n.includes("on air");
+  }
+
   function getProgress(p: Project) {
-    const onAirPhase = p.project_phases.find((ph) => ph.phase_name === "ON_AIR");
+    const onAirPhase = p.project_phases.find((ph) => isOnAirPhaseName(String(ph.phase_name)));
     const sessions = onAirPhase?.project_phase_sessions ?? [];
     let onAirCount = sessions.filter((s) => normalizeSessionStatus(s.status) === "COMPLETED").length;
     const total = p.total_episodes;
@@ -1053,9 +1052,18 @@ export default function VisionPage() {
                   (() => {
                     const renderedProjectIds = new Set<number>();
                     return filteredProjects.flatMap((project) => {
-                      const visiblePhases = project.project_phases
-                        .filter((ph) => phaseInRange(ph.date_from, ph.date_to))
-                        .sort((a, b) => a.sort_order - b.sort_order);
+                      const visiblePhases = [...project.project_phases].sort((a, b) => {
+                        if (
+                          a.sort_order != null &&
+                          b.sort_order != null &&
+                          a.sort_order !== b.sort_order
+                        ) {
+                          return a.sort_order - b.sort_order;
+                        }
+                        if (a.sort_order != null && b.sort_order == null) return -1;
+                        if (a.sort_order == null && b.sort_order != null) return 1;
+                        return (a.date_from ?? "").localeCompare(b.date_from ?? "");
+                      });
 
                       if (visiblePhases.length === 0) {
                         const showProjectCol = !renderedProjectIds.has(project.id);

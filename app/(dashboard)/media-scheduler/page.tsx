@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   DndContext,
   DragEndEvent,
@@ -362,15 +362,30 @@ function ShiftCardInner({
   );
 }
 
+type FetchOk<T> = { ok: true; data: T };
+type FetchErr = { ok: false; message: string };
+
+function wrapFetch<T>(p: Promise<T>, label: string): Promise<FetchOk<T> | FetchErr> {
+  return p
+    .then((data): FetchOk<T> | FetchErr => ({ ok: true, data }))
+    .catch((e: unknown): FetchOk<T> | FetchErr => ({
+      ok: false,
+      message: e instanceof Error ? e.message : `${label}: errore`,
+    }));
+}
+
 export default function MediaSchedulerPage() {
   const [loading, setLoading] = useState(true);
+  const [shiftLoading, setShiftLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [shiftError, setShiftError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [canEdit, setCanEdit] = useState(false);
 
   const [startDate, setStartDate] = useState(() => toIsoDate(new Date()));
   const [daysCount] = useState(7);
+  const skipShiftWeekEffectOnce = useRef(true);
 
   const [shifts, setShifts] = useState<EditingShift[]>([]);
   const [unassignedTasks, setUnassignedTasks] = useState<EditingTask[]>([]);
@@ -405,29 +420,113 @@ export default function MediaSchedulerPage() {
     return () => clearTimeout(t);
   }, [toast]);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  const weekEnd = useMemo(() => addDays(startDate, daysCount - 1), [startDate, daysCount]);
+
+  /** Unassigned: solo dopo mutazioni (non al cambio settimana). */
+  const refreshUnassigned = useCallback(async () => {
     try {
-      const [me, shiftsData, unassigned] = await Promise.all([
-        fetchAuthMe(),
-        fetchShifts({ from: startDate, to: addDays(startDate, daysCount - 1) }),
-        fetchUnassigned(),
-      ]);
-      const level = (me.user_level ?? "").toUpperCase();
-      setCanEdit(level === "MASTER" || level === "MANAGER");
-      setShifts(shiftsData);
+      const unassigned = await fetchUnassigned();
       setUnassignedTasks((unassigned.tasks ?? []).filter((t) => t.shift_id == null));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Errore caricamento scheduler");
-    } finally {
-      setLoading(false);
+      const msg = e instanceof Error ? e.message : "Errore caricamento task non assegnati";
+      showToast(msg);
     }
-  }, [startDate, daysCount]);
+  }, [showToast]);
 
+  /** Shifts per la settimana corrente (range da stato). */
+  const refreshShifts = useCallback(async () => {
+    try {
+      const shiftsData = await fetchShifts({ from: startDate, to: weekEnd });
+      setShifts(shiftsData);
+      setShiftError(null);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Errore caricamento turni";
+      setShiftError(msg);
+      showToast(msg);
+    }
+  }, [startDate, weekEnd, showToast]);
+
+  /** Mount: auth + unassigned + shifts in parallelo; errori parziali non bloccano la pagina. */
   useEffect(() => {
-    void load();
-  }, [load]);
+    let cancelled = false;
+    const from = startDate;
+    const to = addDays(startDate, daysCount - 1);
+
+    (async () => {
+      setLoading(true);
+      setError(null);
+      setShiftError(null);
+
+      const [authR, unR, shR] = await Promise.all([
+        wrapFetch(fetchAuthMe(), "auth"),
+        wrapFetch(fetchUnassigned(), "unassigned"),
+        wrapFetch(fetchShifts({ from, to }), "shifts"),
+      ]);
+
+      if (cancelled) return;
+
+      if (authR.ok) {
+        const level = (authR.data.user_level ?? "").toUpperCase();
+        setCanEdit(level === "MASTER" || level === "MANAGER");
+      } else {
+        showToast(`Accesso: ${authR.message}`);
+      }
+
+      if (unR.ok) {
+        setUnassignedTasks((unR.data.tasks ?? []).filter((t) => t.shift_id == null));
+      } else {
+        showToast(`Unassigned: ${unR.message}`);
+      }
+
+      if (shR.ok) {
+        setShifts(shR.data);
+      } else {
+        setShifts([]);
+        setShiftError(shR.message);
+        showToast(`Turni: ${shR.message}`);
+      }
+
+      if (!authR.ok && !unR.ok && !shR.ok) {
+        setError("Impossibile caricare i dati dello scheduler.");
+      }
+
+      setLoading(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // Solo mount: usa week iniziale dalla prima render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /** Cambio settimana: solo shifts, in parallelo non serve (una sola richiesta). */
+  useEffect(() => {
+    if (skipShiftWeekEffectOnce.current) {
+      skipShiftWeekEffectOnce.current = false;
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setShiftLoading(true);
+      setShiftError(null);
+      try {
+        const shiftsData = await fetchShifts({ from: startDate, to: weekEnd });
+        if (!cancelled) setShifts(shiftsData);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Errore caricamento turni";
+        if (!cancelled) {
+          setShiftError(msg);
+          showToast(msg);
+        }
+      } finally {
+        if (!cancelled) setShiftLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [startDate, weekEnd, showToast]);
 
   useEffect(() => {
     if (!assignShiftModal) return;
@@ -481,7 +580,7 @@ export default function MediaSchedulerPage() {
         notes: shiftForm.notes.trim() || null,
       });
       setShiftModalOpenForDate(null);
-      await load();
+      await refreshShifts();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Errore creazione turno";
       setError(msg);
@@ -505,7 +604,8 @@ export default function MediaSchedulerPage() {
       setTaskModalOpen(false);
       setTaskModalShiftId(null);
       setTaskForm({ task_type: "HL", label: "", event_id: "" });
-      await load();
+      await refreshShifts();
+      await refreshUnassigned();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Errore creazione task";
       setError(msg);
@@ -520,7 +620,7 @@ export default function MediaSchedulerPage() {
     setSaving(true);
     try {
       await deleteShift(shiftId);
-      await load();
+      await refreshShifts();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Errore eliminazione turno";
       setError(msg);
@@ -546,7 +646,8 @@ export default function MediaSchedulerPage() {
     setUnassignedTasks((prev) => [...prev, moved]);
     try {
       await updateTask(task.id, { shift_id: null });
-      await load();
+      await refreshUnassigned();
+      await refreshShifts();
     } catch (e) {
       setUnassignedTasks(prevU);
       setShifts(prevS);
@@ -566,7 +667,7 @@ export default function MediaSchedulerPage() {
       setAssignShiftModal(null);
       setStaffQuery("");
       setStaffResults([]);
-      await load();
+      await refreshShifts();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Errore assegnazione staff";
       setError(msg);
@@ -749,82 +850,130 @@ export default function MediaSchedulerPage() {
               </div>
             </div>
 
-            {/* Days */}
-            {days.map((day) => {
-              const dayShifts = shiftsByDay.get(day) ?? [];
-              const totalTasks = dayShifts.reduce((acc, s) => acc + (s.editing_tasks?.length ?? 0), 0);
-              return (
-                <div key={day} style={{ ...columnCard, flex: "0 0 200px", maxHeight: "100%" }}>
-                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 13, color: "#fff", fontWeight: 500 }}>{formatDayTitle(day)}</div>
-                      <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>
-                        {dayShifts.length} shifts · {totalTasks} tasks
+            {/* Colonne giorno: loading settimanale solo qui */}
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                flex: "1 1 auto",
+                minWidth: "max-content",
+                position: "relative",
+                alignItems: "stretch",
+              }}
+            >
+              {shiftError && !shiftLoading ? (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    zIndex: 3,
+                    fontSize: 11,
+                    color: "#f87171",
+                    padding: "4px 0",
+                  }}
+                >
+                  {shiftError}
+                </div>
+              ) : null}
+              {days.map((day) => {
+                const dayShifts = shiftsByDay.get(day) ?? [];
+                const totalTasks = dayShifts.reduce((acc, s) => acc + (s.editing_tasks?.length ?? 0), 0);
+                return (
+                  <div key={day} style={{ ...columnCard, flex: "0 0 200px", maxHeight: "100%" }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 13, color: "#fff", fontWeight: 500 }}>{formatDayTitle(day)}</div>
+                        <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>
+                          {dayShifts.length} shifts · {totalTasks} tasks
+                        </div>
                       </div>
+                      {canEdit ? (
+                        <button
+                          type="button"
+                          onClick={() => openShiftModal(day)}
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 600,
+                            color: "#FFFA00",
+                            background: "none",
+                            border: "0.5px solid #FFFA00",
+                            borderRadius: 4,
+                            padding: "4px 8px",
+                            cursor: "pointer",
+                            flexShrink: 0,
+                          }}
+                        >
+                          + Shift
+                        </button>
+                      ) : null}
+                    </div>
+                    <div style={{ flex: 1, overflowY: "auto", minHeight: 0, marginBottom: 8 }}>
+                      {dayShifts.map((shift) => (
+                        <ShiftCardInner
+                          key={shift.id}
+                          shift={shift}
+                          canEdit={canEdit}
+                          onAssign={(s) => {
+                            setAssignShiftModal(s);
+                            setStaffQuery("");
+                            setStaffResults([]);
+                          }}
+                          onDeleteShift={(id) => void handleDeleteShift(id)}
+                          onOpenTaskModal={(shiftId) => {
+                            setTaskModalShiftId(shiftId);
+                            setTaskModalOpen(true);
+                            setTaskForm({ task_type: "HL", label: "", event_id: "" });
+                          }}
+                          onUnassignTask={(t) => void handleUnassignTask(t)}
+                        />
+                      ))}
                     </div>
                     {canEdit ? (
                       <button
                         type="button"
                         onClick={() => openShiftModal(day)}
                         style={{
-                          fontSize: 11,
-                          fontWeight: 600,
-                          color: "#FFFA00",
-                          background: "none",
-                          border: "0.5px solid #FFFA00",
-                          borderRadius: 4,
-                          padding: "4px 8px",
-                          cursor: "pointer",
                           flexShrink: 0,
+                          width: "100%",
+                          padding: "8px",
+                          fontSize: 11,
+                          color: "#555",
+                          background: "transparent",
+                          border: "1px dashed #3F4547",
+                          borderRadius: 6,
+                          cursor: "pointer",
                         }}
                       >
                         + Shift
                       </button>
                     ) : null}
                   </div>
-                  <div style={{ flex: 1, overflowY: "auto", minHeight: 0, marginBottom: 8 }}>
-                    {dayShifts.map((shift) => (
-                      <ShiftCardInner
-                        key={shift.id}
-                        shift={shift}
-                        canEdit={canEdit}
-                        onAssign={(s) => {
-                          setAssignShiftModal(s);
-                          setStaffQuery("");
-                          setStaffResults([]);
-                        }}
-                        onDeleteShift={(id) => void handleDeleteShift(id)}
-                        onOpenTaskModal={(shiftId) => {
-                          setTaskModalShiftId(shiftId);
-                          setTaskModalOpen(true);
-                          setTaskForm({ task_type: "HL", label: "", event_id: "" });
-                        }}
-                        onUnassignTask={(t) => void handleUnassignTask(t)}
-                      />
-                    ))}
-                  </div>
-                  {canEdit ? (
-                    <button
-                      type="button"
-                      onClick={() => openShiftModal(day)}
-                      style={{
-                        flexShrink: 0,
-                        width: "100%",
-                        padding: "8px",
-                        fontSize: 11,
-                        color: "#555",
-                        background: "transparent",
-                        border: "1px dashed #3F4547",
-                        borderRadius: 6,
-                        cursor: "pointer",
-                      }}
-                    >
-                      + Shift
-                    </button>
-                  ) : null}
+                );
+              })}
+              {shiftLoading ? (
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    zIndex: 2,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 10,
+                    background: "rgba(0,0,0,0.45)",
+                    borderRadius: 8,
+                  }}
+                  aria-busy="true"
+                  aria-label="Caricamento turni"
+                >
+                  <div className="h-9 w-9 animate-spin rounded-full border-2 border-[#3F4547] border-t-[#FFFA00]" />
+                  <span style={{ fontSize: 12, color: "#aaa" }}>Caricamento turni…</span>
                 </div>
-              );
-            })}
+              ) : null}
+            </div>
           </div>
         </div>
       </div>
